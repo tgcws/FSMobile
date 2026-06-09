@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="application-name" content="FSMobile" />
+  <meta name="apple-mobile-web-app-title" content="FSMobile" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>FSMobile</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="icon-button" id="backButton" type="button" aria-label="Zurück zum Menü" title="Zurück" hidden>←</button>
+      <div class="brand">
+        <div>
+          <h1>FSMobile</h1>
+          <p id="viewSubtitle">Menüauswahl</p>
+        </div>
+      </div>
+    </header>
+
+    <main id="menuView" class="menu-view">
+      <div id="moduleGrid"></div>
+      <footer class="menu-footer" aria-label="Herstellerhinweis">Made with ❤️ by T.G</footer>
+    </main>
+
+    <section id="moduleView" class="module-view" hidden>
+      <iframe id="moduleFrame" title="FSMobile Modul" src="about:blank"></iframe>
+    </section>
+
+    <section class="auth-overlay" id="authOverlay" aria-labelledby="authTitle">
+      <form class="auth-card" id="authForm" autocomplete="off">
+        <p class="auth-kicker" id="authMode">FSMOBILE</p>
+        <h2 id="authTitle">Zugriff geschützt</h2>
+        <p id="authHint">Bitte Passwort eingeben, um die App-Funktionen freizuschalten.</p>
+        <label class="auth-label" for="authCode">Passwort</label>
+        <input id="authCode" type="password" minlength="8" autocomplete="current-password" required />
+        <button class="open-module" type="submit" id="authSubmit">Entsperren</button>
+        <p class="auth-error" id="authError" role="alert"></p>
+      </form>
+    </section>
+  </div>
+
+  <script src="modules.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
