@@ -310,10 +310,10 @@
     function ensureJsPdf(){if(window.jspdf&&typeof window.jspdf.jsPDF==="function")return window.jspdf.jsPDF;if(typeof window.jsPDF==="function")return window.jsPDF;return null} async function loadJsPdfIfNeeded(){const existing=ensureJsPdf();if(existing)return existing;return new Promise(resolve=>{const script=document.createElement("script");script.src="vendor/jspdf.umd.min.js";script.onload=()=>resolve(ensureJsPdf());script.onerror=()=>resolve(null);document.head.appendChild(script)})}
     function savePdfDocument(doc,fileName){try{doc["save"](fileName)}catch{try{const blob=doc["output"]("blob");const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=fileName;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}catch{alert("PDF konnte nicht gespeichert werden. Bitte im Browser erneut öffnen und noch einmal versuchen.")}}}
     async function exportPdf(){const JsPdf=await loadJsPdfIfNeeded();if(!JsPdf){alert("PDF-Bibliothek konnte nicht geladen werden.");return}const pdfButton=document.getElementById("pdfButton");const oldText=pdfButton.textContent;pdfButton.disabled=true;pdfButton.textContent="PDF wird erstellt...";try{const pdf=new JsPdf({orientation:"portrait",unit:"mm",format:"a4",compress:true});const margin=12;const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const bottom=pageHeight-margin;let y=14;function clean(value){return String(value||"-").trim()||"-"}function ensure(space){if(y+space<=bottom)return;pdf.addPage();y=14;header(true)}function header(continued){pdf.setFont("helvetica","bold");pdf.setFontSize(15);pdf.text(continued?"Prüfbericht Nass/Trocken-Station (Fortsetzung)":"Prüfbericht Nass/Trocken-Station",pageWidth/2,y,{align:"center"});y+=9}function section(title){ensure(10);pdf.setFillColor("#d6001c");pdf.rect(margin,y,pageWidth-margin*2,7,"F");pdf.setTextColor("#fff");pdf.setFont("helvetica","bold");pdf.setFontSize(8.5);pdf.text(title,margin+2,y+4.8);pdf.setTextColor("#1c1c1e");y+=8}function kv(title,rows,columns){section(title);const colWidth=(pageWidth-margin*2)/columns;rows.forEach((row,index)=>{const col=index%columns;if(col===0)ensure(13);const x=margin+col*colWidth;pdf.setFillColor("#f5f5f5");pdf.rect(x,y,colWidth,13,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(6.5);pdf.setTextColor("#6b7280");pdf.text(pdf.splitTextToSize(clean(row[0]),colWidth-4),x+2,y+3.8);pdf.setFont("helvetica","normal");pdf.setFontSize(8.2);pdf.setTextColor("#1c1c1e");pdf.text(pdf.splitTextToSize(clean(row[1]),colWidth-4),x+2,y+8.5);if(col===columns-1||index===rows.length-1)y+=13});y+=4}header(false);kv("Zuordnung",[["Anlagen Nr.",textValue("anlageInput")],["Objekt",textValue("objectInput")],["Anlagenstandort",textValue("anlagenstandortInput")],["Datum",formatDateForFile(textValue("dateInput"))]],4);kv("Anlagentyp",[["Anlagentyp",textValue("anlagentypSelect")]],1);kv("Prüfung",CHECK_FIELDS.map(item=>[item[1],document.querySelector("[data-field='"+item[0]+"']").value]),3);kv("Messwerte",[["Einschaltdruck",withUnit(textValue("einschaltdruckInput"),"bar")],["Ausschaltdruck",withUnit(textValue("ausschaltdruckInput"),"bar")],["Vordruck",withUnit(textValue("vordruckInput"),"bar")],["Vorspannung Ausdehnungsgefäß",withUnit(textValue("vorspannungInput"),"bar")]],2);kv("Anlagendaten",[["Hersteller",textValue("herstellerInput")],["Steuerungstyp",textValue("steuerungstypInput")],["Pumpentyp",textValue("pumpentypInput")],["Baujahr",textValue("baujahrInput")],["Leistung",withUnit(textValue("leistungKwInput"),"KW")],["Leistung",withUnit(textValue("leistungHInput"),"H")]],2);kv("Wasseranschluss",[["Anschluss",textValue("anschlussSelect")]],1);kv("Prüfergebnis",[["Prüfergebnis",textValue("pruefergebnisSelect")],["Bemerkung",textValue("bemerkungInput")]],1);ensure(32);section("Unterschrift");pdf.setFillColor("#f5f5f5");pdf.rect(margin,y,pageWidth-margin*2,24,"F");const signature=getStorageSignature();if(signature){try{pdf.addImage(signature,"PNG",margin+2,y+2,68,20,undefined,"FAST")}catch{pdf.text("Unterschrift konnte nicht eingebettet werden.",margin+2,y+8)}}pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.",margin,pageHeight-9);savePdfDocument(pdf,getPdfFileName())}catch(error){console.error("PDF Export fehlgeschlagen",error);alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.")}finally{pdfButton.disabled=false;pdfButton.textContent=oldText||"PDF"}}
-    function getStorageSignature(){const canvas=document.getElementById("signaturePad");if(!canvas)return"";try{const context=canvas.getContext("2d");const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;for(let index=3;index<pixels.length;index+=4)if(pixels[index]!==0)return canvas.toDataURL("image/png")}catch{}return""}
-    function restoreSignatureFromStorage(dataUrl){if(!dataUrl)return;const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d");const rect=canvas.getBoundingClientRect();const img=new Image();img.onload=()=>context.drawImage(img,0,0,rect.width,rect.height);img.src=dataUrl}
-    function setupSignaturePad(){const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d");signaturePadState.canvas=canvas;signaturePadState.ctx=context;function resize(keep){const dataUrl=keep?getStorageSignature():"";const rect=canvas.getBoundingClientRect();const ratio=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(rect.width*ratio));canvas.height=Math.max(1,Math.round(rect.height*ratio));context.setTransform(ratio,0,0,ratio,0,0);context.lineWidth=2.4;context.lineCap="round";context.lineJoin="round";context.strokeStyle="#1c1c1e";restoreSignatureFromStorage(dataUrl)}function point(event){const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top}}function start(event){event.preventDefault();signaturePadState.isDrawing=true;signaturePadState.lastPoint=point(event)}function move(event){if(!signaturePadState.isDrawing)return;event.preventDefault();const current=point(event);context.beginPath();context.moveTo(signaturePadState.lastPoint.x,signaturePadState.lastPoint.y);context.lineTo(current.x,current.y);context.stroke();signaturePadState.lastPoint=current}function end(){if(!signaturePadState.isDrawing)return;signaturePadState.isDrawing=false;signaturePadState.lastPoint=null;scheduleStorageSave()}canvas.addEventListener("pointerdown",start);canvas.addEventListener("pointermove",move);canvas.addEventListener("pointerup",end);canvas.addEventListener("pointercancel",end);canvas.addEventListener("pointerleave",end);window.addEventListener("resize",()=>resize(true));resize(false)}
-    function clearSignature(skipSave=false){const canvas=document.getElementById("signaturePad");const context=canvas&&canvas.getContext("2d");if(canvas&&context)context.clearRect(0,0,canvas.width,canvas.height);if(!skipSave)scheduleStorageSave()}
+    function getStorageSignature(){const canvas=document.getElementById("signaturePad");if(!canvas)return"";try{const context=canvas.getContext("2d", { willReadFrequently: true });const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;for(let index=3;index<pixels.length;index+=4)if(pixels[index]!==0)return canvas.toDataURL("image/png")}catch{}return""}
+    function restoreSignatureFromStorage(dataUrl){if(!dataUrl)return;const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });const rect=canvas.getBoundingClientRect();const img=new Image();img.onload=()=>context.drawImage(img,0,0,rect.width,rect.height);img.src=dataUrl}
+    function setupSignaturePad(){const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });signaturePadState.canvas=canvas;signaturePadState.ctx=context;function resize(keep){const dataUrl=keep?getStorageSignature():"";const rect=canvas.getBoundingClientRect();const ratio=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(rect.width*ratio));canvas.height=Math.max(1,Math.round(rect.height*ratio));context.setTransform(ratio,0,0,ratio,0,0);context.lineWidth=2.4;context.lineCap="round";context.lineJoin="round";context.strokeStyle="#1c1c1e";restoreSignatureFromStorage(dataUrl)}function point(event){const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top}}function start(event){event.preventDefault();signaturePadState.isDrawing=true;signaturePadState.lastPoint=point(event)}function move(event){if(!signaturePadState.isDrawing)return;event.preventDefault();const current=point(event);context.beginPath();context.moveTo(signaturePadState.lastPoint.x,signaturePadState.lastPoint.y);context.lineTo(current.x,current.y);context.stroke();signaturePadState.lastPoint=current}function end(){if(!signaturePadState.isDrawing)return;signaturePadState.isDrawing=false;signaturePadState.lastPoint=null;scheduleStorageSave()}canvas.addEventListener("pointerdown",start);canvas.addEventListener("pointermove",move);canvas.addEventListener("pointerup",end);canvas.addEventListener("pointercancel",end);canvas.addEventListener("pointerleave",end);window.addEventListener("resize",()=>resize(true));resize(false)}
+    function clearSignature(skipSave=false){const canvas=document.getElementById("signaturePad");const context=canvas&&canvas.getContext("2d", { willReadFrequently: true });if(canvas&&context)context.clearRect(0,0,canvas.width,canvas.height);if(!skipSave)scheduleStorageSave()}
     renderChecks();setupSignaturePad();restoreFromStorage();setTodayIfEmpty();document.addEventListener("input",scheduleStorageSave);document.addEventListener("change",scheduleStorageSave);document.getElementById("archiveOverlay").addEventListener("click",event=>{if(event.target.id==="archiveOverlay")closeArchive()});document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!document.getElementById("archiveOverlay").hidden)closeArchive()});
   </script>
 </body>
@@ -1304,7 +1304,7 @@
       const canvas = document.getElementById("signaturePad");
       if (!canvas) return "";
       try {
-        const context = canvas.getContext("2d");
+        const context = canvas.getContext("2d", { willReadFrequently: true });
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
         for (let index = 3; index < pixels.length; index += 4) if (pixels[index] !== 0) return canvas.toDataURL("image/png");
       } catch {}
@@ -1314,7 +1314,7 @@
     function restoreSignatureFromStorage(dataUrl) {
       if (!dataUrl) return;
       const canvas = document.getElementById("signaturePad");
-      const context = canvas.getContext("2d");
+      const context = canvas.getContext("2d", { willReadFrequently: true });
       const rect = canvas.getBoundingClientRect();
       const img = new Image();
       img.onload = () => context.drawImage(img, 0, 0, rect.width, rect.height);
@@ -1323,7 +1323,7 @@
 
     function setupSignaturePad() {
       const canvas = document.getElementById("signaturePad");
-      const context = canvas.getContext("2d");
+      const context = canvas.getContext("2d", { willReadFrequently: true });
       signaturePadState.canvas = canvas;
       signaturePadState.ctx = context;
       function resize(keep) {
@@ -1375,7 +1375,7 @@
 
     function clearSignature(skipSave = false) {
       const canvas = document.getElementById("signaturePad");
-      const context = canvas && canvas.getContext("2d");
+      const context = canvas && canvas.getContext("2d", { willReadFrequently: true });
       if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
       if (!skipSave) scheduleStorageSave();
     }
@@ -2468,7 +2468,7 @@
       const canvas = document.getElementById("signaturePad");
       if (!canvas) return;
       const oldData = signaturePadState.canvas && !isCanvasBlank(signaturePadState.canvas) ? signaturePadState.canvas.toDataURL("image/png") : null;
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       canvas.width = Math.max(1, Math.round(rect.width * dpr));
@@ -2514,7 +2514,7 @@
     }
 
     function isCanvasBlank(canvas) {
-      const context = canvas.getContext("2d");
+      const context = canvas.getContext("2d", { willReadFrequently: true });
       const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
       for (let index = 3; index < pixels.length; index += 4) {
         if (pixels[index] !== 0) return false;
@@ -2798,27 +2798,53 @@
     return status ? (status.textContent || "").replace(/\s+/g, " ").trim() : "";
   }
 
-  function updateModuleActionStatus(message) {
-    const status = document.getElementById("moduleActionStatus");
-    if (!status) return;
-    status.textContent = message || "";
-    status.hidden = !message;
-  }
+	  function updateModuleActionStatus(message) {
+	    const status = document.getElementById("moduleActionStatus");
+	    if (!status) return;
+	    status.textContent = message || "";
+	    status.hidden = !message;
+	  }
+
+	  window.addEventListener("message", event => {
+	    const data = event.data || {};
+	    if (!data || data.type !== "fsmobile-action-status") return;
+	    if (data.moduleId && data.moduleId !== activeModuleId) return;
+	    updateModuleActionStatus(String(data.message || ""));
+	  });
 
   function syncModuleActionStatus() {
     const doc = frameDocument();
     updateModuleActionStatus(readFrameArchiveStatus(doc));
   }
 
-  function activateFrameAction(key) {
-    const doc = frameDocument();
-    if (!doc) return;
-    const action = collectFrameActionButtons(doc).find(item => item.key === key);
-    if (!action) return;
-    action.source.click();
-    if (key === "save" || key === "archive" || key === "clear") {
-      [80, 240, 700].forEach(delay => window.setTimeout(syncModuleActionStatus, delay));
-    }
+	  function activateFrameAction(key) {
+	    const doc = frameDocument();
+	    if (!doc) return;
+	    const action = collectFrameActionButtons(doc).find(item => item.key === key);
+	    if (!action) return;
+	    if (key === "pdf" && /^pb-/.test(activeModuleId || "")) {
+	      try {
+	        const win = doc.defaultView;
+	        if (win && typeof win.FSMOBILE_CREATE_REPORT_EXPORT_ZIP === "function") {
+	          win.FSMOBILE_COMBINED_PDF_EXPORT = { startedAt: Date.now() };
+	          win.setTimeout(() => {
+	            if (win.FSMOBILE_COMBINED_PDF_EXPORT && Date.now() - win.FSMOBILE_COMBINED_PDF_EXPORT.startedAt > 30000) {
+	              win.FSMOBILE_COMBINED_PDF_EXPORT = null;
+	            }
+	          }, 31000);
+	        }
+	      } catch (error) {}
+	    }
+	    if (key === "pdf" && /^pb-/.test(activeModuleId || "")) {
+	      updateModuleActionStatus("PDF Export wird erstellt...");
+	    }
+	    action.source.click();
+	    if (key === "archive" && /^pb-/.test(activeModuleId || "")) {
+	      updateModuleActionStatus("Archiv wurde geöffnet.");
+	    }
+	    if (key === "save" || key === "clear") {
+	      [80, 240, 700].forEach(delay => window.setTimeout(syncModuleActionStatus, delay));
+	    }
     window.setTimeout(syncModuleActionBar, 120);
   }
 
@@ -3045,7 +3071,237 @@
             return "";
           }
 
-          function fsmobilePdfFileName(originalName) {
+	          var FSMOBILE_SIGNATURE_LABEL = "Unterschrift Techniker";
+	          var FSMOBILE_TECHNICIAN_LABEL = "Techniker";
+	          window.FSMOBILE_SIGNATURE_LABEL = FSMOBILE_SIGNATURE_LABEL;
+	          window.FSMOBILE_TECHNICIAN_LABEL = FSMOBILE_TECHNICIAN_LABEL;
+
+	          function normalizeTechnicianText(value) {
+	            var text = String(value || "").replace(/\\s+/g, " ").trim();
+	            if (!text) return "";
+	            return text
+	              .replace(/^Prüfer(?=\\s+und\\s+)/i, FSMOBILE_TECHNICIAN_LABEL)
+	              .replace(/^(Name|Prüfer)$/i, FSMOBILE_TECHNICIAN_LABEL);
+	          }
+
+	          function normalizeSignatureText(value) {
+	            var text = normalizeTechnicianText(value);
+	            if (!text) return "";
+	            if (/^techniker und digitale unterschrift$/i.test(text) || /^techniker und unterschrift$/i.test(text) || /^techniker und signatur$/i.test(text) || /^techniker und unterschrift techniker$/i.test(text)) {
+	              return FSMOBILE_TECHNICIAN_LABEL + " und Unterschrift";
+	            }
+	            if (/^(digitale unterschrift|unterschrift|signatur)$/i.test(text)) return FSMOBILE_SIGNATURE_LABEL;
+	            return text;
+	          }
+
+	          function normalizeTechnicianPdfText(value) {
+	            if (typeof value !== "string") return value;
+	            return value
+	              .replace(/^Prüfer(?=\\s+und\\s+)/i, FSMOBILE_TECHNICIAN_LABEL)
+	              .replace(/^(Name|Prüfer)(\\s*(?::|\\(|$))/i, FSMOBILE_TECHNICIAN_LABEL + "$2");
+	          }
+	          window.FSMOBILE_NORMALIZE_TECHNICIAN_PDF_TEXT = normalizeTechnicianPdfText;
+
+	          function normalizeSignaturePdfText(value) {
+	            if (typeof value !== "string") return value;
+	            return normalizeTechnicianPdfText(value)
+	              .replace(/^Techniker und Digitale Unterschrift$/i, FSMOBILE_TECHNICIAN_LABEL + " und Unterschrift")
+	              .replace(/^Techniker und Unterschrift Techniker$/i, FSMOBILE_TECHNICIAN_LABEL + " und Unterschrift")
+	              .replace(/^Techniker und Unterschrift$/i, FSMOBILE_TECHNICIAN_LABEL + " und Unterschrift")
+	              .replace(/^Techniker und Signatur$/i, FSMOBILE_TECHNICIAN_LABEL + " und Unterschrift")
+	              .replace(/^(Digitale Unterschrift|Unterschrift|Signatur)(\\s*(?::|\\(|$))/i, FSMOBILE_SIGNATURE_LABEL + "$2");
+	          }
+          window.FSMOBILE_NORMALIZE_SIGNATURE_PDF_TEXT = normalizeSignaturePdfText;
+
+          function normalizeSignaturePdfArgument(value) {
+            if (Array.isArray(value)) return value.map(normalizeSignaturePdfArgument);
+            return normalizeSignaturePdfText(value);
+          }
+
+          function canvasLooksLikeSignature(canvas) {
+            if (!canvas) return false;
+            var haystack = normalizeFsmobileKey([
+              canvas.id || "",
+              canvas.className || "",
+              canvas.getAttribute("aria-label") || "",
+              canvas.closest(".signature-block, .signature, .signatur") ? "signature" : ""
+            ].join(" "));
+            return haystack.indexOf("signature") >= 0 || haystack.indexOf("signatur") >= 0 || haystack.indexOf("unterschrift") >= 0;
+          }
+
+	          function looksLikeSignatureNode(node) {
+	            var text = normalizeFsmobileKey(node.textContent || "");
+	            if (text === "digitaleunterschrift" || text === "unterschrift" || text === "signatur") return true;
+	            if (text === "prueferundunterschrift" || text === "prueferunddigitaleunterschrift" || text === "prueferundsignatur") return true;
+	            if (text === "technikerundunterschrift" || text === "technikerunddigitaleunterschrift" || text === "technikerundsignatur") return true;
+	            if (text === "technikerundunterschrifttechniker") return true;
+	            return false;
+	          }
+
+	          function normalizeSignatureLabels() {
+	            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
+	            document.querySelectorAll("h2, h3, h4, legend, label, th, .section-title").forEach(function(node) {
+	              var normalized = looksLikeSignatureNode(node) ? normalizeSignatureText(node.textContent) : normalizeTechnicianText(node.textContent);
+	              if (normalized && node.textContent !== normalized) node.textContent = normalized;
+	            });
+            document.querySelectorAll("canvas").forEach(function(canvas) {
+              if (!canvasLooksLikeSignature(canvas)) return;
+              canvas.setAttribute("aria-label", FSMOBILE_SIGNATURE_LABEL);
+              var block = canvas.closest(".signature-block, .signature, .signatur, .field, section, article, div");
+              if (!block) return;
+              var title = block.querySelector("h2, h3, h4, legend, label, .section-title");
+              if (title && looksLikeSignatureNode(title)) title.textContent = normalizeSignatureText(title.textContent);
+            });
+          }
+
+          function canvasIsBlank(canvas) {
+            if (!canvas) return true;
+            try {
+              var data = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height).data;
+              for (var index = 3; index < data.length; index += 4) {
+                if (data[index] !== 0) return false;
+              }
+            } catch (error) {}
+            return true;
+          }
+
+          function generatedSignatureStorageKey() {
+            return "fsmobile-generated-techniker-signature:" + (window.FSMOBILE_MODULE_ID || "module");
+          }
+
+          function generatedSignatureDataUrl() {
+            var canvas = document.getElementById("fsmobileTechnikerSignaturePad");
+            if (!canvas || canvasIsBlank(canvas)) return "";
+            try { return canvas.toDataURL("image/png"); } catch (error) { return ""; }
+          }
+
+          function restoreGeneratedSignature(canvas) {
+            var saved = "";
+            try { saved = localStorage.getItem(generatedSignatureStorageKey()) || ""; } catch (error) {}
+            if (!saved) return;
+            var context = canvas.getContext("2d", { willReadFrequently: true });
+            var image = new Image();
+            image.onload = function() {
+              context.clearRect(0, 0, canvas.width, canvas.height);
+              context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            };
+            image.src = saved;
+          }
+
+          function saveGeneratedSignature(canvas) {
+            try {
+              if (canvasIsBlank(canvas)) localStorage.removeItem(generatedSignatureStorageKey());
+              else localStorage.setItem(generatedSignatureStorageKey(), canvas.toDataURL("image/png"));
+            } catch (error) {}
+          }
+
+          function setupGeneratedSignaturePad(canvas, clearButton) {
+            if (!canvas || canvas.dataset.fsmobileSignatureReady === "1") return;
+            canvas.dataset.fsmobileSignatureReady = "1";
+            var context = canvas.getContext("2d", { willReadFrequently: true });
+            var drawing = false;
+            var lastPoint = null;
+
+            function resize(keep) {
+              var oldData = keep ? generatedSignatureDataUrl() : "";
+              var rect = canvas.getBoundingClientRect();
+              var ratio = window.devicePixelRatio || 1;
+              canvas.width = Math.max(1, Math.round(rect.width * ratio));
+              canvas.height = Math.max(1, Math.round(rect.height * ratio));
+              context.setTransform(ratio, 0, 0, ratio, 0, 0);
+              context.lineWidth = 2.4;
+              context.lineCap = "round";
+              context.lineJoin = "round";
+              context.strokeStyle = "#1c1c1e";
+              if (oldData) {
+                var image = new Image();
+                image.onload = function() { context.drawImage(image, 0, 0, rect.width, rect.height); };
+                image.src = oldData;
+              }
+            }
+
+            function point(event) {
+              var rect = canvas.getBoundingClientRect();
+              return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+            }
+
+            function start(event) {
+              event.preventDefault();
+              drawing = true;
+              lastPoint = point(event);
+            }
+
+            function move(event) {
+              if (!drawing) return;
+              event.preventDefault();
+              var current = point(event);
+              context.beginPath();
+              context.moveTo(lastPoint.x, lastPoint.y);
+              context.lineTo(current.x, current.y);
+              context.stroke();
+              lastPoint = current;
+            }
+
+            function end() {
+              if (!drawing) return;
+              drawing = false;
+              lastPoint = null;
+              saveGeneratedSignature(canvas);
+            }
+
+            canvas.addEventListener("pointerdown", start, { passive: false });
+            canvas.addEventListener("pointermove", move, { passive: false });
+            canvas.addEventListener("pointerup", end);
+            canvas.addEventListener("pointercancel", end);
+            canvas.addEventListener("pointerleave", end);
+            window.addEventListener("resize", function() { resize(true); });
+            if (clearButton) {
+              clearButton.addEventListener("click", function() {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                saveGeneratedSignature(canvas);
+              });
+            }
+            resize(false);
+            restoreGeneratedSignature(canvas);
+          }
+
+          function ensureGeneratedTechnikerSignatureField() {
+            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
+            if (Array.from(document.querySelectorAll("canvas")).some(canvasLooksLikeSignature)) return;
+            var block = document.createElement("section");
+            block.className = "signature-block fsmobile-generated-signature-block";
+            block.innerHTML = '<h3>' + FSMOBILE_SIGNATURE_LABEL + '</h3><canvas id="fsmobileTechnikerSignaturePad" aria-label="' + FSMOBILE_SIGNATURE_LABEL + '"></canvas><div class="signature-actions"><button type="button" class="danger">Unterschrift löschen</button></div>';
+            var anchor = document.getElementById("archiveOverlay") || document.querySelector("script");
+            document.body.insertBefore(block, anchor || null);
+            setupGeneratedSignaturePad(block.querySelector("canvas"), block.querySelector("button"));
+          }
+
+          function appendGeneratedSignatureToPdf(doc) {
+            if (!doc || doc.__fsmobileGeneratedSignatureAppended || !document.getElementById("fsmobileTechnikerSignaturePad")) return;
+            Object.defineProperty(doc, "__fsmobileGeneratedSignatureAppended", { value: true });
+            try {
+              var pageWidth = doc.internal.pageSize.getWidth();
+              var margin = 14;
+              var y = 24;
+              doc.addPage();
+              doc.setTextColor(17, 24, 39);
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(12);
+              doc.text(FSMOBILE_SIGNATURE_LABEL, margin, y);
+              var signature = generatedSignatureDataUrl();
+              if (signature) {
+                try { doc.addImage(signature, "PNG", margin, y + 8, 74, 24, undefined, "FAST"); } catch (error) {}
+              }
+              doc.setDrawColor(155, 155, 160);
+              doc.setLineWidth(0.3);
+              doc.line(margin, y + 38, Math.min(pageWidth - margin, margin + 86), y + 38);
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(8);
+              doc.text(FSMOBILE_SIGNATURE_LABEL, margin, y + 43);
+            } catch (error) {}
+          }
+
+	          function fsmobilePdfFileName(originalName) {
             if (originalName && !/\\.pdf$/i.test(String(originalName))) return originalName;
             if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return originalName;
             var anlage = findFsmobileReportValue(["anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlage", "nummer"]);
@@ -3055,32 +3311,79 @@
             return safeFsmobileFileSegment(anlage || "Ohne Anlagen Nr.", "Ohne Anlagen Nr.") + "_" +
               safeFsmobileFileSegment(object || "Ohne Objekt", "Ohne Objekt") + "_" +
               safeFsmobileFileSegment(formatFsmobileDateForFile(date), formatFsmobileDateForFile("")) + ".pdf";
+	          }
+	          window.FSMOBILE_PDF_FILE_NAME = fsmobilePdfFileName;
+
+	          function downloadRawBlob(blob, fileName) {
+	            var url = URL.createObjectURL(blob);
+	            var link = document.createElement("a");
+	            link.href = url;
+	            link.download = fileName;
+	            document.body.appendChild(link);
+	            link.click();
+	            link.remove();
+	            setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+	          }
+
+	          function finishCombinedPdfExport(pdfBlob, fileName) {
+	            var builder = window.FSMOBILE_CREATE_REPORT_EXPORT_ZIP;
+	            if (!window.FSMOBILE_COMBINED_PDF_EXPORT || typeof builder !== "function" || !/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return false;
+	            window.FSMOBILE_COMBINED_PDF_EXPORT = null;
+	            var pdfName = fsmobilePdfFileName(fileName || "Pruefbericht.pdf");
+	            Promise.resolve(builder(pdfBlob, pdfName)).catch(function(error) {
+	              console.warn("Kombinierter PDF/JSON-Export konnte nicht erstellt werden:", error);
+	              if (typeof window.FSMOBILE_SET_ACTION_STATUS === "function") window.FSMOBILE_SET_ACTION_STATUS("PDF Export konnte nicht erstellt werden.");
+	              downloadRawBlob(pdfBlob, pdfName);
+	            });
+	            return true;
+	          }
+
+          function patchPdfTextMethod(target) {
+            if (!target || target.__fsmobileTextPatched || typeof target.text !== "function") return;
+            var originalText = target.text;
+            Object.defineProperty(target, "__fsmobileTextPatched", { value: true });
+            target.text = function(text) {
+              var args = Array.prototype.slice.call(arguments);
+              args[0] = normalizeSignaturePdfArgument(args[0]);
+              return originalText.apply(this, args);
+            };
           }
-          window.FSMOBILE_PDF_FILE_NAME = fsmobilePdfFileName;
 
           function patchPdfInstance(instance) {
-            if (!instance || instance.__fsmobileSavePatched || typeof instance.save !== "function") return instance;
+            if (!instance) return instance;
+            patchPdfTextMethod(instance);
+            if (instance.__fsmobileSavePatched || typeof instance.save !== "function") return instance;
             var originalSave = instance.save;
-            Object.defineProperty(instance, "__fsmobileSavePatched", { value: true });
-            instance.save = function(fileName) {
-              var args = Array.prototype.slice.call(arguments);
-              args[0] = fsmobilePdfFileName(fileName);
-              return originalSave.apply(this, args);
-            };
-            return instance;
-          }
+	            Object.defineProperty(instance, "__fsmobileSavePatched", { value: true });
+	            instance.save = function(fileName) {
+	              var args = Array.prototype.slice.call(arguments);
+	              args[0] = fsmobilePdfFileName(fileName);
+	              appendGeneratedSignatureToPdf(this);
+	              try {
+	                if (finishCombinedPdfExport(this.output("blob"), args[0])) return this;
+	              } catch (error) {}
+	              return originalSave.apply(this, args);
+	            };
+	            return instance;
+	          }
 
           function patchJsPdfPrototype(JsPDF) {
-            if (!JsPDF || !JsPDF.prototype || JsPDF.prototype.__fsmobileSavePatched) return;
+            if (!JsPDF || !JsPDF.prototype) return;
+            patchPdfTextMethod(JsPDF.prototype);
+            if (JsPDF.prototype.__fsmobileSavePatched) return;
             var originalSave = JsPDF.prototype.save;
             if (typeof originalSave !== "function") return;
-            Object.defineProperty(JsPDF.prototype, "__fsmobileSavePatched", { value: true });
-            JsPDF.prototype.save = function(fileName) {
-              var args = Array.prototype.slice.call(arguments);
-              args[0] = fsmobilePdfFileName(fileName);
-              return originalSave.apply(this, args);
-            };
-          }
+	            Object.defineProperty(JsPDF.prototype, "__fsmobileSavePatched", { value: true });
+	            JsPDF.prototype.save = function(fileName) {
+	              var args = Array.prototype.slice.call(arguments);
+	              args[0] = fsmobilePdfFileName(fileName);
+	              appendGeneratedSignatureToPdf(this);
+	              try {
+	                if (finishCombinedPdfExport(this.output("blob"), args[0])) return this;
+	              } catch (error) {}
+	              return originalSave.apply(this, args);
+	            };
+	          }
 
           function patchJsPdfConstructor(container, key) {
             var Original = container && container[key];
@@ -3100,21 +3403,131 @@
             container[key] = WrappedJsPDF;
           }
 
-          function installPdfFileNamePatch() {
-            if (!document.__fsmobileDownloadNamePatched) {
-              Object.defineProperty(document, "__fsmobileDownloadNamePatched", { value: true });
-              document.addEventListener("click", function(event) {
-                var link = event.target && event.target.closest ? event.target.closest("a[download]") : null;
-                if (!link || !/\\.pdf$/i.test(link.download || "")) return;
-                link.download = fsmobilePdfFileName(link.download);
-              }, true);
+          function patchAvailableJsPdf() {
+            patchJsPdfPrototype(window.jspdf && window.jspdf.jsPDF);
+            patchJsPdfPrototype(window.jsPDF);
+            patchJsPdfConstructor(window.jspdf, "jsPDF");
+            patchJsPdfConstructor(window, "jsPDF");
+          }
+
+          function currentPatchedJsPdf(fallback) {
+            patchAvailableJsPdf();
+            return (window.jspdf && window.jspdf.jsPDF) || window.jsPDF || fallback || null;
+          }
+
+          function installJsPdfLoaderPatch() {
+            if (typeof window.ensureJsPdf === "function" && !window.ensureJsPdf.__fsmobilePatched) {
+              var originalEnsureJsPdf = window.ensureJsPdf;
+              window.ensureJsPdf = function() {
+                return currentPatchedJsPdf(originalEnsureJsPdf.apply(this, arguments));
+              };
+              Object.defineProperty(window.ensureJsPdf, "__fsmobilePatched", { value: true });
             }
-            var tries = 0;
+            if (typeof window.loadJsPdfIfNeeded === "function" && !window.loadJsPdfIfNeeded.__fsmobilePatched) {
+              var originalLoadJsPdfIfNeeded = window.loadJsPdfIfNeeded;
+              window.loadJsPdfIfNeeded = function() {
+                return Promise.resolve(originalLoadJsPdfIfNeeded.apply(this, arguments))
+                  .then(function(JsPDF) { return currentPatchedJsPdf(JsPDF); });
+              };
+              Object.defineProperty(window.loadJsPdfIfNeeded, "__fsmobilePatched", { value: true });
+            }
+          }
+
+	          function installPdfFileNamePatch() {
+	            if (!document.__fsmobileScriptLoadPdfPatchInstalled) {
+	              Object.defineProperty(document, "__fsmobileScriptLoadPdfPatchInstalled", { value: true });
+	              document.addEventListener("load", function(event) {
+	                if (!event.target || String(event.target.tagName || "").toUpperCase() !== "SCRIPT") return;
+	                window.setTimeout(patchAvailableJsPdf, 0);
+	              }, true);
+	            }
+	            if (window.URL && typeof window.URL.createObjectURL === "function" && !window.URL.__fsmobileObjectUrlPatched) {
+	              var originalCreateObjectURL = window.URL.createObjectURL.bind(window.URL);
+	              var originalRevokeObjectURL = typeof window.URL.revokeObjectURL === "function" ? window.URL.revokeObjectURL.bind(window.URL) : null;
+	              var objectUrlBlobs = {};
+	              Object.defineProperty(window.URL, "__fsmobileObjectUrlPatched", { value: true });
+	              window.FSMOBILE_OBJECT_URL_BLOBS = objectUrlBlobs;
+	              window.URL.createObjectURL = function(blob) {
+	                var url = originalCreateObjectURL(blob);
+	                if (blob) objectUrlBlobs[url] = blob;
+	                return url;
+	              };
+	              if (originalRevokeObjectURL) {
+	                window.URL.revokeObjectURL = function(url) {
+	                  setTimeout(function() { delete objectUrlBlobs[url]; }, 5000);
+	                  return originalRevokeObjectURL(url);
+	                };
+	              }
+	            }
+	            if (!document.__fsmobileDownloadNamePatched) {
+              Object.defineProperty(document, "__fsmobileDownloadNamePatched", { value: true });
+	              document.addEventListener("click", function(event) {
+	                var link = event.target && event.target.closest ? event.target.closest("a[download]") : null;
+	                if (!link || !/\\.pdf$/i.test(link.download || "")) return;
+	                link.download = fsmobilePdfFileName(link.download);
+	                if (window.FSMOBILE_COMBINED_PDF_EXPORT && typeof window.FSMOBILE_CREATE_REPORT_EXPORT_ZIP === "function") {
+	                  event.preventDefault();
+	                  event.stopImmediatePropagation();
+	                  var storedBlob = window.FSMOBILE_OBJECT_URL_BLOBS && window.FSMOBILE_OBJECT_URL_BLOBS[link.href];
+	                  if (storedBlob) finishCombinedPdfExport(storedBlob, link.download);
+	                  else fetch(link.href)
+	                    .then(function(response) { return response.blob(); })
+	                    .then(function(blob) { finishCombinedPdfExport(blob, link.download); })
+	                    .catch(function(error) {
+	                      window.FSMOBILE_COMBINED_PDF_EXPORT = null;
+	                      console.warn("PDF-Download konnte nicht in den kombinierten Export übernommen werden:", error);
+	                    });
+	                }
+	              }, true);
+	            }
+	            if (window.HTMLAnchorElement && window.HTMLAnchorElement.prototype && !window.HTMLAnchorElement.prototype.__fsmobileClickPatched) {
+	              var originalAnchorClick = window.HTMLAnchorElement.prototype.click;
+	              Object.defineProperty(window.HTMLAnchorElement.prototype, "__fsmobileClickPatched", { value: true });
+	              window.HTMLAnchorElement.prototype.click = function() {
+	                var link = this;
+	                if (link && /\\.pdf$/i.test(link.download || "")) {
+	                  link.download = fsmobilePdfFileName(link.download);
+	                  if (window.FSMOBILE_COMBINED_PDF_EXPORT && typeof window.FSMOBILE_CREATE_REPORT_EXPORT_ZIP === "function" && link.href) {
+	                    var clickBlob = window.FSMOBILE_OBJECT_URL_BLOBS && window.FSMOBILE_OBJECT_URL_BLOBS[link.href];
+	                    if (clickBlob) finishCombinedPdfExport(clickBlob, link.download);
+	                    else fetch(link.href)
+	                      .then(function(response) { return response.blob(); })
+	                      .then(function(blob) { finishCombinedPdfExport(blob, link.download); })
+	                      .catch(function(error) {
+	                        window.FSMOBILE_COMBINED_PDF_EXPORT = null;
+	                        console.warn("PDF-Link konnte nicht in den kombinierten Export übernommen werden:", error);
+	                        originalAnchorClick.call(link);
+	                      });
+	                    return;
+	                  }
+	                }
+	                return originalAnchorClick.apply(this, arguments);
+	              };
+	              var originalAnchorDispatch = window.HTMLAnchorElement.prototype.dispatchEvent;
+	              window.HTMLAnchorElement.prototype.dispatchEvent = function(event) {
+	                var link = this;
+	                if (event && event.type === "click" && link && /\\.pdf$/i.test(link.download || "")) {
+	                  link.download = fsmobilePdfFileName(link.download);
+	                  if (window.FSMOBILE_COMBINED_PDF_EXPORT && typeof window.FSMOBILE_CREATE_REPORT_EXPORT_ZIP === "function" && link.href) {
+	                    var dispatchBlob = window.FSMOBILE_OBJECT_URL_BLOBS && window.FSMOBILE_OBJECT_URL_BLOBS[link.href];
+	                    if (dispatchBlob) finishCombinedPdfExport(dispatchBlob, link.download);
+	                    else fetch(link.href)
+	                      .then(function(response) { return response.blob(); })
+	                      .then(function(blob) { finishCombinedPdfExport(blob, link.download); })
+	                      .catch(function(error) {
+	                        window.FSMOBILE_COMBINED_PDF_EXPORT = null;
+	                        console.warn("PDF-Dispatch konnte nicht in den kombinierten Export übernommen werden:", error);
+	                        originalAnchorDispatch.call(link, event);
+	                      });
+	                    return true;
+	                  }
+	                }
+	                return originalAnchorDispatch.apply(this, arguments);
+	              };
+	            }
+	            var tries = 0;
             var timer = window.setInterval(function() {
-              patchJsPdfPrototype(window.jspdf && window.jspdf.jsPDF);
-              patchJsPdfPrototype(window.jsPDF);
-              patchJsPdfConstructor(window.jspdf, "jsPDF");
-              patchJsPdfConstructor(window, "jsPDF");
+              patchAvailableJsPdf();
               tries += 1;
               if (tries > 80 || (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.__fsmobileConstructorPatched)) {
                 window.clearInterval(timer);
@@ -3122,9 +3535,9 @@
             }, 120);
           }
 
-          function ensureRwaClearButton() {
-            if (window.FSMOBILE_MODULE_ID !== "pb-rwa" || document.getElementById("fsmobileRwaClearButton")) return;
-            var host = ensureHeaderActions();
+	          function ensureRwaClearButton() {
+	            if (window.FSMOBILE_MODULE_ID !== "pb-rwa" || document.getElementById("fsmobileRwaClearButton")) return;
+	            var host = ensureHeaderActions();
             var button = document.createElement("button");
             button.type = "button";
             button.id = "fsmobileRwaClearButton";
@@ -3136,11 +3549,73 @@
                 return;
               }
               if (typeof clearForm === "function") clearForm();
-            });
-            host.appendChild(button);
-          }
+	            });
+	            host.appendChild(button);
+	          }
 
-          function setupReportDataTransfer() {
+	          function normalizedActionStatus(message) {
+	            var text = String(message || "").replace(/\\s+/g, " ").trim();
+	            if (!text) return "";
+	            if (/konnte nicht.*archiv/i.test(text)) return "Prüfbericht konnte nicht im Archiv gespeichert werden.";
+	            if (/archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Prüfbericht wurde im Archiv gespeichert.";
+	            if (/aus dem archiv geöffnet/i.test(text)) return "Prüfbericht wurde aus dem Archiv geöffnet.";
+	            if (/archiv.*geöffnet/i.test(text)) return "Archiv wurde geöffnet.";
+	            if (/archiv.*gelöscht/i.test(text)) return "Archiv-Eintrag wurde gelöscht.";
+	            if (/geleert|eingaben.*löschen/i.test(text)) return "Prüfbericht wurde geleert.";
+	            if (/import.*nicht|exportdatei.*nicht|passt nicht/i.test(text)) return "Exportdatei konnte nicht importiert werden.";
+	            if (/importiert|exportdatei.*geladen|daten.*geladen/i.test(text)) return "Exportdatei wurde importiert.";
+	            if (/pdf export.*wird erstellt|pdf.*wird erstellt/i.test(text)) return "PDF Export wird erstellt...";
+	            if (/pdf export.*nicht|pdf.*nicht|kombinierter.*nicht/i.test(text)) return "PDF Export konnte nicht erstellt werden.";
+	            if (/pdf export.*erstellt|zip.*erstellt|pdf.*erstellt/i.test(text)) return "PDF Export wurde erstellt.";
+	            return text;
+	          }
+
+	          function ensureActionStatusElement() {
+	            var status = document.getElementById("archiveStatus") || document.querySelector(".archive-status");
+	            if (!status) {
+	              status = document.createElement("p");
+	              status.id = "archiveStatus";
+	              status.className = "archive-status";
+	              status.setAttribute("role", "status");
+	              status.setAttribute("aria-live", "polite");
+	              var host = ensureHeaderActions();
+	              if (host && host.parentNode) host.parentNode.insertBefore(status, host.nextSibling);
+	              else document.body.insertBefore(status, document.body.firstChild);
+	            }
+	            return status;
+	          }
+
+	          function setUnifiedActionStatus(message) {
+	            var normalized = normalizedActionStatus(message);
+	            var status = ensureActionStatusElement();
+	            status.textContent = normalized;
+	            window.clearTimeout(window.__fsmobileActionStatusTimer);
+	            if (normalized) {
+	              window.__fsmobileActionStatusTimer = window.setTimeout(function() {
+	                status.textContent = "";
+	                try {
+	                  window.parent.postMessage({ type: "fsmobile-action-status", moduleId: window.FSMOBILE_MODULE_ID, message: "" }, "*");
+	                } catch (error) {}
+	              }, 4000);
+	            }
+	            try {
+	              window.parent.postMessage({ type: "fsmobile-action-status", moduleId: window.FSMOBILE_MODULE_ID, message: normalized }, "*");
+	            } catch (error) {}
+	          }
+
+	          function installUnifiedActionStatus() {
+	            if (window.__fsmobileUnifiedActionStatusInstalled) return;
+	            window.__fsmobileUnifiedActionStatusInstalled = true;
+	            window.FSMOBILE_SET_ACTION_STATUS = setUnifiedActionStatus;
+	            var originalSetArchiveStatus = window.setArchiveStatus;
+	            if (typeof originalSetArchiveStatus === "function") {
+	              window.setArchiveStatus = function(message) {
+	                setUnifiedActionStatus(message);
+	              };
+	            }
+	          }
+
+	          function setupReportDataTransfer() {
             if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "") || document.getElementById("fsmobileReportImportFile")) return;
 
             var DATA_KIND = "fsmobile-pruefbericht-export";
@@ -3406,7 +3881,7 @@
               });
               snapshot.canvases.forEach(function(item) {
                 if (!item.canvas || !document.contains(item.canvas) || !item.dataUrl) return;
-                var context = item.canvas.getContext("2d");
+                var context = item.canvas.getContext("2d", { willReadFrequently: true });
                 var image = new Image();
                 image.onload = function() {
                   context.clearRect(0, 0, item.canvas.width, item.canvas.height);
@@ -3459,7 +3934,7 @@
                 if (!item || !item.dataUrl || !item.selector) return;
                 var canvas = document.querySelector(item.selector);
                 if (!canvas || isExcludedCanvas(canvas)) return;
-                var context = canvas.getContext("2d");
+                var context = canvas.getContext("2d", { willReadFrequently: true });
                 var image = new Image();
                 image.onload = function() {
                   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -3470,28 +3945,170 @@
               });
             }
 
-	            function downloadExport() {
-	              var payload = {
-                kind: DATA_KIND,
-                version: 1,
-                moduleId: window.FSMOBILE_MODULE_ID,
+	            function buildExportPayload() {
+	              return {
+	                kind: DATA_KIND,
+	                version: 1,
+	                moduleId: window.FSMOBILE_MODULE_ID,
                 title: reportTitle(),
                 exportedAt: new Date().toISOString(),
-                structured: collectStructuredData(),
-                fields: reportControls().map(serializeField),
-                canvases: serializeCanvases()
-              };
-              var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-              var url = URL.createObjectURL(blob);
-              var link = document.createElement("a");
-              link.href = url;
-              link.download = exportFileName();
-              document.body.appendChild(link);
-              link.click();
-              link.remove();
+	                structured: collectStructuredData(),
+	                fields: reportControls().map(serializeField),
+	                canvases: serializeCanvases()
+	              };
+	            }
+
+	            function jsonExportBlob(payload) {
+	              return new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+	            }
+
+	            function downloadExportBlob(blob, fileName) {
+	              var url = URL.createObjectURL(blob);
+	              var link = document.createElement("a");
+	              link.href = url;
+	              link.download = fileName;
+	              document.body.appendChild(link);
+	              link.click();
+	              link.remove();
 	              setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
 	            }
-	            window.FSMOBILE_DOWNLOAD_REPORT_EXPORT = downloadExport;
+
+	            function reportExportBaseName() {
+	              return exportFileName().replace(/\\.json$/i, "");
+	            }
+
+	            function crc32(bytes) {
+	              var table = window.__fsmobileCrcTable;
+	              if (!table) {
+	                table = [];
+	                for (var n = 0; n < 256; n += 1) {
+	                  var c = n;
+	                  for (var k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+	                  table[n] = c >>> 0;
+	                }
+	                window.__fsmobileCrcTable = table;
+	              }
+	              var crc = 0xffffffff;
+	              for (var index = 0; index < bytes.length; index += 1) {
+	                crc = table[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
+	              }
+	              return (crc ^ 0xffffffff) >>> 0;
+	            }
+
+	            function zipDosTime(date) {
+	              var hours = date.getHours();
+	              var minutes = date.getMinutes();
+	              var seconds = Math.floor(date.getSeconds() / 2);
+	              return (hours << 11) | (minutes << 5) | seconds;
+	            }
+
+	            function zipDosDate(date) {
+	              var year = Math.max(1980, date.getFullYear()) - 1980;
+	              return (year << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+	            }
+
+	            function push16(target, value) {
+	              target.push(value & 0xff, (value >>> 8) & 0xff);
+	            }
+
+	            function push32(target, value) {
+	              target.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff);
+	            }
+
+	            function bytesFromParts(parts) {
+	              var length = parts.reduce(function(total, part) { return total + part.length; }, 0);
+	              var output = new Uint8Array(length);
+	              var offset = 0;
+	              parts.forEach(function(part) {
+	                output.set(part, offset);
+	                offset += part.length;
+	              });
+	              return output;
+	            }
+
+	            async function createZipBlob(entries) {
+	              var encoder = new TextEncoder();
+	              var now = new Date();
+	              var localParts = [];
+	              var centralParts = [];
+	              var offset = 0;
+
+	              for (var entryIndex = 0; entryIndex < entries.length; entryIndex += 1) {
+	                var entry = entries[entryIndex];
+	                var nameBytes = encoder.encode(entry.name);
+	                var dataBytes = new Uint8Array(await entry.blob.arrayBuffer());
+	                var crc = crc32(dataBytes);
+	                var local = [];
+	                push32(local, 0x04034b50);
+	                push16(local, 20);
+	                push16(local, 0);
+	                push16(local, 0);
+	                push16(local, zipDosTime(now));
+	                push16(local, zipDosDate(now));
+	                push32(local, crc);
+	                push32(local, dataBytes.length);
+	                push32(local, dataBytes.length);
+	                push16(local, nameBytes.length);
+	                push16(local, 0);
+	                var localBytes = bytesFromParts([new Uint8Array(local), nameBytes, dataBytes]);
+	                localParts.push(localBytes);
+
+	                var central = [];
+	                push32(central, 0x02014b50);
+	                push16(central, 20);
+	                push16(central, 20);
+	                push16(central, 0);
+	                push16(central, 0);
+	                push16(central, zipDosTime(now));
+	                push16(central, zipDosDate(now));
+	                push32(central, crc);
+	                push32(central, dataBytes.length);
+	                push32(central, dataBytes.length);
+	                push16(central, nameBytes.length);
+	                push16(central, 0);
+	                push16(central, 0);
+	                push16(central, 0);
+	                push16(central, 0);
+	                push32(central, 0);
+	                push32(central, offset);
+	                centralParts.push(bytesFromParts([new Uint8Array(central), nameBytes]));
+	                offset += localBytes.length;
+	              }
+
+	              var centralSize = centralParts.reduce(function(total, part) { return total + part.length; }, 0);
+	              var end = [];
+	              push32(end, 0x06054b50);
+	              push16(end, 0);
+	              push16(end, 0);
+	              push16(end, entries.length);
+	              push16(end, entries.length);
+	              push32(end, centralSize);
+	              push32(end, offset);
+	              push16(end, 0);
+
+	              return new Blob(localParts.concat(centralParts, [new Uint8Array(end)]), { type: "application/zip" });
+	            }
+
+	            async function downloadCombinedExport(pdfBlob, pdfName) {
+	              var payload = buildExportPayload();
+	              var jsonName = exportFileName();
+	              var finalPdfName = (window.FSMOBILE_PDF_FILE_NAME ? window.FSMOBILE_PDF_FILE_NAME(pdfName) : pdfName) || reportExportBaseName() + ".pdf";
+		              var zipBlob = await createZipBlob([
+		                { name: jsonName, blob: jsonExportBlob(payload) },
+		                { name: finalPdfName, blob: pdfBlob }
+		              ]);
+		              downloadExportBlob(zipBlob, reportExportBaseName() + ".zip");
+		              setUnifiedActionStatus("PDF Export wurde erstellt.");
+		            }
+
+		            function downloadExport() {
+		              var payload = buildExportPayload();
+		              var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+		              downloadExportBlob(blob, exportFileName());
+		              setUnifiedActionStatus("Exportdatei wurde erstellt.");
+			            }
+		            window.FSMOBILE_DOWNLOAD_REPORT_EXPORT = downloadExport;
+		            window.FSMOBILE_CREATE_REPORT_EXPORT_ZIP = downloadCombinedExport;
 
 	            function isPdfExportButton(button) {
 	              if (!button || button.closest(".archive-dialog, .archive-overlay, .pdf-render-wrapper")) return false;
@@ -3503,30 +4120,34 @@
 	            function installPdfExportHook() {
 	              if (document.__fsmobilePdfExportHookInstalled) return;
 	              Object.defineProperty(document, "__fsmobilePdfExportHookInstalled", { value: true });
-	              document.addEventListener("click", function(event) {
-	                var button = event.target && event.target.closest ? event.target.closest("button") : null;
-	                if (!isPdfExportButton(button) || button.disabled) return;
-	                try {
-	                  downloadExport();
-	                } catch (error) {
-	                  console.warn("JSON-Export zum PDF-Export konnte nicht erstellt werden:", error);
-	                }
-	              }, true);
-	            }
+		              document.addEventListener("click", function(event) {
+		                var button = event.target && event.target.closest ? event.target.closest("button") : null;
+		                if (!isPdfExportButton(button) || button.disabled) return;
+		                setUnifiedActionStatus("PDF Export wird erstellt...");
+			                window.FSMOBILE_COMBINED_PDF_EXPORT = { startedAt: Date.now() };
+		                window.setTimeout(function() {
+		                  if (window.FSMOBILE_COMBINED_PDF_EXPORT && Date.now() - window.FSMOBILE_COMBINED_PDF_EXPORT.startedAt > 30000) {
+		                    window.FSMOBILE_COMBINED_PDF_EXPORT = null;
+		                  }
+		                }, 31000);
+		              }, true);
+		            }
 
             async function importExportFile(file) {
               if (!file) return;
               var payload;
               try {
                 payload = JSON.parse(await file.text());
-              } catch (error) {
-                alert("Exportdatei konnte nicht gelesen werden.");
-                return;
-              }
-              if (!payload || payload.kind !== DATA_KIND || payload.moduleId !== window.FSMOBILE_MODULE_ID || !Array.isArray(payload.fields)) {
-                alert("Diese Exportdatei passt nicht zu diesem Prüfbericht.");
-                return;
-              }
+	              } catch (error) {
+	                setUnifiedActionStatus("Exportdatei konnte nicht importiert werden.");
+	                alert("Exportdatei konnte nicht gelesen werden.");
+	                return;
+	              }
+	              if (!payload || payload.kind !== DATA_KIND || payload.moduleId !== window.FSMOBILE_MODULE_ID || !Array.isArray(payload.fields)) {
+	                setUnifiedActionStatus("Exportdatei konnte nicht importiert werden.");
+	                alert("Diese Exportdatei passt nicht zu diesem Prüfbericht.");
+	                return;
+	              }
               var importFields = payload.fields.filter(function(fieldData) { return !isExcludedFieldData(fieldData); });
               var excludedSnapshot = rememberExcludedValues();
               var usedStructuredImport = applyStructuredData(sanitizeStructuredData(payload.structured));
@@ -3539,11 +4160,12 @@
               }
               applyCanvases(payload.canvases);
               restoreExcludedValues(excludedSnapshot);
-              window.setTimeout(function() {
-                document.dispatchEvent(new Event("input", { bubbles: true }));
-                document.dispatchEvent(new Event("change", { bubbles: true }));
-              }, 80);
-            }
+	              window.setTimeout(function() {
+	                document.dispatchEvent(new Event("input", { bubbles: true }));
+	                document.dispatchEvent(new Event("change", { bubbles: true }));
+	              }, 80);
+	              setUnifiedActionStatus("Exportdatei wurde importiert.");
+	            }
 
             function installControls() {
               var host = ensureHeaderActions();
@@ -3581,15 +4203,22 @@
 
             installControls();
           }
-          document.addEventListener("DOMContentLoaded", function() {
-            markPositionCells();
-            installPdfFileNamePatch();
-            setupReportDataTransfer();
+	          document.addEventListener("DOMContentLoaded", function() {
+	            markPositionCells();
+	            ensureGeneratedTechnikerSignatureField();
+	            normalizeSignatureLabels();
+	            installUnifiedActionStatus();
+	            installPdfFileNamePatch();
+	            installJsPdfLoaderPatch();
+	            setupReportDataTransfer();
             ensureRwaClearButton();
             arrangeHeaderActions();
             var arrangeTimer = 0;
             new MutationObserver(function() {
               markPositionCells();
+              ensureGeneratedTechnikerSignatureField();
+              normalizeSignatureLabels();
+              installJsPdfLoaderPatch();
               window.clearTimeout(arrangeTimer);
               arrangeTimer = window.setTimeout(arrangeHeaderActions, 60);
             }).observe(document.body, { childList: true, subtree: true });
@@ -3658,6 +4287,28 @@
 
         .fsmobile-actions-empty {
           display: none !important;
+        }
+
+        .fsmobile-generated-signature-block {
+          margin-top: 16px !important;
+          padding: 14px !important;
+          background: rgba(242, 242, 247, 0.88) !important;
+          border-radius: 14px !important;
+        }
+
+        .fsmobile-generated-signature-block h3 {
+          margin: 0 0 10px !important;
+          font-size: 18px !important;
+        }
+
+        #fsmobileTechnikerSignaturePad {
+          display: block !important;
+          width: 100% !important;
+          height: 180px !important;
+          border: 2px dashed rgba(60, 60, 67, 0.25) !important;
+          border-radius: 12px !important;
+          background: #fff !important;
+          touch-action: none !important;
         }
 
         body.fsmobile-parent-actions-active .fsmobile-header-actions,

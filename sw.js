@@ -1,4 +1,4 @@
-const CACHE_NAME = "fsmobile-v21";
+const CACHE_NAME = "fsmobile-v26";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -10,7 +10,6 @@ const CORE_ASSETS = [
   "./vendor/jspdf.umd.min.js",
   "./assets/fsmobile-menu-bg.png",
   "./assets/fsmobile-menu-bg.webp",
-  "./assets/fsmobile-logo-transparent.png",
   "./icons/apple-touch-icon-180.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
