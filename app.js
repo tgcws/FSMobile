@@ -25,6 +25,7 @@
   let activeModuleId = null;
   let actionSyncTimer = 0;
   let actionStatusTimer = 0;
+  let viewTransitionTimers = [];
 
   const MENU_SECTIONS = [
     {
@@ -173,6 +174,7 @@
     .input-unit{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;min-height:44px;padding-right:10px;border-radius:12px;background:var(--field)}.input-unit input{min-height:44px;background:transparent}.unit{color:var(--muted);font-weight:850;white-space:nowrap}
     .hint{margin:8px 0 0;color:var(--muted);font-size:13px;font-weight:700;line-height:1.35}.actions{margin-top:16px}
     .signature-block{margin-top:16px;padding:14px;background:var(--field);border-radius:14px}.signature-block h3{margin:0 0 10px;font-size:18px}#signaturePad{display:block;width:100%;height:180px;border:2px dashed rgba(60,60,67,.25);border-radius:12px;background:#fff;touch-action:none}
+    .signature-actions{margin-top:16px}
     .archive-status{min-height:18px;margin:12px 0 0;color:var(--muted);font-size:13px;font-weight:700;line-height:1.3}.archive-overlay[hidden]{display:none}.archive-overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.34)}.archive-dialog{width:min(760px,100%);max-height:min(680px,90vh);overflow:auto;padding:18px;background:#fff;border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.25)}.archive-header h2{margin:0;font-size:24px}.archive-list{display:grid;gap:10px;margin-top:14px}.archive-empty{margin:0;color:var(--muted);font-weight:700}.archive-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:12px;background:var(--field);border-radius:14px}.archive-title{font-weight:850;overflow-wrap:anywhere}.archive-meta{margin-top:3px;color:var(--muted);font-size:13px;font-weight:700}
     body.generating-pdf .title-actions,body.generating-pdf .actions,body.generating-pdf .signature-actions,body.generating-pdf .archive-status{display:none!important}
     @media(max-width:900px){.grid,.grid.one,.grid.two,.check-grid{grid-template-columns:1fr}.title-bar,.archive-header{align-items:stretch;flex-direction:column}.title-actions,.title-actions button,.archive-header button{width:100%}.title-bar>.title-actions{margin-right:0!important}}
@@ -537,6 +539,7 @@
       background: #fff;
       touch-action: none;
     }
+    .signature-actions { margin-top: 16px; }
     .archive-status {
       min-height: 18px;
       margin: 12px 0 0;
@@ -2653,6 +2656,77 @@
       return card;
   }
 
+  function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function clearViewTransitionTimers() {
+    viewTransitionTimers.forEach(timer => window.clearTimeout(timer));
+    viewTransitionTimers = [];
+  }
+
+  function setViewTransitionTimer(callback, delay) {
+    const timer = window.setTimeout(() => {
+      viewTransitionTimers = viewTransitionTimers.filter(item => item !== timer);
+      callback();
+    }, delay);
+    viewTransitionTimers.push(timer);
+  }
+
+  function resetViewTransitionState() {
+    clearViewTransitionTimers();
+    [menuView, moduleView].forEach(view => {
+      view.classList.remove("view-enter", "view-enter-active", "view-exit");
+    });
+  }
+
+  function enterView(view) {
+    view.hidden = false;
+    view.classList.add("view-enter");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        view.classList.add("view-enter-active");
+        setViewTransitionTimer(() => {
+          view.classList.remove("view-enter", "view-enter-active");
+        }, 420);
+      });
+    });
+  }
+
+  function switchToModuleView() {
+    resetViewTransitionState();
+    if (prefersReducedMotion() || menuView.hidden) {
+      menuView.hidden = true;
+      moduleView.hidden = false;
+      return;
+    }
+
+    menuView.classList.add("view-exit");
+    setViewTransitionTimer(() => {
+      menuView.hidden = true;
+      menuView.classList.remove("view-exit");
+      enterView(moduleView);
+    }, 180);
+  }
+
+  function switchToMenuView(onModuleHidden) {
+    resetViewTransitionState();
+    if (prefersReducedMotion() || moduleView.hidden) {
+      moduleView.hidden = true;
+      menuView.hidden = false;
+      if (typeof onModuleHidden === "function") onModuleHidden();
+      return;
+    }
+
+    moduleView.classList.add("view-exit");
+    setViewTransitionTimer(() => {
+      moduleView.hidden = true;
+      moduleView.classList.remove("view-exit");
+      if (typeof onModuleHidden === "function") onModuleHidden();
+      enterView(menuView);
+    }, 180);
+  }
+
   function openModule(id, replaceHistory) {
     if (!isUnlocked) {
       showAuth();
@@ -2667,10 +2741,9 @@
     clearModuleActionBar();
     frame.srcdoc = html;
     frame.title = module.title;
-    menuView.hidden = true;
-    moduleView.hidden = false;
     backButton.hidden = false;
     subtitle.textContent = module.title;
+    switchToModuleView();
 
     if (!replaceHistory) {
       history.pushState({ module: id }, "", `#${encodeURIComponent(id)}`);
@@ -2687,11 +2760,11 @@
 
     activeModuleId = null;
     clearModuleActionBar();
-    frame.srcdoc = "";
-    menuView.hidden = false;
-    moduleView.hidden = true;
     backButton.hidden = true;
     subtitle.textContent = "Menüauswahl";
+    switchToMenuView(() => {
+      frame.srcdoc = "";
+    });
 
     if (!replaceHistory) {
       history.pushState({ module: null }, "", location.pathname);
@@ -3118,6 +3191,46 @@
             return normalizeSignaturePdfText(value);
           }
 
+          function pdfTextWidth(doc, value) {
+            if (!doc || typeof doc.getTextWidth !== "function") return 0;
+            if (Array.isArray(value)) {
+              return value.reduce(function(max, item) {
+                return Math.max(max, pdfTextWidth(doc, item));
+              }, 0);
+            }
+            try { return doc.getTextWidth(String(value || "")); }
+            catch (error) { return 0; }
+          }
+
+          function looksLikeInlinePdfLabel(value) {
+            if (typeof value !== "string") return false;
+            return /^(Objekt|Anlagen\s*Nr\.?|Techniker|Name|Prüfer|Datum)\s*:?\s*$/i.test(value);
+          }
+
+          function rememberInlinePdfLabel(doc, originalText, normalizedText, x, y) {
+            if (!doc || typeof x !== "number" || typeof y !== "number") return;
+            if (!looksLikeInlinePdfLabel(originalText) && !looksLikeInlinePdfLabel(normalizedText)) {
+              doc.__fsmobileLastInlinePdfLabel = null;
+              return;
+            }
+            doc.__fsmobileLastInlinePdfLabel = {
+              y: y,
+              minX: x + pdfTextWidth(doc, normalizedText) + 1.8
+            };
+          }
+
+          function applyInlinePdfLabelSpacing(doc, args, normalizedText) {
+            if (!doc || looksLikeInlinePdfLabel(normalizedText)) return;
+            var last = doc.__fsmobileLastInlinePdfLabel;
+            if (!last || typeof args[1] !== "number" || typeof args[2] !== "number") return;
+            if (Math.abs(args[2] - last.y) > 0.25) {
+              doc.__fsmobileLastInlinePdfLabel = null;
+              return;
+            }
+            if (args[1] < last.minX) args[1] = last.minX;
+            doc.__fsmobileLastInlinePdfLabel = null;
+          }
+
           function canvasLooksLikeSignature(canvas) {
             if (!canvas) return false;
             var haystack = normalizeFsmobileKey([
@@ -3344,7 +3457,12 @@
             Object.defineProperty(target, "__fsmobileTextPatched", { value: true });
             target.text = function(text) {
               var args = Array.prototype.slice.call(arguments);
+              var originalPdfText = args[0];
               args[0] = normalizeSignaturePdfArgument(args[0]);
+              if (typeof args[1] === "number" && typeof args[2] === "number") {
+                applyInlinePdfLabelSpacing(this, args, args[0]);
+                rememberInlinePdfLabel(this, originalPdfText, args[0], args[1], args[2]);
+              }
               return originalText.apply(this, args);
             };
           }
@@ -4309,6 +4427,10 @@
           border-radius: 12px !important;
           background: #fff !important;
           touch-action: none !important;
+        }
+
+        .fsmobile-generated-signature-block .signature-actions {
+          margin-top: 16px !important;
         }
 
         body.fsmobile-parent-actions-active .fsmobile-header-actions,
