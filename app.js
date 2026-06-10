@@ -306,7 +306,7 @@
     function deleteArchiveEntry(id){const entries=loadArchiveEntries();const entry=entries.find(item=>item.id===id);if(!entry)return;if(!confirm("Archiv-Eintrag '"+getArchiveTitle(entry)+"' löschen?"))return;writeArchiveEntries(entries.filter(item=>item.id!==id));if(getCurrentArchiveId()===id)clearCurrentArchiveId();renderArchiveList();setArchiveStatus("Archiv-Eintrag wurde gelöscht.")}
     function renderArchiveList(){const archiveList=document.getElementById("archiveList");const entries=loadArchiveEntries().slice().sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")));archiveList.innerHTML="";if(!entries.length){const empty=document.createElement("p");empty.className="archive-empty";empty.textContent="Noch keine gespeicherten Prüfberichte im Archiv.";archiveList.appendChild(empty);return}entries.forEach(entry=>{const item=document.createElement("article");item.className="archive-item";const text=document.createElement("div");const title=document.createElement("div");const meta=document.createElement("div");title.className="archive-title";meta.className="archive-meta";title.textContent=getArchiveTitle(entry);meta.textContent="Geändert: "+getDisplayDate((entry.updatedAt||"").slice(0,10));text.append(title,meta);const openButton=document.createElement("button");openButton.type="button";openButton.textContent="Öffnen";openButton.addEventListener("click",()=>openArchiveEntry(entry.id));const deleteButton=document.createElement("button");deleteButton.type="button";deleteButton.className="danger";deleteButton.textContent="Löschen";deleteButton.addEventListener("click",()=>deleteArchiveEntry(entry.id));item.append(text,openButton,deleteButton);archiveList.appendChild(item)})}
     function openArchive(){renderArchiveList();document.getElementById("archiveOverlay").hidden=false} function closeArchive(){document.getElementById("archiveOverlay").hidden=true} function setArchiveStatus(message){const status=document.getElementById("archiveStatus");if(!status)return;status.textContent=message||"";window.clearTimeout(archiveStatusTimer);if(message)archiveStatusTimer=window.setTimeout(()=>{status.textContent=""},4000)}
-    function sanitizeFileName(value){return(value||"Pruefbericht-Nass-Trocken-Station").trim().replace(/[\\\\/:*?"<>|]+/g,"-").replace(/\\s+/g,"_").slice(0,80)||"Pruefbericht-Nass-Trocken-Station"} function getPdfFileName(){const anlage=sanitizeFileName(document.getElementById("anlageInput").value||"Ohne Anlagen Nr.");const objectName=sanitizeFileName(document.getElementById("objectInput").value||"Ohne Objekt");const date=formatDateForFile(document.getElementById("dateInput").value||"");return anlage+"_"+objectName+"_"+date+".pdf"}
+    function sanitizeFileName(value){return(value||"Pruefbericht-Nass-Trocken-Station").trim().replace(/[\\\\/:*?"<>|]+/g,"-").replace(/\\s+/g,"_").slice(0,80)||"Pruefbericht-Nass-Trocken-Station"} function getPdfFileName(){const anlage=sanitizeFileName(document.getElementById("anlageInput").value||"Ohne Anlagen Nr.");const objectName=sanitizeFileName(document.getElementById("objectInput").value||"Ohne Objekt");const date=document.getElementById("dateInput").value||todayIso();return anlage+"_"+objectName+"_"+date+".pdf"}
     function ensureJsPdf(){if(window.jspdf&&typeof window.jspdf.jsPDF==="function")return window.jspdf.jsPDF;if(typeof window.jsPDF==="function")return window.jsPDF;return null} async function loadJsPdfIfNeeded(){const existing=ensureJsPdf();if(existing)return existing;return new Promise(resolve=>{const script=document.createElement("script");script.src="vendor/jspdf.umd.min.js";script.onload=()=>resolve(ensureJsPdf());script.onerror=()=>resolve(null);document.head.appendChild(script)})}
     function savePdfDocument(doc,fileName){try{doc["save"](fileName)}catch{try{const blob=doc["output"]("blob");const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=fileName;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}catch{alert("PDF konnte nicht gespeichert werden. Bitte im Browser erneut öffnen und noch einmal versuchen.")}}}
     async function exportPdf(){const JsPdf=await loadJsPdfIfNeeded();if(!JsPdf){alert("PDF-Bibliothek konnte nicht geladen werden.");return}const pdfButton=document.getElementById("pdfButton");const oldText=pdfButton.textContent;pdfButton.disabled=true;pdfButton.textContent="PDF wird erstellt...";try{const pdf=new JsPdf({orientation:"portrait",unit:"mm",format:"a4",compress:true});const margin=12;const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const bottom=pageHeight-margin;let y=14;function clean(value){return String(value||"-").trim()||"-"}function ensure(space){if(y+space<=bottom)return;pdf.addPage();y=14;header(true)}function header(continued){pdf.setFont("helvetica","bold");pdf.setFontSize(15);pdf.text(continued?"Prüfbericht Nass/Trocken-Station (Fortsetzung)":"Prüfbericht Nass/Trocken-Station",pageWidth/2,y,{align:"center"});y+=9}function section(title){ensure(10);pdf.setFillColor("#d6001c");pdf.rect(margin,y,pageWidth-margin*2,7,"F");pdf.setTextColor("#fff");pdf.setFont("helvetica","bold");pdf.setFontSize(8.5);pdf.text(title,margin+2,y+4.8);pdf.setTextColor("#1c1c1e");y+=8}function kv(title,rows,columns){section(title);const colWidth=(pageWidth-margin*2)/columns;rows.forEach((row,index)=>{const col=index%columns;if(col===0)ensure(13);const x=margin+col*colWidth;pdf.setFillColor("#f5f5f5");pdf.rect(x,y,colWidth,13,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(6.5);pdf.setTextColor("#6b7280");pdf.text(pdf.splitTextToSize(clean(row[0]),colWidth-4),x+2,y+3.8);pdf.setFont("helvetica","normal");pdf.setFontSize(8.2);pdf.setTextColor("#1c1c1e");pdf.text(pdf.splitTextToSize(clean(row[1]),colWidth-4),x+2,y+8.5);if(col===columns-1||index===rows.length-1)y+=13});y+=4}header(false);kv("Zuordnung",[["Anlagen Nr.",textValue("anlageInput")],["Objekt",textValue("objectInput")],["Anlagenstandort",textValue("anlagenstandortInput")],["Datum",formatDateForFile(textValue("dateInput"))]],4);kv("Anlagentyp",[["Anlagentyp",textValue("anlagentypSelect")]],1);kv("Prüfung",CHECK_FIELDS.map(item=>[item[1],document.querySelector("[data-field='"+item[0]+"']").value]),3);kv("Messwerte",[["Einschaltdruck",withUnit(textValue("einschaltdruckInput"),"bar")],["Ausschaltdruck",withUnit(textValue("ausschaltdruckInput"),"bar")],["Vordruck",withUnit(textValue("vordruckInput"),"bar")],["Vorspannung Ausdehnungsgefäß",withUnit(textValue("vorspannungInput"),"bar")]],2);kv("Anlagendaten",[["Hersteller",textValue("herstellerInput")],["Steuerungstyp",textValue("steuerungstypInput")],["Pumpentyp",textValue("pumpentypInput")],["Baujahr",textValue("baujahrInput")],["Leistung",withUnit(textValue("leistungKwInput"),"KW")],["Leistung",withUnit(textValue("leistungHInput"),"H")]],2);kv("Wasseranschluss",[["Anschluss",textValue("anschlussSelect")]],1);kv("Prüfergebnis",[["Prüfergebnis",textValue("pruefergebnisSelect")],["Bemerkung",textValue("bemerkungInput")]],1);ensure(32);section("Unterschrift");pdf.setFillColor("#f5f5f5");pdf.rect(margin,y,pageWidth-margin*2,24,"F");const signature=getStorageSignature();if(signature){try{pdf.addImage(signature,"PNG",margin+2,y+2,68,20,undefined,"FAST")}catch{pdf.text("Unterschrift konnte nicht eingebettet werden.",margin+2,y+8)}}pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.",margin,pageHeight-9);savePdfDocument(pdf,getPdfFileName())}catch(error){console.error("PDF Export fehlgeschlagen",error);alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.")}finally{pdfButton.disabled=false;pdfButton.textContent=oldText||"PDF"}}
@@ -1094,7 +1094,7 @@
     function getPdfFileName() {
       const anlage = sanitizeFileName(document.getElementById("anlageInput").value || "Ohne Anlagen Nr.");
       const objectName = sanitizeFileName(document.getElementById("objectInput").value || "Ohne Objekt");
-      const date = formatDateForFile(document.getElementById("dateInput").value || "").replaceAll(".", "-");
+      const date = document.getElementById("dateInput").value || todayIso();
       return anlage + "_" + objectName + "_" + date + ".pdf";
     }
 
@@ -2244,7 +2244,7 @@
     function getPdfFileName() {
       const anlage = sanitizeFileName(document.getElementById("anlageInput").value || "Ohne Anlagen Nr.");
       const objectName = sanitizeFileName(document.getElementById("objectInput").value || "Ohne Objekt");
-      const dateName = formatDateForFile(document.getElementById("dateInput").value);
+      const dateName = document.getElementById("dateInput").value || todayIso();
       return anlage + "_" + objectName + "_" + dateName + ".pdf";
     }
 
@@ -2739,7 +2739,7 @@
     if (text === "Import" || /fsmobile-data-import/.test(classes)) return "import";
     if (text === "Archiv" || /(^|\s)(archive-open|archive-btn)(\s|$)|archiveBtn/.test(haystack)) return "archive";
     if (text === "Leeren" || /(^|\s)(clear-btn|btn-clear)(\s|$)|clearButton|clearBtn/.test(haystack)) return "clear";
-    if (text === "PDF" || text.indexOf("PDF wird erstellt") === 0 || /pdf-btn|pdfButton|pdfBtn/.test(haystack)) return "pdf";
+    if (text === "PDF" || text === "PDF Export" || text.indexOf("PDF wird erstellt") === 0 || text.indexOf("PDF Export wird erstellt") === 0 || /pdf-btn|pdfButton|pdfBtn/.test(haystack)) return "pdf";
     return "";
   }
 
@@ -2750,7 +2750,7 @@
       export: "Export",
       import: "Import",
       clear: "Leeren",
-      pdf: "PDF"
+      pdf: "PDF Export"
     }[key] || key;
   }
 
@@ -2766,7 +2766,9 @@
   }
 
   function collectFrameActionButtons(doc) {
-    const order = ["save", "archive", "export", "import", "clear", "pdf"];
+    const order = /^pb-/.test(activeModuleId || "")
+      ? ["save", "archive", "import", "clear", "pdf"]
+      : ["save", "archive", "export", "import", "clear", "pdf"];
     const found = new Map();
     const directSelectors = {
       save: ".archive-save, .archive-save-btn, .btn-archive-save, #archiveSaveBtn",
@@ -2912,7 +2914,7 @@
             if (text === "Import" || /fsmobile-data-import/.test(classes)) return 40;
             if (text === "Archiv" || /(^|\\s)(archive-open|archive-btn)(\\s|$)|archiveBtn/.test(id + " " + classes)) return 20;
             if (text === "Leeren" || /(^|\\s)(clear-btn|btn-clear)(\\s|$)|clearButton|clearBtn/.test(id + " " + classes)) return 45;
-            if (text === "PDF" || text.indexOf("PDF wird erstellt") === 0 || /pdf-btn|pdfButton|pdfBtn/.test(id + " " + classes)) return 50;
+            if (text === "PDF" || text === "PDF Export" || text.indexOf("PDF wird erstellt") === 0 || text.indexOf("PDF Export wird erstellt") === 0 || /pdf-btn|pdfButton|pdfBtn/.test(id + " " + classes)) return 50;
             return 0;
           }
 
@@ -2989,14 +2991,14 @@
           function formatFsmobileDateForFile(value) {
             var raw = String(value || "").trim();
             var iso = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
-            if (iso) return iso[3] + "." + iso[2] + "." + iso[1];
+            if (iso) return iso[1] + "-" + iso[2] + "-" + iso[3];
             var german = raw.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$/);
-            if (german) return german[1].padStart(2, "0") + "." + german[2].padStart(2, "0") + "." + german[3];
+            if (german) return german[3] + "-" + german[2].padStart(2, "0") + "-" + german[1].padStart(2, "0");
             if (raw) return raw;
             var now = new Date();
             var day = String(now.getDate()).padStart(2, "0");
             var month = String(now.getMonth() + 1).padStart(2, "0");
-            return day + "." + month + "." + now.getFullYear();
+            return now.getFullYear() + "-" + month + "-" + day;
           }
 
           function fieldLabelText(field) {
@@ -3185,12 +3187,14 @@
             function formatDateForExportName(value) {
               var raw = String(value || "").trim();
               var match = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
-              if (match) return match[3] + "." + match[2] + "." + match[1];
+              if (match) return match[1] + "-" + match[2] + "-" + match[3];
+              var german = raw.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$/);
+              if (german) return german[3] + "-" + german[2].padStart(2, "0") + "-" + german[1].padStart(2, "0");
               if (raw) return raw;
               var now = new Date();
               var day = String(now.getDate()).padStart(2, "0");
               var month = String(now.getMonth() + 1).padStart(2, "0");
-              return day + "." + month + "." + now.getFullYear();
+              return now.getFullYear() + "-" + month + "-" + day;
             }
 
             function labelTextFor(field) {
@@ -3466,8 +3470,8 @@
               });
             }
 
-            function downloadExport() {
-              var payload = {
+	            function downloadExport() {
+	              var payload = {
                 kind: DATA_KIND,
                 version: 1,
                 moduleId: window.FSMOBILE_MODULE_ID,
@@ -3485,8 +3489,30 @@
               document.body.appendChild(link);
               link.click();
               link.remove();
-              setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
-            }
+	              setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+	            }
+	            window.FSMOBILE_DOWNLOAD_REPORT_EXPORT = downloadExport;
+
+	            function isPdfExportButton(button) {
+	              if (!button || button.closest(".archive-dialog, .archive-overlay, .pdf-render-wrapper")) return false;
+	              var text = (button.textContent || "").replace(/\s+/g, " ").trim();
+	              var haystack = (button.id || "") + " " + (button.className || "");
+	              return text === "PDF" || text === "PDF Export" || text.indexOf("PDF wird erstellt") === 0 || text.indexOf("PDF Export wird erstellt") === 0 || /pdf-btn|pdfButton|pdfBtn/.test(haystack);
+	            }
+
+	            function installPdfExportHook() {
+	              if (document.__fsmobilePdfExportHookInstalled) return;
+	              Object.defineProperty(document, "__fsmobilePdfExportHookInstalled", { value: true });
+	              document.addEventListener("click", function(event) {
+	                var button = event.target && event.target.closest ? event.target.closest("button") : null;
+	                if (!isPdfExportButton(button) || button.disabled) return;
+	                try {
+	                  downloadExport();
+	                } catch (error) {
+	                  console.warn("JSON-Export zum PDF-Export konnte nicht erstellt werden:", error);
+	                }
+	              }, true);
+	            }
 
             async function importExportFile(file) {
               if (!file) return;
@@ -3527,18 +3553,12 @@
                 document.body.insertBefore(host, document.body.firstChild);
               }
 
-              var wrapper = document.createElement("span");
-              wrapper.className = "fsmobile-report-transfer";
-              var exportButton = document.createElement("button");
-              exportButton.type = "button";
-              exportButton.className = "fsmobile-data-export btn-archive";
-              exportButton.textContent = "Export";
-              exportButton.addEventListener("click", downloadExport);
+	              installPdfExportHook();
 
-              var importButton = document.createElement("button");
-              importButton.type = "button";
-              importButton.className = "fsmobile-data-import secondary";
-              importButton.textContent = "Import";
+	              var importButton = document.createElement("button");
+	              importButton.type = "button";
+	              importButton.className = "fsmobile-data-import secondary";
+	              importButton.textContent = "Import";
 
               var fileInput = document.createElement("input");
               fileInput.id = "fsmobileReportImportFile";
@@ -3552,10 +3572,12 @@
               });
               importButton.addEventListener("click", function() { fileInput.click(); });
 
-              wrapper.append(exportButton, importButton, fileInput);
-              host.append(wrapper);
-              arrangeHeaderActions();
-            }
+	              var wrapper = document.createElement("span");
+	              wrapper.className = "fsmobile-report-transfer";
+	              wrapper.append(importButton, fileInput);
+	              host.append(wrapper);
+	              arrangeHeaderActions();
+	            }
 
             installControls();
           }
