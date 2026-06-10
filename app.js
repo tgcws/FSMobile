@@ -3254,6 +3254,7 @@
 	          function normalizeSignatureLabels() {
 	            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
 	            document.querySelectorAll("h2, h3, h4, legend, label, th, .section-title").forEach(function(node) {
+	              if (node.matches && node.matches("label") && node.querySelector("input, select, textarea, button")) return;
 	              var normalized = looksLikeSignatureNode(node) ? normalizeSignatureText(node.textContent) : normalizeTechnicianText(node.textContent);
 	              if (normalized && node.textContent !== normalized) node.textContent = normalized;
 	            });
@@ -4332,6 +4333,8 @@
             ensureRwaClearButton();
             arrangeHeaderActions();
             var arrangeTimer = 0;
+            var observerTarget = document.body || document.documentElement;
+            if (!observerTarget) return;
             new MutationObserver(function() {
               markPositionCells();
               ensureGeneratedTechnikerSignatureField();
@@ -4339,7 +4342,7 @@
               installJsPdfLoaderPatch();
               window.clearTimeout(arrangeTimer);
               arrangeTimer = window.setTimeout(arrangeHeaderActions, 60);
-            }).observe(document.body, { childList: true, subtree: true });
+            }).observe(observerTarget, { childList: true, subtree: true });
           });
         }());
       <\/script>
