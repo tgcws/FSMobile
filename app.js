@@ -311,7 +311,7 @@
     function sanitizeFileName(value){return(value||"Pruefbericht-Nass-Trocken-Station").trim().replace(/[\\\\/:*?"<>|]+/g,"-").replace(/\\s+/g,"_").slice(0,80)||"Pruefbericht-Nass-Trocken-Station"} function getPdfFileName(){const anlage=sanitizeFileName(document.getElementById("anlageInput").value||"Ohne Anlagen Nr.");const objectName=sanitizeFileName(document.getElementById("objectInput").value||"Ohne Objekt");const date=document.getElementById("dateInput").value||todayIso();return anlage+"_"+objectName+"_"+date+".pdf"}
     function ensureJsPdf(){if(window.jspdf&&typeof window.jspdf.jsPDF==="function")return window.jspdf.jsPDF;if(typeof window.jsPDF==="function")return window.jsPDF;return null} async function loadJsPdfIfNeeded(){const existing=ensureJsPdf();if(existing)return existing;return new Promise(resolve=>{const script=document.createElement("script");script.src="vendor/jspdf.umd.min.js";script.onload=()=>resolve(ensureJsPdf());script.onerror=()=>resolve(null);document.head.appendChild(script)})}
     function savePdfDocument(doc,fileName){try{doc["save"](fileName)}catch{try{const blob=doc["output"]("blob");const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=fileName;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}catch{alert("PDF konnte nicht gespeichert werden. Bitte im Browser erneut öffnen und noch einmal versuchen.")}}}
-    async function exportPdf(){const JsPdf=await loadJsPdfIfNeeded();if(!JsPdf){alert("PDF-Bibliothek konnte nicht geladen werden.");return}const pdfButton=document.getElementById("pdfButton");const oldText=pdfButton.textContent;pdfButton.disabled=true;pdfButton.textContent="PDF wird erstellt...";try{const pdf=new JsPdf({orientation:"portrait",unit:"mm",format:"a4",compress:true});const margin=12;const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const bottom=pageHeight-margin;let y=14;function clean(value){return String(value||"-").trim()||"-"}function ensure(space){if(y+space<=bottom)return;pdf.addPage();y=14;header(true)}function header(continued){pdf.setFont("helvetica","bold");pdf.setFontSize(15);pdf.text(continued?"Prüfbericht Nass/Trocken-Station (Fortsetzung)":"Prüfbericht Nass/Trocken-Station",pageWidth/2,y,{align:"center"});y+=9}function section(title){ensure(10);pdf.setFillColor("#d6001c");pdf.rect(margin,y,pageWidth-margin*2,7,"F");pdf.setTextColor("#fff");pdf.setFont("helvetica","bold");pdf.setFontSize(8.5);pdf.text(title,margin+2,y+4.8);pdf.setTextColor("#1c1c1e");y+=8}function kv(title,rows,columns){section(title);const colWidth=(pageWidth-margin*2)/columns;rows.forEach((row,index)=>{const col=index%columns;if(col===0)ensure(13);const x=margin+col*colWidth;pdf.setFillColor("#f5f5f5");pdf.rect(x,y,colWidth,13,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(6.5);pdf.setTextColor("#6b7280");pdf.text(pdf.splitTextToSize(clean(row[0]),colWidth-4),x+2,y+3.8);pdf.setFont("helvetica","normal");pdf.setFontSize(8.2);pdf.setTextColor("#1c1c1e");pdf.text(pdf.splitTextToSize(clean(row[1]),colWidth-4),x+2,y+8.5);if(col===columns-1||index===rows.length-1)y+=13});y+=4}header(false);kv("Zuordnung",[["Anlagen Nr.",textValue("anlageInput")],["Objekt",textValue("objectInput")],["Anlagenstandort",textValue("anlagenstandortInput")],["Datum",formatDateForFile(textValue("dateInput"))]],4);kv("Anlagentyp",[["Anlagentyp",textValue("anlagentypSelect")]],1);kv("Prüfung",CHECK_FIELDS.map(item=>[item[1],document.querySelector("[data-field='"+item[0]+"']").value]),3);kv("Messwerte",[["Einschaltdruck",withUnit(textValue("einschaltdruckInput"),"bar")],["Ausschaltdruck",withUnit(textValue("ausschaltdruckInput"),"bar")],["Vordruck",withUnit(textValue("vordruckInput"),"bar")],["Vorspannung Ausdehnungsgefäß",withUnit(textValue("vorspannungInput"),"bar")]],2);kv("Anlagendaten",[["Hersteller",textValue("herstellerInput")],["Steuerungstyp",textValue("steuerungstypInput")],["Pumpentyp",textValue("pumpentypInput")],["Baujahr",textValue("baujahrInput")],["Leistung",withUnit(textValue("leistungKwInput"),"KW")],["Leistung",withUnit(textValue("leistungHInput"),"H")]],2);kv("Wasseranschluss",[["Anschluss",textValue("anschlussSelect")]],1);kv("Prüfergebnis",[["Prüfergebnis",textValue("pruefergebnisSelect")],["Bemerkung",textValue("bemerkungInput")]],1);ensure(32);section("Unterschrift Techniker");pdf.setFillColor("#f5f5f5");pdf.rect(margin,y,pageWidth-margin*2,24,"F");const signature=getStorageSignature();if(signature){try{pdf.addImage(signature,"PNG",margin+2,y+2,68,20,undefined,"FAST")}catch{pdf.text("Unterschrift konnte nicht eingebettet werden.",margin+2,y+8)}}pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.",margin,pageHeight-9);savePdfDocument(pdf,getPdfFileName())}catch(error){console.error("PDF Export fehlgeschlagen",error);alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.")}finally{pdfButton.disabled=false;pdfButton.textContent=oldText||"PDF"}}
+    async function exportPdf(){const JsPdf=await loadJsPdfIfNeeded();if(!JsPdf){alert("PDF-Bibliothek konnte nicht geladen werden.");return}const pdfButton=document.getElementById("pdfButton");const oldText=pdfButton.textContent;pdfButton.disabled=true;pdfButton.textContent="PDF wird erstellt...";try{const pdf=new JsPdf({orientation:"portrait",unit:"mm",format:"a4",compress:true});const margin=12;const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const bottom=pageHeight-margin;let y=30;function clean(value){return String(value||"-").trim()||"-"}function ensure(space){if(y+space<=bottom)return;pdf.addPage();y=30;header(true)}function header(continued){pdf.setFont("helvetica","bold");pdf.setFontSize(15);pdf.text(continued?"Prüfbericht Nass/Trocken-Station (Fortsetzung)":"Prüfbericht Nass/Trocken-Station",pageWidth/2,y,{align:"center"});y+=9}function section(title){ensure(10);pdf.setFillColor(235, 0, 69);pdf.rect(margin,y,pageWidth-margin*2,7,"F");pdf.setTextColor("#fff");pdf.setFont("helvetica","bold");pdf.setFontSize(8.5);pdf.text(title,margin+2,y+4.8);pdf.setTextColor("#1c1c1e");y+=8}function kv(title,rows,columns){section(title);const colWidth=(pageWidth-margin*2)/columns;rows.forEach((row,index)=>{const col=index%columns;if(col===0)ensure(13);const x=margin+col*colWidth;pdf.setFillColor("#f5f5f5");pdf.rect(x,y,colWidth,13,"F");pdf.setFont("helvetica","bold");pdf.setFontSize(6.5);pdf.setTextColor("#6b7280");pdf.text(pdf.splitTextToSize(clean(row[0]),colWidth-4),x+2,y+3.8);pdf.setFont("helvetica","normal");pdf.setFontSize(8.2);pdf.setTextColor("#1c1c1e");pdf.text(pdf.splitTextToSize(clean(row[1]),colWidth-4),x+2,y+8.5);if(col===columns-1||index===rows.length-1)y+=13});y+=4}header(false);kv("Zuordnung",[["Anlagen Nr.",textValue("anlageInput")],["Objekt",textValue("objectInput")],["Anlagenstandort",textValue("anlagenstandortInput")],["Datum",formatDateForFile(textValue("dateInput"))]],4);kv("Anlagentyp",[["Anlagentyp",textValue("anlagentypSelect")]],1);kv("Prüfung",CHECK_FIELDS.map(item=>[item[1],document.querySelector("[data-field='"+item[0]+"']").value]),3);kv("Messwerte",[["Einschaltdruck",withUnit(textValue("einschaltdruckInput"),"bar")],["Ausschaltdruck",withUnit(textValue("ausschaltdruckInput"),"bar")],["Vordruck",withUnit(textValue("vordruckInput"),"bar")],["Vorspannung Ausdehnungsgefäß",withUnit(textValue("vorspannungInput"),"bar")]],2);kv("Anlagendaten",[["Hersteller",textValue("herstellerInput")],["Steuerungstyp",textValue("steuerungstypInput")],["Pumpentyp",textValue("pumpentypInput")],["Baujahr",textValue("baujahrInput")],["Leistung",withUnit(textValue("leistungKwInput"),"KW")],["Leistung",withUnit(textValue("leistungHInput"),"H")]],2);kv("Wasseranschluss",[["Anschluss",textValue("anschlussSelect")]],1);kv("Prüfergebnis",[["Prüfergebnis",textValue("pruefergebnisSelect")],["Bemerkung",textValue("bemerkungInput")]],1);ensure(32);section("Unterschrift Techniker");pdf.setFillColor("#f5f5f5");pdf.rect(margin,y,pageWidth-margin*2,24,"F");const signature=getStorageSignature();if(signature){try{pdf.addImage(signature,"PNG",margin+2,y+2,68,20,undefined,"FAST")}catch{pdf.text("Unterschrift konnte nicht eingebettet werden.",margin+2,y+8)}}pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.",margin,pageHeight-9);if(typeof window.FSMOBILE_STAMP_PDF_LOGO==="function")window.FSMOBILE_STAMP_PDF_LOGO(pdf);savePdfDocument(pdf,getPdfFileName())}catch(error){console.error("PDF Export fehlgeschlagen",error);alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.")}finally{pdfButton.disabled=false;pdfButton.textContent=oldText||"PDF"}}
     function getStorageSignature(){const canvas=document.getElementById("signaturePad");if(!canvas)return"";try{const context=canvas.getContext("2d", { willReadFrequently: true });const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;for(let index=3;index<pixels.length;index+=4)if(pixels[index]!==0)return canvas.toDataURL("image/png")}catch{}return""}
     function restoreSignatureFromStorage(dataUrl){if(!dataUrl)return;const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });const rect=canvas.getBoundingClientRect();const img=new Image();img.onload=()=>context.drawImage(img,0,0,rect.width,rect.height);img.src=dataUrl}
     function setupSignaturePad(){const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });signaturePadState.canvas=canvas;signaturePadState.ctx=context;function resize(keep){const dataUrl=keep?getStorageSignature():"";const rect=canvas.getBoundingClientRect();const ratio=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(rect.width*ratio));canvas.height=Math.max(1,Math.round(rect.height*ratio));context.setTransform(ratio,0,0,ratio,0,0);context.lineWidth=2.4;context.lineCap="round";context.lineJoin="round";context.strokeStyle="#1c1c1e";restoreSignatureFromStorage(dataUrl)}function point(event){const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top}}function start(event){event.preventDefault();signaturePadState.isDrawing=true;signaturePadState.lastPoint=point(event)}function move(event){if(!signaturePadState.isDrawing)return;event.preventDefault();const current=point(event);context.beginPath();context.moveTo(signaturePadState.lastPoint.x,signaturePadState.lastPoint.y);context.lineTo(current.x,current.y);context.stroke();signaturePadState.lastPoint=current}function end(){if(!signaturePadState.isDrawing)return;signaturePadState.isDrawing=false;signaturePadState.lastPoint=null;scheduleStorageSave()}canvas.addEventListener("pointerdown",start);canvas.addEventListener("pointermove",move);canvas.addEventListener("pointerup",end);canvas.addEventListener("pointercancel",end);canvas.addEventListener("pointerleave",end);window.addEventListener("resize",()=>resize(true));resize(false)}
@@ -1164,9 +1164,9 @@
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
         const bottom = pageHeight - margin;
-        let y = 14;
+        let y = 30;
         function clean(value) { return String(value || "-").trim() || "-"; }
-        function ensure(space) { if (y + space <= bottom) return; pdf.addPage(); y = 14; header(true); }
+        function ensure(space) { if (y + space <= bottom) return; pdf.addPage(); y = 30; header(true); }
         function header(continued) {
           pdf.setFont("helvetica", "bold");
           pdf.setFontSize(15);
@@ -1175,7 +1175,7 @@
         }
         function section(title) {
           ensure(10);
-          pdf.setFillColor("#d6001c");
+          pdf.setFillColor(235, 0, 69);
           pdf.rect(margin, y, pageWidth - margin * 2, 7, "F");
           pdf.setTextColor("#ffffff");
           pdf.setFont("helvetica", "bold");
@@ -1208,27 +1208,44 @@
         function table(title, headers, rows, widths) {
           section(title);
           const tableRows = rows.length ? rows : [headers.map(() => "-")];
+          function headerTextLines(head, index) {
+            return String(head || "")
+              .split(String.fromCharCode(10))
+              .flatMap(part => pdf.splitTextToSize(clean(part), widths[index] - 4))
+              .filter(Boolean);
+          }
           function tableHeader() {
             let x = margin;
-            const headerLines = headers.map((head, index) => pdf.splitTextToSize(clean(head), widths[index] - 4));
+            const headerLines = headers.map(headerTextLines);
             const headerHeight = Math.max(10, ...headerLines.map(lines => lines.length * 3.4 + 4));
-            pdf.setFillColor("#d6001c");
+            const headerTop = y;
             pdf.setFont("helvetica", "bold");
             pdf.setFontSize(6.8);
-            pdf.setTextColor("#ffffff");
-            headerLines.forEach((lines, index) => {
-              pdf.rect(x, y, widths[index], headerHeight, "F");
-              pdf.text(lines, x + widths[index] / 2, y + 4.4, { align: "center" });
+            headers.forEach((_, index) => {
+              pdf.setFillColor(235, 0, 69);
+              pdf.setDrawColor(255, 255, 255);
+              pdf.setLineWidth(0.35);
+              pdf.rect(x, headerTop, widths[index], headerHeight, "FD");
               x += widths[index];
             });
-            y += headerHeight;
+            x = margin;
+            pdf.setTextColor(255, 255, 255);
+            headerLines.forEach((lines, index) => {
+              const firstLineY = headerTop + Math.max(4.2, (headerHeight - (lines.length - 1) * 3.3) / 2 + 1.7);
+              lines.forEach((line, lineIndex) => {
+                pdf.text(String(line), x + widths[index] / 2, firstLineY + lineIndex * 3.3, { align: "center" });
+              });
+              x += widths[index];
+            });
+            pdf.setTextColor("#1c1c1e");
+            y = headerTop + headerHeight;
           }
           ensure(22);
           tableHeader();
           tableRows.forEach(row => {
             const wrapped = row.map((value, index) => pdf.splitTextToSize(clean(value), widths[index] - 4));
             const rowHeight = Math.max(9, ...wrapped.map(lines => lines.length * 3.5 + 4));
-            if (y + rowHeight > bottom) { pdf.addPage(); y = 14; header(true); section(title + " (Fortsetzung)"); tableHeader(); }
+            if (y + rowHeight > bottom) { pdf.addPage(); y = 30; header(true); section(title + " (Fortsetzung)"); tableHeader(); }
             let x = margin;
             pdf.setFont("helvetica", "normal");
             pdf.setFontSize(7.8);
@@ -1293,6 +1310,7 @@
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(7);
         pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.", margin, pageHeight - 9);
+        if (typeof window.FSMOBILE_STAMP_PDF_LOGO === "function") window.FSMOBILE_STAMP_PDF_LOGO(pdf);
         savePdfDocument(pdf, getPdfFileName());
       } catch (error) {
         console.error("PDF Export fehlgeschlagen", error);
@@ -2295,7 +2313,7 @@
     function yesNo(value) { return value === "true" ? "Ja" : "Nein"; }
 
     function addSectionTitle(doc, title, x, y, width) {
-      doc.setFillColor("#d6001c");
+      doc.setFillColor(235, 0, 69);
       doc.rect(x, y, width, 6.2, "F");
       doc.setTextColor("#ffffff");
       doc.setFont("helvetica", "bold");
@@ -2338,21 +2356,26 @@
         const pageHeight = doc.internal.pageSize.getHeight();
         const margin = 10;
         const contentWidth = pageWidth - margin * 2;
-        let y = 9;
+        let y = 30;
+
+        function drawDocumentHeader() {
+          doc.setFillColor(235, 0, 69);
+          doc.rect(margin, 30, contentWidth, 10, "F");
+          doc.setTextColor("#ffffff");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(13);
+          doc.text("PRÜFBERICHT ZENTRALBATTERIE-ANLAGE", pageWidth / 2, 36.8, { align: "center" });
+          doc.setTextColor("#111827");
+          return 44;
+        }
 
         function ensureSpace(needed) {
           if (y + needed <= pageHeight - margin - 10) return;
           doc.addPage("a4", "portrait");
-          y = 12;
+          y = drawDocumentHeader();
         }
 
-        doc.setFillColor("#d6001c");
-        doc.rect(margin, y, contentWidth, 10, "F");
-        doc.setTextColor("#ffffff");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(13);
-        doc.text("PRÜFBERICHT ZENTRALBATTERIE-ANLAGE", pageWidth / 2, y + 6.8, { align: "center" });
-        y += 14;
+        y = drawDocumentHeader();
 
         y = addSectionTitle(doc, "Zuordnung", margin, y, contentWidth);
         const headerRows = [
@@ -2455,6 +2478,7 @@
         doc.setFontSize(7);
         doc.text("Unterschrift Techniker", margin, y + 26);
 
+        if (typeof window.FSMOBILE_STAMP_PDF_LOGO === "function") window.FSMOBILE_STAMP_PDF_LOGO(doc);
         savePdfDocument(doc, getPdfFileName());
       } catch (error) {
         console.error("PDF-Export fehlgeschlagen:", error);
@@ -2517,7 +2541,9 @@
     }
 
     function isCanvasBlank(canvas) {
+      if (!canvas || !canvas.width || !canvas.height) return true;
       const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return true;
       const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
       for (let index = 3; index < pixels.length; index += 4) {
         if (pixels[index] !== 0) return false;
@@ -2993,6 +3019,19 @@
               if (/^(mailto:|tel:)/i.test(href)) location.href = href;
             }
           }, true);
+          function installPdfTableColorOverride() {
+            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
+            if (document.getElementById("fsmobilePdfTableColorOverride")) return;
+            var style = document.createElement("style");
+            style.id = "fsmobilePdfTableColorOverride";
+            style.textContent = [
+              "body.generating-pdf, .pdf-render-wrapper { --brand: rgb(235, 0, 69) !important; }",
+              "body.generating-pdf th, body.generating-pdf thead th, .pdf-render-wrapper th, .pdf-render-wrapper thead th { background: rgb(235, 0, 69) !important; background-color: rgb(235, 0, 69) !important; }"
+            ].join("\\n");
+            (document.head || document.documentElement).appendChild(style);
+          }
+          installPdfTableColorOverride();
+          document.addEventListener("DOMContentLoaded", installPdfTableColorOverride);
           function markPositionCells() {
             document.querySelectorAll(".pos-field").forEach(function(field) {
               var cell = field.closest && field.closest("td");
@@ -3085,6 +3124,12 @@
               .replace(/\\s+/g, "_")
               .replace(/_+/g, "_")
               .slice(0, 80) || fallback || "Ohne_Angabe";
+          }
+
+          function ensurePbFilePrefix(fileName) {
+            var name = String(fileName || "").trim();
+            if (!name) return "PB";
+            return /^PB(?:[_\-\s.]|$)/i.test(name) ? name : "PB_" + name;
           }
 
           function formatFsmobileDateForFile(value) {
@@ -3415,6 +3460,98 @@
             } catch (error) {}
           }
 
+          var FSMOBILE_PDF_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAY0AAAA5CAIAAABF6eBRAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFu2lUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgOS4xLWMwMDEgNzkuMTQ2Mjg5OSwgMjAyMy8wNi8yNS0yMDowMTo1NSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0RXZ0PSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VFdmVudCMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDI0LjcgKFdpbmRvd3MpIiB4bXA6Q3JlYXRlRGF0ZT0iMjAyMy0wOC0wNFQxMDowMToxMSswMjowMCIgeG1wOk1vZGlmeURhdGU9IjIwMjQtMDItMDJUMTA6MDk6NTYrMDE6MDAiIHhtcDpNZXRhZGF0YURhdGU9IjIwMjQtMDItMDJUMTA6MDk6NTYrMDE6MDAiIGRjOmZvcm1hdD0iaW1hZ2UvcG5nIiBwaG90b3Nob3A6Q29sb3JNb2RlPSIzIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjc1YTQ3ODhhLTQwYWEtNmE0Ni1hYmIwLTVlZWZhOTYzNDIwZSIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDowYWM5ZmQ4ZC0yNjliLTQ2NDktYWZhZC0yZDE3YWUzZWNiYzIiIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDowYWM5ZmQ4ZC0yNjliLTQ2NDktYWZhZC0yZDE3YWUzZWNiYzIiPiA8eG1wTU06SGlzdG9yeT4gPHJkZjpTZXE+IDxyZGY6bGkgc3RFdnQ6YWN0aW9uPSJjcmVhdGVkIiBzdEV2dDppbnN0YW5jZUlEPSJ4bXAuaWlkOjBhYzlmZDhkLTI2OWItNDY0OS1hZmFkLTJkMTdhZTNlY2JjMiIgc3RFdnQ6d2hlbj0iMjAyMy0wOC0wNFQxMDowMToxMSswMjowMCIgc3RFdnQ6c29mdHdhcmVBZ2VudD0iQWRvYmUgUGhvdG9zaG9wIDI0LjcgKFdpbmRvd3MpIi8+IDxyZGY6bGkgc3RFdnQ6YWN0aW9uPSJzYXZlZCIgc3RFdnQ6aW5zdGFuY2VJRD0ieG1wLmlpZDo3NWE0Nzg4YS00MGFhLTZhNDYtYWJiMC01ZWVmYTk2MzQyMGUiIHN0RXZ0OndoZW49IjIwMjQtMDItMDJUMTA6MDk6NTYrMDE6MDAiIHN0RXZ0OnNvZnR3YXJlQWdlbnQ9IkFkb2JlIFBob3Rvc2hvcCAyNS4zIChXaW5kb3dzKSIgc3RFdnQ6Y2hhbmdlZD0iLyIvPiA8L3JkZjpTZXE+IDwveG1wTU06SGlzdG9yeT4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz4DhjZYAAAh00lEQVR4nO2debhlVXnmf++39rlFMRRQFBSFTDIjIiqICogmcUgccEw0aaNxNhojprXN45BJ2xiNA3m6W9BOO0TbtIpinjaxbbuNRqBNtJnaAWPUAiwsSqQYROqevb63/1jr3CpAkpjcWxbJef+4z3Pv3Wfvtdde+13f937D0RYewRxzLB/2+8ghWr3pJz2KOf5FIX7SA5hjjjnm+Acw56k55phjV8ecp+aYY45dHXOemmOOOXZ1zHlqjjnm2NUx56k55phjV8ecp+aYY45dHXOemmOOOXZ1zHlqjjnm2NUx56k55phjV8ecp+aYY45dHXOemmOOOXZ1zHlqjjnm2NUx56k55phjV8ecp+aYY45dHTuDpwQGgQgD2ARg7DsduXzIfk4JsBLi9uePdoxml5bk2a+eDRtSUiJR2mGlHxDtgAHd/i6inSrx0qlmA1AVs4vGbE5ydpjbz0DL/VwGSC/z9O4kWAFg92nWpM9o+7X9EF5aSiEMBATGJBIyhEkL0laYXFoO3nFe+gI1QGCRJES7nG33ZRGzA/7BJxW2bS99ZAlJWtEvGe2iYRlitiiWJgEcS3faxjAbyfZhQ3HUfo2M2RTFbAaw8PY/FsvIVmxfwo4dTrj0d6M+lf0Ag4zUJ0re/sGVwbCiZwcEUzwgUVJp16BAhtKOy7npfL57OTd/nu+b7dywLBeWeQPHPceHGl3hWx/Oxbf7v9jsR4IgIUWZ4gESJEVbNZK98Bp/+V1cVUNtnVuB+TQPuLfWDGbaPrHER6TA9kCM5Gamj+LCaxllrPa4+/De6/s8hg03kp/k2g9o00W6ATusXLYp2I4tPEJsJ2FTNOPxXRxymlQppKBWflg0MYYiVYQzhNHsxU4bS7ZGaojBVBFW7RwmQZUKIwyzZ2pJwokCsrNHRYQKZJJCoZJk214qYENWPHGZynexC2TVIGwyCVEbKzntUGnUKQ/UUQhNlRNHpaAafVtXUU0P25QTO4OBWlGRcVSQnRFhwqox4wuXlMKZRAWRoUbICUMmRCILISVZIIlqWyijQgRJCkMMZpQiYswskiXQQFaVINMUtKiY2HmX8/DPw4rzVMKAClRqMTWUWUW5xD/8NS75Gj+U1FfJ8r6fDpMihUNOVwCWyAb3/SIFSSQOW83IciQq2PZv8ZVzdRUwIykgmzU0caMdhZROUECBEYCKb8Uv5rJro5YcqjpVtTfl3T7x0az/Orc8j8u+wi1hcBRUl5+mAqiiELZHvBsxpd5trCtbpdiSqiPKOIFRYbAzFKEYMUTYlu1uFIfqhDBOtZcQpAkaHZIzNY1SqIVipqlJsVNgpUzbUixJ6UxpFUxRkmFV1WDADjkoIzmK2L56pR39BBfUDGi1DYLMjAxFMSkKNYnRpeIiT9DsVR/sakmmUoxX4YwIyCzICZZFhiJcC2UxqoiBqHbIia0YnKm2GRdsNAyMGQVIIqxQ1sZ38oTBzoxcsHPmMwhXRUB1VViooCSnlOIawnIlJq4pD0RdiVWw4n5fgKTZq0tkDEzeEt96OBd9LW5rpkchmwGp5XtF1axUYbBlSVJga7sxi7rt3FZZIWo3lzPIRJ9g87lsDAt3J0EGU8gBVTLbZxtJSYaRdiFuJZ/F//0rbY2M2oys9nHxHt/3cWy4jsUn6gtf1i0zCysrbUnFcj4XJeRgZAO7EVOyLNvZVx4BKVEZQzVTU5eCCzUVNmMKqzDSPG2ZyPZGJs04jYqQItnWzVlHaMATotJNB+Mkmn8MDiw5bJCcbf0aVSgMpqIEj/j2bpruyP5yAbdNIbEdwQIgVzA1iUxSuUoJTggzIrs2xUJyyFKmI3BARJWaK0m4kIyKW+XSXFsbOUk5qnMUJrIxlRyMI8VY6cEIV9tyaX4hI3Ix26RsviikZapxEfJkJKZWoAGP0khRFjG1Bq8QSbETeEqoOguaORrx6rjyjfkNQNmmuqk2zcZZtvF0UnCIQKU4bCfNBIqmImV/DJnd/bM0JBZp+HO++0xdbpG4ERwSBCojsU0GSTLuHpRtELbzFvIZfOkvdQMOU9XloUB6pY84iwOm8iv0lc3u1lPtc9V8iWU1dWbU31SWKRIr4lquFCyojqBkn8E6tdJFGOUkahFTwjA0S8SlJpXArqHBrhlYiQYlyqSkbdpyiMhSySIm2NIAOGoqcFUjqi4eDqaoYpsQUWukKZCp2fvpO4muqs0xJR0hPEKtkd1+CSeWAo/IGYGrtWCKkCX39SUjSMfUqihMDQ2QqjWIZAErJaJJoCaMi1QojK5EwcAUFatCRlR5Kgehxo9VUwmcaOi7druDlLFVKYWxkBNRrcSTfl+JJ0FdQedsxXmqkiXKYt+n4i36u3fkt4Fm7EileWbRdiItp2jiICSRuDYRsL//ahY+BeWStk8X0ptF8wk2P1OXCalr6S5uqzWhQhYzLFlSsxMHDPhW/Mtc8jltlSlks+lkUD7fB7+cI0fqZhb/nC2NuwfETLqyGEgvr3ik9sNTOdu9343ivJpUVY0l6e4YGuRuelCqI9NhQUxnoYhJWHQ9apQmkQOUyLTSGmwrmz8WckauYqhoNDJTJFnhSgydpEpTTkc5XbLFZUwpGcrsy/j22K7rS5Fqa5G0JDuLJwR4dNRgoQtEMQQ1C+EkK0o1hmvxm7BclROlMIpV1EVCLgU5sKPGOBO5Q13ScJIMsUCtkKkJao4weLAHVCEcBhcPjjHlRl7JBNWu3gXK0mw8R8VSAtVR3EX0NuaVEhN2go4uZ12FquJS3/gmvgE7ykS1PYKUz/IBU9dYplcoQKkDKC0qUXpQQrhFPBKRblLUTF1wGotyCTc+i8sHa+xhQNnVXWBgxmVNh2r6a9M7ZXsr9em65EK24kCu/XIB+UIf9jqONzXRpb6RWVRxlEWBuoHd7ue9Z+HR5aOqTnsqM0a+m0hTAHixqGlSA3XaWN1OEThdTSiyoEw5JBAamxqsFqhKO6bKgiqaKKfNerZQo7gcM1MKuUnEbbYaNwUZxDZcmK1UVFAlA6DgVHjK7alKEirOpKbAIamQdab4L7qGEC7NkgoGxpEhwgGL6jJDmnYTKSAGXK0ipuSEAtXNOcRhRg0wRnMVaNJWJBnUStgM0azqtEuqThUL6W1BtUrFJZscJahu7rOK6OEHqyn9VW60W7FE0ypyFk7PFVpcK85TbgsHZL1Nfxemdo8v2uuznuFN3PuxPjCpy6mlS1hixBWiEkhKN+umjaxP9g4SKOTXufXp+hvD2DY/mx1MqjbElJvm0PQ17+CyvYlvXuitBer2VAMgX6jDXu9jk2piAW/SrW0MJnBC/Tmte6/vB8tu7yQMYvTS+sU7wY5ePshYYaUdIaed8ZhPt+dAFLIKrPLzp+33oVediqZygelff+PGB519sYkvvv3Uk4/eB2VlKJkOnvz6yy+4aJMb7aAnn77/2j30tIcd+tMn7YsnMG30g8dz/uyqf3veVyshpQm5p3e89YVHn33WEU3LDlq2xB33FWfedttt7/r05nf/j2su+9ZNhg1rd3/Gw/Z71S8dt2aPQSk0lSeQqRIeGeL1H/j6a9//dxCveOJhb3zucUHiibytk2C14RfeeOlHLtxUTO3SnWwj/N9/tpuQ1C9+fesDfuMLsxDzRJomMTjPOn3DR159krAdGnzOBd84+7yvLtnyAmuCp2h48mn7fvjVJyuhcM2WfNBLP/OdGyqw6X0P3bBuAfIHP6hHP+/Ca7f+ULDxT3764P0mImFhpmEsM3aCPtWnoHk6qe2moWC9ho/7lLM4IJf99mx3N73tTdmVx56tIljKBmGWz1W/ya1P5G+2NCOop0DFLL9lh5Xornh7O6dkwmu58h3aSF+zOdOz+FUOfb2PyWaOkVXNVKeFTgJZHOE9YdhhwD82dkzX2iGrK9o8MNszljVcsTPQA3Bkz6Bqcne00OssXci1yqjtOwklZvuLW/jMKLLF+6VuFzct8vwLt7zr09/9mVd98U8+fa0YoZjRAkXxWGNSyB40VtcrogpCKhB29mBwU8oVpC0T+pW3fOWl537l0m/d1J7ptd+/7Q8+dvUTfvdLpFElVzW3K2IkVZ3nfuI7zdd43+eu/eFtbaOcooLaAwypjJrKUenyxZIcZgUtraWJFdsTmqbpwFlFOBt5hRKXnoaxfQ33jEI8QsjRbIl7rIuXP/VwyAKvff+VpmB++4N/e+3WHwLnPP/YQ9YuKEUWa3GF1sDOyJ8KNJU/4y0yLfLWpR74A9/7SK2ZzsTj2rMcV3Y8hpTD2oYkFzcnK7+pxbP40nUsLon+BpQv9KHncU1fqO5nCWcTpKPnRA2/xdfO5apmZzlQ4tSAn+tDX8fx2f2EZmL5IFYjim1KyoP5D/p2dR7GboTGzMKPF5Rr0aFiA3uqHOU9jtOeq01QChrJNrGJi5oFd3dy/u4MpU+855pnP3JDOCFScdj+AzXviuQdqGKsQWIE7nPEvs9+5Pq0rt3ygzd/9Borz/nY1f/m4Rsiq6KQ6YgxUE5r4Tcev/7wdfukUgzy4gNPOKCFFJUCWSEqVvQkLMlx5TVbP/R/NgMb1u72yqcc8eB77fWmD3/z/Auv/8srvn/+xd998oMPRNWISC0uUMbPXXL9d7beBkBs/v5tn/rSdU84Y4NDcpgkB5VFcphksfI+R+z17IcfZAKlOiVlyx22XLXQhJUnnb7+zBPWwmgFqUMO2M2iOW5m+pB7r3nL844pims2/+DNF1yN80mn73/mCeuU9eD1q+zatFpRz37cEe/71KZLvvWDP/6fm170c4fvtke89aMbgfscufevPOIgcnAZ5VCWFbKndobfZzyYq7nV9LQmAPJe7P4Y1tu1EJCLMFn5rb5Z+y32VxB2gUreQr7CX9nCKLXoXNuo8ld96Ou517m6qrnebXilB+m8gKa2KK/ma+dpY9+sTCZtDT3Hh76OY03GDsKQ4b6smXmRNawRI72Dq/q/l3a2fzQ6W7b8rJkO9SIOfyVHraYbbyJEbeHXu5dJdWeYOPag3V961j3pu1+oc++PnjdhmKCxxdkRR23Y7SWPO1QE8KaPXoX50sYboPt8kuQUE4DkqWcefupR+6KKAgumXdWUrKpMAhQkLrVVQNx8a6UbgD7juL1OPmbde85e88qnbC1M1u+3u4U8ysUKyjgWf+Cz12Huse/ETDbdcOsHPnvdE09b3/w41UJMsTJq9SjK0QesfsnjjwwnUJXFUAtlJC3KxNvau3bmCfu89AmHMauN6MkQyLZK3P/Ife5/9H5y/vXf3vjmj11tOPOEfdqUZlNJqiWsQdXn/vp9Hnj2xQWec85Xjjlo0kywP37xvfdavSo1lUbqKhev0MJacZ5iZsJ8mZt61KLbKZzkvSFnYfKlgogVHozJbh0zsadQ4RZ4Bpe1nPjuq6tAfbEP+x2OM7U7eTMuqCAipEWnKL/NV89j45IcVUMlVZUv4vDf5aieFzorMhhQxQey26O0/194i5ukj5RdqTLbCxL+8WgWXP9wG4p5hzaezzUf50FHeTV9epcqNe7ekPLDF10Xj/mkQ6QDvfUFR730rMP5++3Qnms7YL7xnVv+6M82Qnz8os0ADA89cU3bw1T6ZupcLExGpg86++KWQ9P2sC+cc9qpR+4JMhPV6olUSWoU5Aka7XL8wXsdtHbVpu9v23TDtlNe/tcH7zV50In7PObUDU950N577Dko25JHnlK0+bp8z6euAp76UwcXj394wbaPXnjtphuO37DvKiIVwASmkZImts//wpaFR/95haauv/X5R734CUe3vZGoIwGIPPu8K88+72+bd2B42wuOP/usw2gqfUotS15ERqBEhYJM1tAka0ZMHItyuHDqUXu/7EkHv/2j11z67Zsu/TaQz37Uwaccs6eVUihXueQONQ/LjJ2hp1aWohLNge+3ciJ7twPuXOi3ssgW+KNSUd5MfSZf+jxbZzoGgex6hvZ9OUe1zL8ZBQWzXM3a4rXow1z7n9jYb6mZyakKv+rDfsdH9+1Lrb5DSFNyjAz5DT7+QAZaaE9pss4Y5MdmqXZT9PqvHcoUvZnxLF98E7VJY3dvZ28H2IHTRCOOxM7Bd8oP2H58C+cYQlYKLtt489nvvPJl5135mSu+Lzhw3/LOXzsBUIRrS+kMlRhjiqPbqtnXrjOt3QhJU4bQaBxBIZ0xgs3iHrsvfOYNJz/p9A2YkrrmpsWPfP57z3rbZce+8LNfu+Ym5KQShsI4fPryzTUQ/NIZBz7nZw/B1Ro+dOF3FKgGTjTFhTRkIZWuQpLkUa4Rkale41Mo0XRVSRAO3CJ3nuKWSlZRbaHrVKAxcShHp7EjcI3STTnbYoDhdb94/IFdL88N+y780fOPR5KHXmVBxSuVQbwz7KkFYkmB6gkuAnMR1z+HQwKkmDpBwwp5tztAyHJJZSuHNr+uyz7HVqCYCkRJ1zO07/vz/nvOqoWbkTLYLTF5SXj8BJtfzOXuxa/GbUnxNDb8no8RJINke2zuxAgLhNLGB2u3j/qBz+Gyr3BLn5z2vP8J1tTs47MQz/YzyLGF+kFtej6HVmdR9KSv5ZjMnyBE3vfwPX/5UQdNiBFJi2ccs/bv2c+lgisoM9vec9C+kzOOW/NXV9507fVY+fHfOuWYDXtmyRjd0/oUrjHkZGT68iccfPCBa8x08MT2YWtXw21WaIQS1rRXOoRiDIIgUT364L3Pf9VJ115/zJe/c8tFX735gs9dd8nGrZu/X9/ykWve+dITQpE5toTjc86/poVt/upr17echmB8z1989+zH3dMl0KgsVmoQUMVJ91z7zEesG6h4SMrpx+5NWFS3Sr9aUYbLEx+070Puu7ZUjxRJZxy7D0BL6dAszONsG5tbwmEXDSwXK9Wqy+rooj1Wlzc+8/hfedsV2G981nF7rJqgKRAVRwpmAZvlx87gqRaDeSjrPsH3eqWVAb6gG2+1dsdyj3yMK//+tJT0GiYx8Xtc+Qlftz2tXKH0mez3Ht93j1mMrAD2YI1yS/WSEXEB1z2Xy9tp7e54Cc7wmjdwvEgTAa2qqpHDRKr2BC2Sg3Uku/8lp/+Frvukv/tZtmzSyJIx9WNOhB3Fud1Bpa287kJ+kKuf70NXwW14uPuTFGDiiHusPvvxR6lWIqxmReouTXOnbaKEm/AcDz5+7Z++6gHnX3T1z//7yzBv+sjXP/Ta+8S4mhiTUQrVRamOTCU99aGHnHLUGlQcVa3GzdWjKZE4VAgYU8OQxeHEvOd/Xfest12C430vu9cv/8zBDz/pgNOP3fsRr/mbClt/sC1ke9oI7cpNN176rRusAvVl7/xGqx0wXL7xxi9eef0px+6PJ3aVwpXBBThqw6qXPf5IKgy4Jdu4YKSExAuAqWeetO7XHntYSyTr04blHSQ8W9btuj6kiaKotNytpssGLfvsXoesNg7KcYfu4Uh5MpY6TAseYeJS7651yABSxQd41ZLJABiu0+Kf+qrncLB6GXnslCL+sFLpgNfoa+/0RkDuz6Q4T2efP9Z993Rr2xJBjgRubKteeSPO96Z3sHHmOCctbG6fwdo/4ZTdZLmZbD0g1PP7XENlagrDIuOAIR/tdY9hnVXIUTOy+3E1pGbOFSLN53TDi7hsixebGxjoy/5BlWwtOBbF4PHulJL+o5EQytHDRDl2oTzvctZaJomzojLrGwCaPuW0DT994tX/+4qtF1x4/QWfv/6Jpx2oRBEQtMJ0kfbL/8s39utqagmPT/upg550+j2EjXtfAVpy+7ZgAoHy5x+836vfvdumG257xtv+36Ubb5bjLR/7lgiUZ5ywd49sJ4Tf9clrTcj1yadtgGwlph+9cIuVH/z8daccsx9CagkRObYaQy0aUarcIn7qaQrN94+x1Yf9509996Irvj+VIoG4z1F7vOZpx6h3Fmp+TdkedmnFgUHfi9XOHHJFKFfBVB4Q6RpOJZBDlVUVBVd5MivDX2bshHhf4Czkw1jX05e6Nxt2/iZf28Buj/b+0FXkZbuuMhyplFtGUkCPB2lW//JOb5zlQCGHI/fPeDcnr3G3pNrCj1k2XaOzLlGzEVhKq29Z6aex9v2ctEAOxFL/KZilXkm0MkMh12GpLVB3h+tM+/qnQCBaHms+zGufpA3nsrHfAwIP1hiZmQuO8Z+aovWTQBB2TamFP5BLj373tyixmntiWa4wYbtpGajCANPm81dVPIgeHIH4g2cd/4DfuDjJl7zjyoffb+2ahQkUZaJClrYCPnvF9cBsLuOME9e2t7pTzWz3lQci7YlcV+8++Y8vOu5F5375uuvrWz+2cZawkg+/19pnP/LQNnpUDf/1c9cA9z18zYdffdIspYWTXnLR5d+66b995ru//fRj9loleUCZvX9UxQtyzrz9vrlZTeefpcrAFd/cesU3+x8hzT26MWVAjlBrNzPz+6JpqS0N3rUFPWeCzYiokcrmVERGK+AOkdS2Ea8ISbETeCpIoEbZI/2L2vCnvtbdecrGVs/k0sex/1PYcD/2PlAL8vLs8/Jggi4oZcsjbelyNdQzLnFx67cSVm7I4QIevBdBN526yVGxZ0bwDi2kohdSuzdaOJN93sf9FlCr7Jil+HbeKfQSd0nhLGgEL7cJGZDEZdz0MV87+4uymXu4JBDbguHu0XuqIWkGjlvNCnb9wxceG7UefuAaVWVkSK0fiwwuSIhD9lt9zvOPlXSPtauJUbUAKIv09J9a95AT9zxk/4VW5HzK8Xu992Un3viD20Z583XjmsMmjQJsPeSEvd/+guPDIwzNflBWR3nI8fvINFc7IlreloUY8OgYcQnqWadtOPWYfT508XcuuuLmKu+9O094wMFnnbbeSpJUDbT5e9NXPuWIkhx7+BoATWGC8g+ff8yV377F1i03b1uzsHvzN4vj6Q/bcMaJ+xy+/2q7lVstVfn0TSmUB65b/fYXHGurUB0TZXW4miPWreqTeqfjz3nuUT/6vpqI1Q61Dlm78LYXHF2cB65b3dxb4p+zvf5joS08YkUvYGiNM6aqV3vbqVzYLwyKSOdS4s8ODRqXDb/Pcc/lMMhLueURunh7fQAspZs2i3p9xMfzwUewu6nIgyPVGzoUtI5PzXRp+sZIK81s5QucyZr3xP33SkmFWd77HZ5eC3pOnS1N7J3a+Fv++nLFDZZ86kbC20c7W5Df42dNXZQXZr0jVwj7feQQrd60bKfrklMQSUvUjMG4u3AEGvHsde3BhOgplLReU0TrUecgbFc3OZpURqqGIpmKodf2ORwpG4VbEM1Js+aaYa2YdeI00AQe6H1QWo10qkhSVmLAo41UespIs+RMBpG0TCW5tDGLgmsvW7ciIqlySCZNylHw1FHiDu5Hj6EUqGlFN7Uqs7Ex63vzo4/nru+LMKN6CnZkZFAyM2SWRrsystQSdkr/KdIwIQ5n99/nuFYripTZEqd6OoC1rOOZKcqz+UtMbxbcLmgPbgvG6zX5eD7wSHarrRrdqrDUjqbOmq0MSC0eJ0Sq1SrKZ2rv93LyXllE7x7TePAOj646sZcqWgZKXcaHq2bZ9Y5wiKDJp8XiF3RQ4sQLVvUsun63wFKKue0IifSoTBwlai+j7B4YO/RVDVr/tlojoDXiVDJWMQRVVNkoQ0GWYJUc2/Mhm1bZ8mkiCTdPpwXD5JYMV/sGO7s4NWieoRbC1UprUhmtoqDZ5cpZ/aYJV6JEc1qbeIDMSJpGcYyM00ggXdPCxWKqIKjdQJdvRxE22ZyYxNnqsAHX2d51l8ff5X1ZKRlaj9uMartGa8i8Y0fAJRttBbDiPNVaZZZZd9LncdgLfai8PaoVSx2XjJfPCWoU79Kms3b3Kty897Y1jKiY9Qwf98n3ZHXCKreaJwlCUcmB0qt5+p7SE5RmOw1neM17fd89aWt06eL9KS8tCWl7+5fGYGPn0mWCgajdLzWO1tbBroLn+jCTMwO93J36T0WxE9Ve3peE0q0xedvvHS4mbNnZmmEmtlqHAw00LQVBMEyaAmBKzwi10RRGVC3jgajOlidpDGNbSTl7vAFtowoUtCx/N92oZcg5qSgikaYFVBdxqaKnLPXHEGSxR+RKRVUSKVlEcbbWnROXAQbROt62YQxJwa2TXnEuaZxtLSVRdvg1RGDUckpbVc+PPP4u7qspqmRxy8GSaTn6QMzMWKvd1HIKzHdYBSt14hkECzB2sc8mf4/jf1/3ghgI3DoZzLh+GfvXSGFFq6WnVEVfB5KbWAMoq3iz731PrW7ZJItd0GmvuoWmaIGhaZ6dR1ujaYfhobnPu7nfnjNZekls2kFB7z93KIIm7d6CffncL99BGQ+3zAvgFT7ifqwROZDNYtDdKdiX6tmDEU5ioLfIm9K2eVrr2x5JoKuN7ha0Kt1+bPxVe42ux14oLqOFtqdpDMU4c+7AcnthCRGzUHWltQ13QLa2681Jojcppn+coTW+zpgQLu1WVIzMaFViIhcyiydYvTQDaC+C00oxNYszF6C9IDWoOMQwa/o5qyJ2C13Xxji0SaDpspUi9zP8iOPv6r4QoYBBkeSsoV6v464ztbafcDnf39tjJ/h9npIxs8gNJp/nQy/nIc/VwbT0MApE9++XCbazb6mluWq2UTb7grYqzLt90iO1XrO3fFjqmqeY+W5ZGVu1DTOiaTv76drn/Zy8NwXdzkK5M0nd4em1b3pYrjudndT0ewKIDIgN7PZHuve/42jk1txmiGLqMvfh2wloCQKYljI0szsAWlqAW9ndDo+hFdzRMwtawSWyVJqxQBNiUs5FHI4pQ9RZSFeuO1w82/cmAP1hujeeaOTXJc+sYqAOypCYtS+LUJIyhYKowmJBxiyiyiA7CfX+QJq28/eYs4taawh1GaPRZevvr+2l7Vg/oga755QJu/nGuuvj7+K+SOQe9SEU7atOdsg7D7U47Ira6Cse76s41HLR+pe4IKUXN7DwOh/7mz76s2z5Kjdfzk0DZdzenvifC+NgOIAFyOq6L/Fo7d/KtiwGx6j8BTY8lgNwq4zpo50JFG3Vt2+d4bFen5m9ONhd9noDJ6wiJFVnEWkKkzs0qHHPGOjKfdO8ijEcxMJj2H9Zbpamk4YiValS7O3hwax9NOvXuDXNbiU/GrOudEeK5UVLQMNRNZZW5M209dzomRwt2SfScuRETkfKBdObujWjAPq3MNBbp/f3thRl7WSnLFmIaiatp0JrKWONqvQkz6TZ3Bk1qvCgklhZatQC2RNBc5YEV1qpQs5iYs1Xaj1bAkRNTSrjILXWfRNHa/ZTVYtLqlU7ZI+T9/UZSf/Ch1T/3pqgN4IvUGehz3QbRGvlr/RdHN/NojvdF0BlHDyM7ftv2vJufkUha7sO7qddIVN9xeN9c/xrwzLH++aY427V13GOOeb4V4o5T80xxxy7OuY8Ncccc+zqmPPUHHPMsatjzlNzzDHHro45T80xxxy7OuY8Ncccc+zqmPPUHHPMsatjzlNzzDHHro45T80xxxy7OuY8Ncccc+zqmPPUHHPMsatjzlNzzDHHro45T80xxxy7OuY8Ncccc+zqGIYnP+AnPYY5/kWhLkyG/Tb8pEcxx78o/H9G33VreVT0qAAAAABJRU5ErkJggg==";
+          var FSMOBILE_PDF_LOGO_WIDTH_MM = 70;
+          var FSMOBILE_PDF_LOGO_HEIGHT_MM = 10;
+          var FSMOBILE_PDF_LOGO_TOP_MM = 10;
+          var FSMOBILE_PDF_LOGO_RIGHT_MM = 15;
+
+          function shouldStampFsmobilePdfLogo() {
+            return /^pb-/.test(window.FSMOBILE_MODULE_ID || "");
+          }
+
+          function getFsmobilePdfPageWidth(doc) {
+            try {
+              if (doc && doc.internal && doc.internal.pageSize && typeof doc.internal.pageSize.getWidth === "function") {
+                return doc.internal.pageSize.getWidth();
+              }
+              if (doc && doc.internal && doc.internal.pageSize && doc.internal.pageSize.width) return doc.internal.pageSize.width;
+            } catch (error) {}
+            return 210;
+          }
+
+          function getFsmobilePdfPageCount(doc) {
+            try {
+              if (doc && typeof doc.getNumberOfPages === "function") return doc.getNumberOfPages();
+              if (doc && doc.internal && typeof doc.internal.getNumberOfPages === "function") return doc.internal.getNumberOfPages();
+              if (doc && doc.internal && doc.internal.pages) return Math.max(1, doc.internal.pages.length - 1);
+            } catch (error) {}
+            return 1;
+          }
+
+          function getFsmobileCurrentPdfPage(doc) {
+            try {
+              if (doc && doc.internal && typeof doc.internal.getCurrentPageInfo === "function") {
+                var info = doc.internal.getCurrentPageInfo();
+                if (info && info.pageNumber) return info.pageNumber;
+              }
+            } catch (error) {}
+            return null;
+          }
+
+          function stampFsmobilePdfLogoOnCurrentPage(doc) {
+            if (!shouldStampFsmobilePdfLogo() || !doc || typeof doc.addImage !== "function") return;
+            try {
+              var pageWidth = getFsmobilePdfPageWidth(doc);
+              var x = Math.max(0, pageWidth - FSMOBILE_PDF_LOGO_WIDTH_MM - FSMOBILE_PDF_LOGO_RIGHT_MM);
+              doc.addImage(
+                FSMOBILE_PDF_LOGO_DATA_URL,
+                "PNG",
+                x,
+                FSMOBILE_PDF_LOGO_TOP_MM,
+                FSMOBILE_PDF_LOGO_WIDTH_MM,
+                FSMOBILE_PDF_LOGO_HEIGHT_MM,
+                undefined,
+                "FAST"
+              );
+            } catch (error) {}
+          }
+
+          function stampFsmobilePdfLogo(doc) {
+            if (!shouldStampFsmobilePdfLogo() || !doc) return doc;
+            var pageCount = getFsmobilePdfPageCount(doc);
+            var currentPage = getFsmobileCurrentPdfPage(doc);
+            var stampedPages = doc.__fsmobileLogoStampedPages;
+            if (!stampedPages) {
+              stampedPages = {};
+              try { Object.defineProperty(doc, "__fsmobileLogoStampedPages", { value: stampedPages }); }
+              catch (error) { doc.__fsmobileLogoStampedPages = stampedPages; }
+            }
+            for (var page = 1; page <= pageCount; page += 1) {
+              if (stampedPages[page]) continue;
+              try { if (typeof doc.setPage === "function") doc.setPage(page); } catch (error) {}
+              stampFsmobilePdfLogoOnCurrentPage(doc);
+              stampedPages[page] = true;
+            }
+            try { if (currentPage && typeof doc.setPage === "function") doc.setPage(currentPage); } catch (error) {}
+            return doc;
+          }
+
+          window.FSMOBILE_STAMP_PDF_LOGO = stampFsmobilePdfLogo;
+
+          function patchPdfLogoMethods(target) {
+            if (!target || target.__fsmobileLogoMethodsPatched) return;
+            Object.defineProperty(target, "__fsmobileLogoMethodsPatched", { value: true });
+            if (typeof target.output === "function") {
+              var originalOutput = target.output;
+              target.output = function() {
+                stampFsmobilePdfLogo(this);
+                return originalOutput.apply(this, arguments);
+              };
+            }
+          }
+
+
 	          function fsmobilePdfFileName(originalName) {
             if (originalName && !/\\.pdf$/i.test(String(originalName))) return originalName;
             if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return originalName;
@@ -3422,9 +3559,9 @@
             var object = findFsmobileReportValue(["object", "objekt"]);
             var date = findFsmobileReportValue(["date", "datum"]);
             if (!anlage && !object && !date) return originalName;
-            return safeFsmobileFileSegment(anlage || "Ohne Anlagen Nr.", "Ohne Anlagen Nr.") + "_" +
+            return ensurePbFilePrefix(safeFsmobileFileSegment(anlage || "Ohne Anlagen Nr.", "Ohne Anlagen Nr.") + "_" +
               safeFsmobileFileSegment(object || "Ohne Objekt", "Ohne Objekt") + "_" +
-              safeFsmobileFileSegment(formatFsmobileDateForFile(date), formatFsmobileDateForFile("")) + ".pdf";
+              safeFsmobileFileSegment(formatFsmobileDateForFile(date), formatFsmobileDateForFile("")) + ".pdf");
 	          }
 	          window.FSMOBILE_PDF_FILE_NAME = fsmobilePdfFileName;
 
@@ -3471,6 +3608,7 @@
           function patchPdfInstance(instance) {
             if (!instance) return instance;
             patchPdfTextMethod(instance);
+            patchPdfLogoMethods(instance);
             if (instance.__fsmobileSavePatched || typeof instance.save !== "function") return instance;
             var originalSave = instance.save;
 	            Object.defineProperty(instance, "__fsmobileSavePatched", { value: true });
@@ -3478,6 +3616,7 @@
 	              var args = Array.prototype.slice.call(arguments);
 	              args[0] = fsmobilePdfFileName(fileName);
 	              appendGeneratedSignatureToPdf(this);
+              stampFsmobilePdfLogo(this);
 	              try {
 	                if (finishCombinedPdfExport(this.output("blob"), args[0])) return this;
 	              } catch (error) {}
@@ -3489,6 +3628,7 @@
           function patchJsPdfPrototype(JsPDF) {
             if (!JsPDF || !JsPDF.prototype) return;
             patchPdfTextMethod(JsPDF.prototype);
+            patchPdfLogoMethods(JsPDF.prototype);
             if (JsPDF.prototype.__fsmobileSavePatched) return;
             var originalSave = JsPDF.prototype.save;
             if (typeof originalSave !== "function") return;
@@ -3497,6 +3637,7 @@
 	              var args = Array.prototype.slice.call(arguments);
 	              args[0] = fsmobilePdfFileName(fileName);
 	              appendGeneratedSignatureToPdf(this);
+              stampFsmobilePdfLogo(this);
 	              try {
 	                if (finishCombinedPdfExport(this.output("blob"), args[0])) return this;
 	              } catch (error) {}
@@ -3535,6 +3676,7 @@
           }
 
           function installJsPdfLoaderPatch() {
+            patchAvailableJsPdf();
             if (typeof window.ensureJsPdf === "function" && !window.ensureJsPdf.__fsmobilePatched) {
               var originalEnsureJsPdf = window.ensureJsPdf;
               window.ensureJsPdf = function() {
@@ -3863,7 +4005,7 @@
               var anlage = safeFileSegment(findReportValue(["anlagenNr", "anlagenNummer", "anlage"]) || "Ohne Anlagen Nr.", "Ohne Anlagen Nr.");
               var object = safeFileSegment(findReportValue(["object", "objekt"]) || "Ohne Objekt", "Ohne Objekt");
               var date = safeFileSegment(formatDateForExportName(findReportValue(["date", "datum"])), formatDateForExportName(""));
-              return anlage + "_" + object + "_" + date + ".json";
+              return ensurePbFilePrefix(anlage + "_" + object + "_" + date + ".json");
             }
 
             function isExcludedStructuredKey(key) {
@@ -4211,12 +4353,12 @@
 	            async function downloadCombinedExport(pdfBlob, pdfName) {
 	              var payload = buildExportPayload();
 	              var jsonName = exportFileName();
-	              var finalPdfName = (window.FSMOBILE_PDF_FILE_NAME ? window.FSMOBILE_PDF_FILE_NAME(pdfName) : pdfName) || reportExportBaseName() + ".pdf";
+	              var finalPdfName = ensurePbFilePrefix((window.FSMOBILE_PDF_FILE_NAME ? window.FSMOBILE_PDF_FILE_NAME(pdfName) : pdfName) || reportExportBaseName() + ".pdf");
 		              var zipBlob = await createZipBlob([
 		                { name: jsonName, blob: jsonExportBlob(payload) },
 		                { name: finalPdfName, blob: pdfBlob }
 		              ]);
-		              downloadExportBlob(zipBlob, reportExportBaseName() + ".zip");
+		              downloadExportBlob(zipBlob, ensurePbFilePrefix(reportExportBaseName() + ".zip"));
 		              setUnifiedActionStatus("PDF Export wurde erstellt.");
 		            }
 

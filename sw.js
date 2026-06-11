@@ -1,4 +1,4 @@
-const CACHE_NAME = "fsmobile-v35";
+const CACHE_NAME = "fsmobile-v45";
 const CORE_ASSETS = [
   "./",
   "./index.html",
