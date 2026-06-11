@@ -25,6 +25,7 @@
   let activeModuleId = null;
   let actionSyncTimer = 0;
   let actionStatusTimer = 0;
+  let brandTransitionTimer = 0;
   let viewTransitionTimers = [];
 
   const MENU_SECTIONS = [
@@ -118,6 +119,12 @@
     pruefberichte: "Prüfbericht",
     wartungsanleitungen: "Wartung"
   };
+
+  const MODULE_ACCENT_CLASSES = [
+    "module-accent-kalkulation",
+    "module-accent-pruefberichte",
+    "module-accent-wartungsanleitungen"
+  ];
 
   registry["pb-zentralbatterie-anlage"] = registry["pb-zentralbatterie-anlage"] || {
     title: "Prüfbericht Zentralbatterie-Anlage",
@@ -311,7 +318,7 @@
     function sanitizeFileName(value){return(value||"Pruefbericht-Nass-Trocken-Station").trim().replace(/[\\\\/:*?"<>|]+/g,"-").replace(/\\s+/g,"_").slice(0,80)||"Pruefbericht-Nass-Trocken-Station"} function getPdfFileName(){const anlage=sanitizeFileName(document.getElementById("anlageInput").value||"Ohne Anlagen Nr.");const objectName=sanitizeFileName(document.getElementById("objectInput").value||"Ohne Objekt");const date=document.getElementById("dateInput").value||todayIso();return anlage+"_"+objectName+"_"+date+".pdf"}
     function ensureJsPdf(){if(window.jspdf&&typeof window.jspdf.jsPDF==="function")return window.jspdf.jsPDF;if(typeof window.jsPDF==="function")return window.jsPDF;return null} async function loadJsPdfIfNeeded(){const existing=ensureJsPdf();if(existing)return existing;return new Promise(resolve=>{const script=document.createElement("script");script.src="vendor/jspdf.umd.min.js";script.onload=()=>resolve(ensureJsPdf());script.onerror=()=>resolve(null);document.head.appendChild(script)})}
     function savePdfDocument(doc,fileName){try{doc["save"](fileName)}catch{try{const blob=doc["output"]("blob");const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=fileName;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}catch{alert("PDF konnte nicht gespeichert werden. Bitte im Browser erneut öffnen und noch einmal versuchen.")}}}
-    async function exportPdf(){const JsPdf=await loadJsPdfIfNeeded();if(!JsPdf){alert("PDF-Bibliothek konnte nicht geladen werden.");return}const pdfButton=document.getElementById("pdfButton");const oldText=pdfButton.textContent;pdfButton.disabled=true;pdfButton.textContent="PDF wird erstellt...";try{const pdf=new JsPdf({orientation:"portrait",unit:"mm",format:"a4",compress:true});const margin=12;const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const bottom=pageHeight-margin;let y=30;function clean(value){return String(value||"-").trim()||"-"}function ensure(space){if(y+space<=bottom)return;pdf.addPage();y=30;header(true)}function header(continued){pdf.setFillColor(235,0,69);pdf.rect(margin,y,pageWidth-margin*2,10,"F");pdf.setTextColor("#ffffff");pdf.setFont("helvetica","bold");pdf.setFontSize(13);pdf.text(continued?"Prüfbericht Nass/Trocken-Station (Fortsetzung)":"Prüfbericht Nass/Trocken-Station",pageWidth/2,y+6.8,{align:"center"});y+=14}function section(title){ensure(10);pdf.setDrawColor(0,0,0);pdf.setLineWidth(0.2);pdf.setFillColor(255,180,71);pdf.rect(margin,y,pageWidth-margin*2,7,"FD");pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","bold");pdf.setFontSize(8.5);pdf.text(title,margin+2,y+4.8);pdf.setTextColor("#1c1c1e");y+=8}function kv(title,rows,columns){section(title);const colWidth=(pageWidth-margin*2)/columns;rows.forEach((row,index)=>{const col=index%columns;if(col===0)ensure(13);const x=margin+col*colWidth;pdf.setDrawColor(0,0,0);pdf.setLineWidth(0.2);pdf.setFillColor("#f5f5f5");pdf.rect(x,y,colWidth,13,"FD");pdf.setFont("helvetica","bold");pdf.setFontSize(6.5);pdf.setTextColor("#6b7280");pdf.text(pdf.splitTextToSize(clean(row[0]),colWidth-4),x+2,y+3.8);pdf.setFont("helvetica","normal");pdf.setFontSize(8.2);pdf.setTextColor("#1c1c1e");pdf.text(pdf.splitTextToSize(clean(row[1]),colWidth-4),x+2,y+8.5);if(col===columns-1||index===rows.length-1)y+=13});y+=4}header(false);kv("Zuordnung",[["Anlagen Nr.",textValue("anlageInput")],["Objekt",textValue("objectInput")],["Anlagenstandort",textValue("anlagenstandortInput")],["Datum",formatDateForFile(textValue("dateInput"))]],4);kv("Anlagentyp",[["Anlagentyp",textValue("anlagentypSelect")]],1);kv("Prüfung",CHECK_FIELDS.map(item=>[item[1],document.querySelector("[data-field='"+item[0]+"']").value]),3);kv("Messwerte",[["Einschaltdruck",withUnit(textValue("einschaltdruckInput"),"bar")],["Ausschaltdruck",withUnit(textValue("ausschaltdruckInput"),"bar")],["Vordruck",withUnit(textValue("vordruckInput"),"bar")],["Vorspannung Ausdehnungsgefäß",withUnit(textValue("vorspannungInput"),"bar")]],2);kv("Anlagendaten",[["Hersteller",textValue("herstellerInput")],["Steuerungstyp",textValue("steuerungstypInput")],["Pumpentyp",textValue("pumpentypInput")],["Baujahr",textValue("baujahrInput")],["Leistung",withUnit(textValue("leistungKwInput"),"KW")],["Leistung",withUnit(textValue("leistungHInput"),"H")]],2);kv("Wasseranschluss",[["Anschluss",textValue("anschlussSelect")]],1);kv("Prüfergebnis",[["Prüfergebnis",textValue("pruefergebnisSelect")],["Bemerkung",textValue("bemerkungInput")]],1);ensure(32);section("Unterschrift Techniker");pdf.setFillColor("#f5f5f5");pdf.rect(margin,y,pageWidth-margin*2,24,"F");const signature=getStorageSignature();if(signature){try{pdf.addImage(signature,"PNG",margin+2,y+2,68,20,undefined,"FAST")}catch{pdf.text("Unterschrift konnte nicht eingebettet werden.",margin+2,y+8)}}pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.",margin,pageHeight-9);if(typeof window.FSMOBILE_STAMP_PDF_LOGO==="function")window.FSMOBILE_STAMP_PDF_LOGO(pdf);savePdfDocument(pdf,getPdfFileName())}catch(error){console.error("PDF Export fehlgeschlagen",error);alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.")}finally{pdfButton.disabled=false;pdfButton.textContent=oldText||"PDF"}}
+    async function exportPdf(){const JsPdf=await loadJsPdfIfNeeded();if(!JsPdf){alert("PDF-Bibliothek konnte nicht geladen werden.");return}const pdfButton=document.getElementById("pdfButton");const oldText=pdfButton.textContent;pdfButton.disabled=true;pdfButton.textContent="PDF wird erstellt...";try{const pdf=new JsPdf({orientation:"portrait",unit:"mm",format:"a4",compress:true});const margin=12;const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const bottom=pageHeight-margin;let y=30;function clean(value){return String(value||"-").trim()||"-"}function ensure(space){if(y+space<=bottom)return;pdf.addPage();y=30;header(true)}function header(continued){pdf.setFillColor(235,0,69);pdf.rect(margin,y,pageWidth-margin*2,10,"F");pdf.setTextColor("#ffffff");pdf.setFont("helvetica","bold");pdf.setFontSize(13);pdf.text(continued?"Prüfbericht Nass/Trocken-Station (Fortsetzung)":"Prüfbericht Nass/Trocken-Station",pageWidth/2,y+6.8,{align:"center"});y+=14}function section(title){ensure(10);pdf.setDrawColor(255,255,255);pdf.setLineWidth(0.2);pdf.setFillColor(255,180,71);pdf.rect(margin,y,pageWidth-margin*2,7,"FD");pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","bold");pdf.setFontSize(8.5);pdf.text(title,margin+2,y+4.8);pdf.setTextColor("#1c1c1e");y+=8}function kv(title,rows,columns){section(title);const colWidth=(pageWidth-margin*2)/columns;rows.forEach((row,index)=>{const col=index%columns;if(col===0)ensure(13);const x=margin+col*colWidth;pdf.setDrawColor(255,255,255);pdf.setLineWidth(0.2);pdf.setFillColor("#f5f5f5");pdf.rect(x,y,colWidth,13,"FD");pdf.setFont("helvetica","bold");pdf.setFontSize(6.5);pdf.setTextColor("#6b7280");pdf.text(pdf.splitTextToSize(clean(row[0]),colWidth-4),x+2,y+3.8);pdf.setFont("helvetica","normal");pdf.setFontSize(8.2);pdf.setTextColor("#1c1c1e");pdf.text(pdf.splitTextToSize(clean(row[1]),colWidth-4),x+2,y+8.5);if(col===columns-1||index===rows.length-1)y+=13});y+=4}header(false);kv("Zuordnung",[["Anlagen Nr.",textValue("anlageInput")],["Objekt",textValue("objectInput")],["Anlagenstandort",textValue("anlagenstandortInput")],["Datum",formatDateForFile(textValue("dateInput"))]],4);kv("Anlagentyp",[["Anlagentyp",textValue("anlagentypSelect")]],1);kv("Prüfung",CHECK_FIELDS.map(item=>[item[1],document.querySelector("[data-field='"+item[0]+"']").value]),3);kv("Messwerte",[["Einschaltdruck",withUnit(textValue("einschaltdruckInput"),"bar")],["Ausschaltdruck",withUnit(textValue("ausschaltdruckInput"),"bar")],["Vordruck",withUnit(textValue("vordruckInput"),"bar")],["Vorspannung Ausdehnungsgefäß",withUnit(textValue("vorspannungInput"),"bar")]],2);kv("Anlagendaten",[["Hersteller",textValue("herstellerInput")],["Steuerungstyp",textValue("steuerungstypInput")],["Pumpentyp",textValue("pumpentypInput")],["Baujahr",textValue("baujahrInput")],["Leistung",withUnit(textValue("leistungKwInput"),"KW")],["Leistung",withUnit(textValue("leistungHInput"),"H")]],2);kv("Wasseranschluss",[["Anschluss",textValue("anschlussSelect")]],1);kv("Prüfergebnis",[["Prüfergebnis",textValue("pruefergebnisSelect")],["Bemerkung",textValue("bemerkungInput")]],1);ensure(32);section("Unterschrift Techniker");pdf.setFillColor("#f5f5f5");pdf.rect(margin,y,pageWidth-margin*2,24,"F");const signature=getStorageSignature();if(signature){try{pdf.addImage(signature,"PNG",margin+2,y+2,68,20,undefined,"FAST")}catch{pdf.text("Unterschrift konnte nicht eingebettet werden.",margin+2,y+8)}}pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.",margin,pageHeight-9);if(typeof window.FSMOBILE_STAMP_PDF_LOGO==="function")window.FSMOBILE_STAMP_PDF_LOGO(pdf);savePdfDocument(pdf,getPdfFileName())}catch(error){console.error("PDF Export fehlgeschlagen",error);alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.")}finally{pdfButton.disabled=false;pdfButton.textContent=oldText||"PDF"}}
     function getStorageSignature(){const canvas=document.getElementById("signaturePad");if(!canvas)return"";try{const context=canvas.getContext("2d", { willReadFrequently: true });const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;for(let index=3;index<pixels.length;index+=4)if(pixels[index]!==0)return canvas.toDataURL("image/png")}catch{}return""}
     function restoreSignatureFromStorage(dataUrl){if(!dataUrl)return;const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });const rect=canvas.getBoundingClientRect();const img=new Image();img.onload=()=>context.drawImage(img,0,0,rect.width,rect.height);img.src=dataUrl}
     function setupSignaturePad(){const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });signaturePadState.canvas=canvas;signaturePadState.ctx=context;function resize(keep){const dataUrl=keep?getStorageSignature():"";const rect=canvas.getBoundingClientRect();const ratio=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(rect.width*ratio));canvas.height=Math.max(1,Math.round(rect.height*ratio));context.setTransform(ratio,0,0,ratio,0,0);context.lineWidth=2.4;context.lineCap="round";context.lineJoin="round";context.strokeStyle="#1c1c1e";restoreSignatureFromStorage(dataUrl)}function point(event){const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top}}function start(event){event.preventDefault();signaturePadState.isDrawing=true;signaturePadState.lastPoint=point(event)}function move(event){if(!signaturePadState.isDrawing)return;event.preventDefault();const current=point(event);context.beginPath();context.moveTo(signaturePadState.lastPoint.x,signaturePadState.lastPoint.y);context.lineTo(current.x,current.y);context.stroke();signaturePadState.lastPoint=current}function end(){if(!signaturePadState.isDrawing)return;signaturePadState.isDrawing=false;signaturePadState.lastPoint=null;scheduleStorageSave()}canvas.addEventListener("pointerdown",start);canvas.addEventListener("pointermove",move);canvas.addEventListener("pointerup",end);canvas.addEventListener("pointercancel",end);canvas.addEventListener("pointerleave",end);window.addEventListener("resize",()=>resize(true));resize(false)}
@@ -1178,7 +1185,7 @@
         }
         function section(title) {
           ensure(10);
-          pdf.setDrawColor(0, 0, 0);
+          pdf.setDrawColor(255, 255, 255);
           pdf.setLineWidth(0.2);
           pdf.setFillColor(255, 180, 71);
           pdf.rect(margin, y, pageWidth - margin * 2, 7, "FD");
@@ -1196,7 +1203,7 @@
             const col = index % columns;
             if (col === 0) ensure(13);
             const x = margin + col * colWidth;
-            pdf.setDrawColor(0, 0, 0);
+            pdf.setDrawColor(255, 255, 255);
             pdf.setLineWidth(0.2);
             pdf.setFillColor("#f5f5f5");
             pdf.rect(x, y, colWidth, 13, "FD");
@@ -1229,7 +1236,7 @@
             pdf.setFont("helvetica", "bold");
             pdf.setFontSize(6.8);
             headers.forEach((_, index) => {
-              pdf.setDrawColor(0, 0, 0);
+              pdf.setDrawColor(255, 255, 255);
               pdf.setLineWidth(0.2);
               pdf.setFillColor(255, 180, 71);
               pdf.rect(x, headerTop, widths[index], headerHeight, "FD");
@@ -1258,7 +1265,7 @@
             pdf.setFontSize(7.8);
             pdf.setTextColor("#1c1c1e");
             wrapped.forEach((lines, index) => {
-              pdf.setDrawColor(0, 0, 0);
+              pdf.setDrawColor(255, 255, 255);
               pdf.setLineWidth(0.2);
               pdf.setFillColor("#f5f5f5");
               pdf.rect(x, y, widths[index], rowHeight, "FD");
@@ -2322,7 +2329,7 @@
     function yesNo(value) { return value === "true" ? "Ja" : "Nein"; }
 
     function addSectionTitle(doc, title, x, y, width) {
-      doc.setDrawColor(0, 0, 0);
+      doc.setDrawColor(255, 255, 255);
       doc.setLineWidth(0.2);
       doc.setFillColor(255, 180, 71);
       doc.rect(x, y, width, 6.2, "FD");
@@ -2334,7 +2341,7 @@
     }
 
     function drawCell(doc, label, value, x, y, width, height) {
-      doc.setDrawColor(0, 0, 0);
+      doc.setDrawColor(255, 255, 255);
       doc.setLineWidth(0.2);
       doc.setFillColor("#ffffff");
       doc.rect(x, y, width, height, "FD");
@@ -2404,7 +2411,7 @@
           const rowY = y + Math.floor(index / 2) * 7;
           const x = margin + (index % 2) * (contentWidth / 2);
           const labelWidth = contentWidth / 2 - 18;
-          doc.setDrawColor(0, 0, 0);
+          doc.setDrawColor(255, 255, 255);
           doc.setLineWidth(0.2);
           doc.rect(x, rowY, labelWidth, 7);
           doc.rect(x + labelWidth, rowY, 18, 7);
@@ -2423,7 +2430,7 @@
         const headers = ["Nr.", "U Netzausfall", "U Netzausfall 3h", "Elektrolytdichte"];
         let x = margin;
         headers.forEach((header, index) => {
-          doc.setDrawColor(0, 0, 0);
+          doc.setDrawColor(255, 255, 255);
           doc.setLineWidth(0.2);
           doc.setFillColor("#f2f2f7");
           doc.rect(x, y, widths[index], 7, "FD");
@@ -2439,7 +2446,7 @@
           const values = [String(index + 1), (cell.uNetzausfall || "-") + " V", (cell.uNetzausfall3h || "-") + " V", cell.elektrolytdichte || "-"];
           x = margin;
           values.forEach((value, valueIndex) => {
-            doc.setDrawColor(0, 0, 0);
+            doc.setDrawColor(255, 255, 255);
             doc.setLineWidth(0.2);
             doc.setFillColor("#ffffff");
             doc.rect(x, y, widths[valueIndex], 8, "FD");
@@ -2698,8 +2705,56 @@
       return card;
   }
 
+  function getModuleSectionId(moduleId) {
+    const section = MENU_SECTIONS.find(sectionConfig => sectionConfig.modules.includes(moduleId));
+    return section ? section.id : "";
+  }
+
+  function clearModuleHeadingAccent() {
+    topbar.classList.remove(...MODULE_ACCENT_CLASSES);
+  }
+
+  function applyModuleHeadingAccent(moduleId) {
+    clearModuleHeadingAccent();
+    const sectionId = getModuleSectionId(moduleId);
+    if (sectionId) topbar.classList.add(`module-accent-${sectionId}`);
+  }
+
   function prefersReducedMotion() {
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function animateBrandLayoutChange(updateLayout) {
+    const brand = document.querySelector(".brand");
+    if (!brand || prefersReducedMotion()) {
+      updateLayout();
+      return;
+    }
+
+    window.clearTimeout(brandTransitionTimer);
+    brand.style.transition = "";
+    brand.style.transform = "";
+    const before = brand.getBoundingClientRect();
+    updateLayout();
+    const after = brand.getBoundingClientRect();
+    const deltaX = before.left - after.left;
+    const deltaY = before.top - after.top;
+
+    if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return;
+
+    brand.style.transition = "none";
+    brand.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
+    brand.getBoundingClientRect();
+
+    window.requestAnimationFrame(() => {
+      brand.style.transition = "transform 1.05s var(--menu-ease), opacity 0.8s var(--menu-ease)";
+      brand.style.transform = "translate3d(0, 0, 0)";
+    });
+
+    brandTransitionTimer = window.setTimeout(() => {
+      brand.style.transition = "";
+      brand.style.transform = "";
+    }, 1120);
   }
 
   function clearViewTransitionTimers() {
@@ -2730,7 +2785,7 @@
         view.classList.add("view-enter-active");
         setViewTransitionTimer(() => {
           view.classList.remove("view-enter", "view-enter-active");
-        }, 420);
+        }, 600);
       });
     });
   }
@@ -2748,7 +2803,7 @@
       menuView.hidden = true;
       menuView.classList.remove("view-exit");
       enterView(moduleView);
-    }, 180);
+    }, 300);
   }
 
   function switchToMenuView(onModuleHidden) {
@@ -2766,7 +2821,7 @@
       moduleView.classList.remove("view-exit");
       if (typeof onModuleHidden === "function") onModuleHidden();
       enterView(menuView);
-    }, 180);
+    }, 300);
   }
 
   function openModule(id, replaceHistory) {
@@ -2780,6 +2835,7 @@
 
     const html = decorateModuleHtml(module.html, id);
     activeModuleId = id;
+    applyModuleHeadingAccent(id);
     clearModuleActionBar();
     frame.srcdoc = html;
     frame.title = module.title;
@@ -2801,6 +2857,7 @@
     }
 
     activeModuleId = null;
+    clearModuleHeadingAccent();
     clearModuleActionBar();
     backButton.hidden = true;
     subtitle.textContent = "Menüauswahl";
@@ -2829,11 +2886,13 @@
     window.clearTimeout(actionSyncTimer);
     window.clearTimeout(actionStatusTimer);
     const actionBar = document.getElementById("moduleActionBar");
-    if (actionBar) {
-      actionBar.replaceChildren();
-      actionBar.hidden = true;
-    }
-    topbar.classList.remove("has-module-actions");
+    animateBrandLayoutChange(() => {
+      if (actionBar) {
+        actionBar.replaceChildren();
+        actionBar.hidden = true;
+      }
+      topbar.classList.remove("has-module-actions");
+    });
   }
 
   function frameDocument() {
@@ -3009,8 +3068,10 @@
     status.textContent = statusText;
     status.hidden = !statusText;
     actionBar.append(buttonRow, status);
-    actionBar.hidden = false;
-    topbar.classList.add("has-module-actions");
+    animateBrandLayoutChange(() => {
+      actionBar.hidden = false;
+      topbar.classList.add("has-module-actions");
+    });
   }
 
   function decorateModuleHtml(html, id) {
