@@ -51,6 +51,7 @@
         "pb-rwa",
         "pb-not-sicherheitsbeleuchtung",
         "pb-brandschutzklappen",
+        "pb-rauchwarnmelder",
         "pb-brandschutzschiebetor",
         "pb-brandschutzrolltore",
         "pb-rolltoranlagen",
@@ -97,6 +98,7 @@
     "pb-rwa": "RWA-Anlagen",
     "pb-not-sicherheitsbeleuchtung": "Not-/Sicherheitsbeleuchtungen",
     "pb-brandschutzklappen": "Brandschutzklappen",
+    "pb-rauchwarnmelder": "Rauchwarnmelder",
     "pb-brandschutzschiebetor": "Brandschutzschiebetore",
     "pb-brandschutzrolltore": "Brandschutzrolltore",
     "pb-rolltoranlagen": "Rolltoranlagen",
@@ -3763,7 +3765,8 @@
             block.className = "signature-block fsmobile-generated-signature-block";
             block.innerHTML = '<h3>' + FSMOBILE_SIGNATURE_LABEL + '</h3><canvas id="fsmobileTechnikerSignaturePad" aria-label="' + FSMOBILE_SIGNATURE_LABEL + '"></canvas><div class="signature-actions"><button type="button" class="danger">Unterschrift löschen</button></div>';
             var anchor = document.getElementById("archiveOverlay") || document.querySelector("script");
-            document.body.insertBefore(block, anchor || null);
+            if (anchor && anchor.parentNode === document.body) document.body.insertBefore(block, anchor);
+            else document.body.appendChild(block);
             setupGeneratedSignaturePad(block.querySelector("canvas"), block.querySelector("button"));
           }
 
@@ -4816,15 +4819,15 @@
             var observerTarget = document.documentElement || document.body;
             var observerView = document.defaultView || window;
             if (!observerTarget || !observerView.Node || !(observerTarget instanceof observerView.Node)) return;
-            var reportObserver = new MutationObserver(function() {
-              markPositionCells();
-              ensureGeneratedTechnikerSignatureField();
-              normalizeSignatureLabels();
-              installJsPdfLoaderPatch();
-              window.clearTimeout(arrangeTimer);
-              arrangeTimer = window.setTimeout(arrangeHeaderActions, 60);
-            });
             try {
+              var reportObserver = new MutationObserver(function() {
+                markPositionCells();
+                ensureGeneratedTechnikerSignatureField();
+                normalizeSignatureLabels();
+                installJsPdfLoaderPatch();
+                window.clearTimeout(arrangeTimer);
+                arrangeTimer = window.setTimeout(arrangeHeaderActions, 60);
+              });
               reportObserver.observe(observerTarget, { childList: true, subtree: true });
             } catch (error) {}
           });
