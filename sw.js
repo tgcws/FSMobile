@@ -1,4 +1,5 @@
-const CACHE_NAME = "fsmobile-v105";
+const CACHE_NAME = "fsmobile-v106";
+const APP_VERSION = "2026-06-12-v106";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -16,10 +17,31 @@ const CORE_ASSETS = [
   "./icons/maskable-512.png"
 ];
 
+self.addEventListener("message", event => {
+  const data = event.data || {};
+  if (data && data.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+function normalizedRequest(request) {
+  const url = new URL(request.url);
+  return new Request(url.origin + url.pathname);
+}
+
+function reloadRequest(request) {
+  return new Request(request, { cache: "reload" });
+}
+
+function shouldReloadFromNetwork(url) {
+  return /\.(?:html|js|css|webmanifest)$/i.test(url.pathname) || url.pathname.endsWith("/");
+}
+
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => Promise.all(CORE_ASSETS.map(asset => cache.add(asset).catch(() => undefined))))
+      .then(cache => Promise.all(CORE_ASSETS.map(asset => {
+        const request = new Request(asset, { cache: "reload" });
+        return cache.add(request).catch(() => undefined);
+      })))
       .then(() => self.skipWaiting())
   );
 });
@@ -39,15 +61,35 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(reloadRequest(request))
+        .then(response => {
+          if (response && response.status === 200 && response.type === "basic") {
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put("./index.html", response.clone());
+              cache.put("./", response.clone());
+            });
+          }
+          return response;
+        })
+        .catch(() => caches.match("./index.html").then(cached => cached || caches.match("./")))
+    );
+    return;
+  }
+
+  const networkRequest = shouldReloadFromNetwork(url) ? reloadRequest(request) : request;
+  const cacheRequest = normalizedRequest(request);
+
   event.respondWith(
-    fetch(request)
+    fetch(networkRequest)
       .then(response => {
         if (response && response.status === 200 && response.type === "basic") {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          caches.open(CACHE_NAME).then(cache => cache.put(cacheRequest, copy));
         }
         return response;
       })
-      .catch(() => caches.match(request, { ignoreSearch: true }).then(cached => cached || caches.match("./index.html")))
+      .catch(() => caches.match(cacheRequest).then(cached => cached || caches.match(request, { ignoreSearch: true }) || caches.match("./index.html")))
   );
 });

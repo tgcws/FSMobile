@@ -5057,7 +5057,34 @@
   window.addEventListener("popstate", () => handleRoute(true));
 
   if ("serviceWorker" in navigator && window.self === window.top) {
-    navigator.serviceWorker.register("sw.js").catch(() => undefined);
+    let serviceWorkerReloading = false;
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (serviceWorkerReloading) return;
+      serviceWorkerReloading = true;
+      window.location.reload();
+    });
+
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+      .then(registration => {
+        const activateWaitingWorker = () => {
+          if (registration.waiting) registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        };
+
+        activateWaitingWorker();
+        registration.update().then(activateWaitingWorker).catch(() => undefined);
+
+        registration.addEventListener("updatefound", () => {
+          const worker = registration.installing;
+          if (!worker) return;
+          worker.addEventListener("statechange", () => {
+            if (worker.state === "installed" && navigator.serviceWorker.controller) {
+              worker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        });
+      })
+      .catch(() => undefined);
   }
 
   async function digest(value) {
