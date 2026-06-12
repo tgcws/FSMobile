@@ -158,7 +158,7 @@
   <style>
     :root {
       --primary:#007aff; --success:#34c759; --danger:#ff3b30; --neutral:#8e8e93; --warning:#ff9500;
-      --field:#f2f2f7; --text:#1c1c1e; --muted:#6e6e73; --line:rgba(60,60,67,.14);
+      --field: rgba(255,255,255,.03); --text:#1c1c1e; --muted:#6e6e73; --line:rgba(60,60,67,.14);
       --radius:16px; --shadow:0 8px 28px rgba(0,0,0,.08); --ios-ease:cubic-bezier(.2,.8,.2,1);
     }
     *{box-sizing:border-box} html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
@@ -176,16 +176,87 @@
     textarea{min-height:112px;resize:vertical;line-height:1.35;text-align:left}input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(214,0,28,.18)}
     button{min-height:46px;padding:12px 18px;border:none;border-radius:999px;cursor:pointer;font:inherit;font-size:15px;font-weight:800;color:#fff;background:linear-gradient(180deg,#1688ff 0%,var(--primary) 100%);box-shadow:0 10px 20px rgba(0,122,255,.24),inset 0 1px 0 rgba(255,255,255,.32);transition:transform .18s var(--ios-ease),filter .18s var(--ios-ease);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     button:hover{filter:brightness(1.02)}button:active{transform:scale(.975)}.secondary{background:linear-gradient(180deg,#a6a6ad 0%,var(--neutral) 100%)}.danger{background:linear-gradient(180deg,#ff453a 0%,var(--danger) 100%)}.archive-save{background:linear-gradient(180deg,#ffb340 0%,var(--warning) 100%)}
-    .card{margin-top:16px;padding:16px;border-radius:16px;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.58);box-shadow:0 18px 42px rgba(2,8,23,.10),inset 0 1px 0 rgba(255,255,255,.48);-webkit-backdrop-filter:blur(24px) saturate(1.18);backdrop-filter:blur(24px) saturate(1.18)}
-    .check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.check-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,170px);gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.72)}.check-label{font-weight:780;line-height:1.25}
+    .card{margin-top:16px;padding:16px;border-radius:16px;background: rgba(255,255,255,.045);border: 1px solid rgba(255,255,255,.42);box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 10px 26px rgba(0,0,0,.05);-webkit-backdrop-filter:blur(24px) saturate(1.18);backdrop-filter:blur(24px) saturate(1.18)}
+    .check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.check-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,170px);gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.055)}.check-label{font-weight:780;line-height:1.25}
     .input-unit{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;min-height:44px;padding-right:10px;border-radius:12px;background:var(--field)}.input-unit input{min-height:44px;background:transparent}.unit{color:var(--muted);font-weight:850;white-space:nowrap}
     .hint{margin:8px 0 0;color:var(--muted);font-size:13px;font-weight:700;line-height:1.35}.actions{margin-top:16px}
-    .signature-block{margin-top:16px;padding:14px;background:var(--field);border-radius:14px}.signature-block h3{margin:0 0 10px;font-size:18px}#signaturePad{display:block;width:100%;height:180px;border:2px dashed rgba(60,60,67,.25);border-radius:12px;background:#fff;touch-action:none}
+    .signature-block{margin-top:16px;padding:14px;background:var(--field);border-radius:14px}.signature-block h3{margin:0 0 10px;font-size:18px}#signaturePad{display:block;width:100%;height:180px;border:2px dashed rgba(255,255,255,.5);border-radius:12px;background:rgba(255,255,255,.08);touch-action:none}
     .signature-actions{margin-top:16px}
-    .archive-status{min-height:18px;margin:12px 0 0;color:var(--muted);font-size:13px;font-weight:700;line-height:1.3}.archive-overlay[hidden]{display:none}.archive-overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.34)}.archive-dialog{width:min(760px,100%);max-height:min(680px,90vh);overflow:auto;padding:18px;background:#fff;border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.25)}.archive-header h2{margin:0;font-size:24px}.archive-list{display:grid;gap:10px;margin-top:14px}.archive-empty{margin:0;color:var(--muted);font-weight:700}.archive-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:12px;background:var(--field);border-radius:14px}.archive-title{font-weight:850;overflow-wrap:anywhere}.archive-meta{margin-top:3px;color:var(--muted);font-size:13px;font-weight:700}
+    .archive-status{min-height:18px;margin:12px 0 0;color:var(--muted);font-size:13px;font-weight:700;line-height:1.3}.archive-overlay[hidden]{display:none}.archive-overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.34)}.archive-dialog{width:min(760px,100%);max-height:min(680px,90vh);overflow:auto;padding:18px;background:rgba(255,255,255,.08);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.25)}.archive-header h2{margin:0;font-size:24px}.archive-list{display:grid;gap:10px;margin-top:14px}.archive-empty{margin:0;color:var(--muted);font-weight:700}.archive-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:12px;background:var(--field);border-radius:14px}.archive-title{font-weight:850;overflow-wrap:anywhere}.archive-meta{margin-top:3px;color:var(--muted);font-size:13px;font-weight:700}
     body.generating-pdf .title-actions,body.generating-pdf .actions,body.generating-pdf .signature-actions,body.generating-pdf .archive-status{display:none!important}
     @media(max-width:900px){.grid,.grid.one,.grid.two,.check-grid{grid-template-columns:1fr}.title-bar,.archive-header{align-items:stretch;flex-direction:column}.title-actions,.title-actions button,.archive-header button{width:100%}.title-bar>.title-actions{margin-right:0!important}}
-  </style>
+  
+
+    /* Hochformat-Transparenz: Unterschrift und lokale Formularflächen */
+    .input-unit,
+    .archive-item,
+    .row-number,
+    .cell-number,
+    .hydrant-number,
+    .card,
+    .check-item,
+    .result-item,
+    .dynamic-row,
+    .strand-row,
+    .cell-row,
+    .signature-block,
+    .signature-wrap {
+      border: 1px solid rgba(255,255,255,.42) !important;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.06) 58%, rgba(235,0,69,.035)),
+        rgba(255,255,255,.018) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 10px 26px rgba(0,0,0,.05) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    #signaturePad,
+    .signature-wrap canvas,
+    canvas.signature-pad {
+      border: 2px dashed rgba(255,255,255,.5) !important;
+      background: rgba(255,255,255,.018) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(235,0,69,.035) !important;
+    }
+
+    .input-unit input,
+    .input-unit select,
+    .card input,
+    .card textarea,
+    .card select,
+    .signature-block input,
+    .signature-block textarea,
+    .signature-block select,
+    .signature-wrap input,
+    .signature-wrap textarea,
+    .signature-wrap select {
+      background: rgba(255,255,255,.018) !important;
+      border: 1px solid rgba(255,255,255,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18) !important;
+    }
+
+    .signature-actions {
+      background: transparent !important;
+      border-color: rgba(255,255,255,.28) !important;
+      box-shadow: none !important;
+    }
+
+    .title-actions,
+    .button-area,
+    .toolbar {
+      background: rgba(255,255,255,.08) !important;
+      border-color: rgba(255,255,255,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 8px 24px rgba(0,0,0,.045) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    .row-number,
+    .cell-number,
+    .hydrant-number {
+      background: rgba(255,255,255,.018) !important;
+      border: 1px solid rgba(255,255,255,.34) !important;
+    }
+</style>
 </head>
 <body>
   <div class="container" id="reportRoot">
@@ -346,7 +417,7 @@
       --warning: #ff9500;
       --bg: #f4f4f6;
       --card: #ffffff;
-      --field: #f2f2f7;
+      --field: rgba(255,255,255,.03);
       --text: #1c1c1e;
       --muted: #6e6e73;
       --line: rgba(60, 60, 67, .14);
@@ -389,8 +460,8 @@
     .title-actions {
       justify-content: flex-end;
       padding: 12px;
-      background: rgba(255,255,255,.72);
-      border: 1px solid rgba(60,60,67,.16);
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.36);
       border-radius: var(--radius);
       box-shadow: 0 8px 24px rgba(0,0,0,.06);
       -webkit-backdrop-filter: blur(18px);
@@ -468,9 +539,9 @@
       margin-top: 16px;
       padding: 16px;
       border-radius: 16px;
-      background: rgba(255,255,255,.72);
-      border: 1px solid rgba(255,255,255,.58);
-      box-shadow: 0 18px 42px rgba(2,8,23,.10), inset 0 1px 0 rgba(255,255,255,.48);
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.42);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 10px 26px rgba(0,0,0,.05);
       -webkit-backdrop-filter: blur(24px) saturate(1.18);
       backdrop-filter: blur(24px) saturate(1.18);
     }
@@ -488,7 +559,7 @@
       padding: 10px;
       border: 1px solid var(--line);
       border-radius: 14px;
-      background: rgba(255,255,255,.72);
+      background: rgba(255,255,255,.045);
     }
     .check-label { font-weight: 780; line-height: 1.25; }
     .hint {
@@ -505,7 +576,7 @@
       gap: 10px;
       align-items: end;
       padding: 12px;
-      background: rgba(242,242,247,.65);
+      background: rgba(255,255,255,.045);
       border-radius: 14px;
     }
     .row-number {
@@ -514,7 +585,7 @@
       align-items: center;
       justify-content: center;
       border-radius: 12px;
-      background: #fff;
+      background: rgba(255,255,255,.08);
       font-weight: 800;
     }
     .input-unit {
@@ -541,9 +612,9 @@
       display: block;
       width: 100%;
       height: 180px;
-      border: 2px dashed rgba(60,60,67,.25);
+      border: 2px dashed rgba(255,255,255,.5);
       border-radius: 12px;
-      background: #fff;
+      background: rgba(255,255,255,.08);
       touch-action: none;
     }
     .signature-actions { margin-top: 16px; }
@@ -608,7 +679,78 @@
     @media (max-width: 720px) {
       .title-bar > .title-actions, header > .title-actions, header > .toolbar { margin-right: 0 !important; }
     }
-  </style>
+  
+
+    /* Hochformat-Transparenz: Unterschrift und lokale Formularflächen */
+    .input-unit,
+    .archive-item,
+    .row-number,
+    .cell-number,
+    .hydrant-number,
+    .card,
+    .check-item,
+    .result-item,
+    .dynamic-row,
+    .strand-row,
+    .cell-row,
+    .signature-block,
+    .signature-wrap {
+      border: 1px solid rgba(255,255,255,.42) !important;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.06) 58%, rgba(235,0,69,.035)),
+        rgba(255,255,255,.018) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 10px 26px rgba(0,0,0,.05) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    #signaturePad,
+    .signature-wrap canvas,
+    canvas.signature-pad {
+      border: 2px dashed rgba(255,255,255,.5) !important;
+      background: rgba(255,255,255,.018) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(235,0,69,.035) !important;
+    }
+
+    .input-unit input,
+    .input-unit select,
+    .card input,
+    .card textarea,
+    .card select,
+    .signature-block input,
+    .signature-block textarea,
+    .signature-block select,
+    .signature-wrap input,
+    .signature-wrap textarea,
+    .signature-wrap select {
+      background: rgba(255,255,255,.018) !important;
+      border: 1px solid rgba(255,255,255,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18) !important;
+    }
+
+    .signature-actions {
+      background: transparent !important;
+      border-color: rgba(255,255,255,.28) !important;
+      box-shadow: none !important;
+    }
+
+    .title-actions,
+    .button-area,
+    .toolbar {
+      background: rgba(255,255,255,.08) !important;
+      border-color: rgba(255,255,255,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 8px 24px rgba(0,0,0,.045) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    .row-number,
+    .cell-number,
+    .hydrant-number {
+      background: rgba(255,255,255,.018) !important;
+      border: 1px solid rgba(255,255,255,.34) !important;
+    }
+</style>
 </head>
 <body>
   <div class="container" id="reportRoot">
@@ -1453,7 +1595,7 @@
       --warning: #ff9500;
       --bg: #f4f4f6;
       --card: #ffffff;
-      --field: #f2f2f7;
+      --field: rgba(255,255,255,.03);
       --text: #1c1c1e;
       --muted: #6e6e73;
       --line: rgba(60, 60, 67, .14);
@@ -1506,8 +1648,8 @@
     .title-actions {
       justify-content: flex-end;
       padding: 12px;
-      background: rgba(255,255,255,.72);
-      border: 1px solid rgba(60,60,67,.16);
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.36);
       border-radius: var(--radius);
       box-shadow: 0 8px 24px rgba(0,0,0,.06);
       -webkit-backdrop-filter: blur(18px);
@@ -1605,9 +1747,9 @@
       margin-top: 16px;
       padding: 16px;
       border-radius: 16px;
-      background: rgba(255, 255, 255, .72);
-      border: 1px solid rgba(255, 255, 255, .58);
-      box-shadow: 0 18px 42px rgba(2, 8, 23, .10), inset 0 1px 0 rgba(255,255,255,.48);
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.42);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 10px 26px rgba(0,0,0,.05);
       -webkit-backdrop-filter: blur(24px) saturate(1.18);
       backdrop-filter: blur(24px) saturate(1.18);
     }
@@ -1632,7 +1774,7 @@
       padding: 10px;
       border: 1px solid var(--line);
       border-radius: 14px;
-      background: rgba(255,255,255,.72);
+      background: rgba(255,255,255,.045);
     }
 
     .check-label { font-weight: 780; line-height: 1.25; }
@@ -1645,7 +1787,7 @@
       gap: 10px;
       align-items: end;
       padding: 12px;
-      background: rgba(242, 242, 247, .65);
+      background: rgba(255,255,255,.045);
       border-radius: 14px;
     }
 
@@ -1655,7 +1797,7 @@
       align-items: center;
       justify-content: center;
       border-radius: 12px;
-      background: #fff;
+      background: rgba(255,255,255,.08);
       font-weight: 800;
     }
 
@@ -1697,9 +1839,9 @@
       display: block;
       width: 100%;
       height: 180px;
-      border: 2px dashed rgba(60,60,67,.25);
+      border: 2px dashed rgba(255,255,255,.5);
       border-radius: 12px;
-      background: #fff;
+      background: rgba(255,255,255,.08);
       touch-action: none;
     }
 
@@ -1776,7 +1918,78 @@
     @media (max-width: 720px) {
       .title-bar > .title-actions, header > .title-actions, header > .toolbar { margin-right: 0 !important; }
     }
-  </style>
+  
+
+    /* Hochformat-Transparenz: Unterschrift und lokale Formularflächen */
+    .input-unit,
+    .archive-item,
+    .row-number,
+    .cell-number,
+    .hydrant-number,
+    .card,
+    .check-item,
+    .result-item,
+    .dynamic-row,
+    .strand-row,
+    .cell-row,
+    .signature-block,
+    .signature-wrap {
+      border: 1px solid rgba(255,255,255,.42) !important;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.06) 58%, rgba(235,0,69,.035)),
+        rgba(255,255,255,.018) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 10px 26px rgba(0,0,0,.05) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    #signaturePad,
+    .signature-wrap canvas,
+    canvas.signature-pad {
+      border: 2px dashed rgba(255,255,255,.5) !important;
+      background: rgba(255,255,255,.018) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(235,0,69,.035) !important;
+    }
+
+    .input-unit input,
+    .input-unit select,
+    .card input,
+    .card textarea,
+    .card select,
+    .signature-block input,
+    .signature-block textarea,
+    .signature-block select,
+    .signature-wrap input,
+    .signature-wrap textarea,
+    .signature-wrap select {
+      background: rgba(255,255,255,.018) !important;
+      border: 1px solid rgba(255,255,255,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18) !important;
+    }
+
+    .signature-actions {
+      background: transparent !important;
+      border-color: rgba(255,255,255,.28) !important;
+      box-shadow: none !important;
+    }
+
+    .title-actions,
+    .button-area,
+    .toolbar {
+      background: rgba(255,255,255,.08) !important;
+      border-color: rgba(255,255,255,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 8px 24px rgba(0,0,0,.045) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    .row-number,
+    .cell-number,
+    .hydrant-number {
+      background: rgba(255,255,255,.018) !important;
+      border: 1px solid rgba(255,255,255,.34) !important;
+    }
+</style>
 </head>
 <body>
   <div class="container" id="reportRoot">
@@ -4600,16 +4813,20 @@
             ensureRwaClearButton();
             arrangeHeaderActions();
             var arrangeTimer = 0;
-            var observerTarget = document.body || document.documentElement;
-            if (!observerTarget || typeof observerTarget.nodeType !== "number") return;
-            new MutationObserver(function() {
+            var observerTarget = document.documentElement || document.body;
+            var observerView = document.defaultView || window;
+            if (!observerTarget || !observerView.Node || !(observerTarget instanceof observerView.Node)) return;
+            var reportObserver = new MutationObserver(function() {
               markPositionCells();
               ensureGeneratedTechnikerSignatureField();
               normalizeSignatureLabels();
               installJsPdfLoaderPatch();
               window.clearTimeout(arrangeTimer);
               arrangeTimer = window.setTimeout(arrangeHeaderActions, 60);
-            }).observe(observerTarget, { childList: true, subtree: true });
+            });
+            try {
+              reportObserver.observe(observerTarget, { childList: true, subtree: true });
+            } catch (error) {}
           });
         }());
       <\/script>
@@ -4680,8 +4897,14 @@
         .fsmobile-generated-signature-block {
           margin-top: 16px !important;
           padding: 14px !important;
-          background: rgba(242, 242, 247, 0.88) !important;
+          background:
+            linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.035) 58%, rgba(235,0,69,.025)),
+            rgba(255,255,255,.045) !important;
+          border: 1px solid rgba(255,255,255,.38) !important;
           border-radius: 14px !important;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 10px 26px rgba(0,0,0,.045) !important;
+          -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+          backdrop-filter: blur(18px) saturate(1.08) !important;
         }
 
         .fsmobile-generated-signature-block h3 {
@@ -4693,9 +4916,14 @@
           display: block !important;
           width: 100% !important;
           height: 180px !important;
-          border: 2px dashed rgba(60, 60, 67, 0.25) !important;
+          border: 2px dashed rgba(255,255,255,.44) !important;
           border-radius: 12px !important;
-          background: #fff !important;
+          background:
+            linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.018)),
+            rgba(255,255,255,.018) !important;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 0 0 1px rgba(235,0,69,.025) !important;
+          -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+          backdrop-filter: blur(18px) saturate(1.08) !important;
           touch-action: none !important;
         }
 
@@ -4721,7 +4949,78 @@
             justify-content: flex-start !important;
           }
         }
-      </style>
+      
+
+    /* Hochformat-Transparenz: Unterschrift und lokale Formularflächen */
+    .input-unit,
+    .archive-item,
+    .row-number,
+    .cell-number,
+    .hydrant-number,
+    .card,
+    .check-item,
+    .result-item,
+    .dynamic-row,
+    .strand-row,
+    .cell-row,
+    .signature-block,
+    .signature-wrap {
+      border: 1px solid rgba(255,255,255,.42) !important;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.06) 58%, rgba(235,0,69,.035)),
+        rgba(255,255,255,.018) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 10px 26px rgba(0,0,0,.05) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    #signaturePad,
+    .signature-wrap canvas,
+    canvas.signature-pad {
+      border: 2px dashed rgba(255,255,255,.5) !important;
+      background: rgba(255,255,255,.018) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(235,0,69,.035) !important;
+    }
+
+    .input-unit input,
+    .input-unit select,
+    .card input,
+    .card textarea,
+    .card select,
+    .signature-block input,
+    .signature-block textarea,
+    .signature-block select,
+    .signature-wrap input,
+    .signature-wrap textarea,
+    .signature-wrap select {
+      background: rgba(255,255,255,.018) !important;
+      border: 1px solid rgba(255,255,255,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18) !important;
+    }
+
+    .signature-actions {
+      background: transparent !important;
+      border-color: rgba(255,255,255,.28) !important;
+      box-shadow: none !important;
+    }
+
+    .title-actions,
+    .button-area,
+    .toolbar {
+      background: rgba(255,255,255,.08) !important;
+      border-color: rgba(255,255,255,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 8px 24px rgba(0,0,0,.045) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    .row-number,
+    .cell-number,
+    .hydrant-number {
+      background: rgba(255,255,255,.018) !important;
+      border: 1px solid rgba(255,255,255,.34) !important;
+    }
+</style>
     `;
 
     const patchedHtml = /^pb-/.test(id || "")
