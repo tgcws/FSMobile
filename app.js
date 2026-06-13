@@ -4915,6 +4915,34 @@
           overflow: visible !important;
         }
 
+        body:not(.generating-pdf) .header-row .field input[type="date"],
+        body:not(.generating-pdf) .info-grid .field input[type="date"],
+        body:not(.generating-pdf) .info-grid .field-group input[type="date"] {
+          box-sizing: border-box !important;
+          height: 44px !important;
+          min-height: 44px !important;
+          max-height: 44px !important;
+          padding-block: 0 !important;
+          line-height: 44px !important;
+          -webkit-appearance: none !important;
+          appearance: none !important;
+        }
+
+        body:not(.generating-pdf) .header-row .field input[type="date"]::-webkit-date-and-time-value,
+        body:not(.generating-pdf) .info-grid .field input[type="date"]::-webkit-date-and-time-value,
+        body:not(.generating-pdf) .info-grid .field-group input[type="date"]::-webkit-date-and-time-value {
+          min-height: 44px !important;
+          line-height: 44px !important;
+          text-align: inherit !important;
+        }
+
+        body:not(.generating-pdf) .header-row .field input[type="date"]::-webkit-calendar-picker-indicator,
+        body:not(.generating-pdf) .info-grid .field input[type="date"]::-webkit-calendar-picker-indicator,
+        body:not(.generating-pdf) .info-grid .field-group input[type="date"]::-webkit-calendar-picker-indicator {
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
         .fsmobile-report-transfer {
           display: inline-flex !important;
           flex-wrap: wrap !important;
