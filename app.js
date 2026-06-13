@@ -3504,6 +3504,66 @@
               .replace(/[^a-z0-9]+/g, "");
           }
 
+          var FSMOBILE_PORTRAIT_REPORT_IDS = {
+            "pb-rwa": true,
+            "pb-druckerhoehungsanlage": true,
+            "pb-nass-trocken-station": true,
+            "pb-loeschwasser-trocken": true,
+            "pb-loeschwasser-nass": true,
+            "pb-zentralbatterie-anlage": true,
+            "pb-wandhydranten": true
+          };
+
+          function isFsmobilePortraitReport() {
+            return Boolean(FSMOBILE_PORTRAIT_REPORT_IDS[window.FSMOBILE_MODULE_ID || ""]);
+          }
+
+          function isAssignmentTitle(node) {
+            return node && normalizeFsmobileKey(node.textContent || "") === "zuordnung";
+          }
+
+          function findAssignmentTitle(section) {
+            return Array.from(section.children || []).find(function(child) {
+              return child.matches && child.matches("h2, h3, legend, .section-title") && isAssignmentTitle(child);
+            }) || null;
+          }
+
+          function findAssignmentFields(section) {
+            return Array.from(section.children || []).find(function(child) {
+              return child.matches && child.matches(".grid, .header-row, .info-grid, .form-grid");
+            }) || section.querySelector(".grid, .header-row, .info-grid, .form-grid");
+          }
+
+          function findAssignmentFieldsByKnownControls(section) {
+            var controlSets = [
+              ["objectInput", "anlageInput", "prueferInput", "dateInput"],
+              ["objekt", "anlagenNr", "name", "datum"]
+            ];
+            for (var index = 0; index < controlSets.length; index += 1) {
+              var controls = controlSets[index]
+                .map(function(id) { return section.querySelector("#" + id); })
+                .filter(Boolean);
+              if (controls.length < 3) continue;
+              var fieldGroup = controls[0].closest(".grid, .header-row, .info-grid, .form-grid");
+              if (fieldGroup && controls.every(function(control) { return fieldGroup.contains(control); })) return fieldGroup;
+            }
+            return null;
+          }
+
+          function normalizePortraitAssignmentSections() {
+            if (!isFsmobilePortraitReport() || !document.body || document.body.classList.contains("generating-pdf")) return;
+            document.body.classList.add("fsmobile-portrait-report");
+            Array.from(document.querySelectorAll("section.card, .card")).forEach(function(section) {
+              if (!section || section.closest(".archive-overlay, .archive-dialog, .pdf-render-wrapper, .pdf-render-area")) return;
+              var title = findAssignmentTitle(section);
+              var fields = title ? findAssignmentFields(section) : findAssignmentFieldsByKnownControls(section);
+              if (!fields || !section.parentNode) return;
+              fields.classList.add("fsmobile-portrait-assignment");
+              if (title && title.parentNode) title.parentNode.removeChild(title);
+              section.parentNode.replaceChild(fields, section);
+            });
+          }
+
           function safeFsmobileFileSegment(value, fallback) {
             return String(value || fallback || "")
               .trim()
@@ -4889,6 +4949,7 @@
           }
 	          document.addEventListener("DOMContentLoaded", function() {
 	            markPositionCells();
+	            normalizePortraitAssignmentSections();
 	            ensureGeneratedTechnikerSignatureField();
 	            normalizeSignatureLabels();
 	            installUnifiedActionStatus();
@@ -4899,6 +4960,7 @@
             arrangeHeaderActions();
             var arrangeTimer = 0;
             function refreshReportEnhancements() {
+                normalizePortraitAssignmentSections();
                 markPositionCells();
                 ensureGeneratedTechnikerSignatureField();
                 normalizeSignatureLabels();
@@ -4965,6 +5027,63 @@
         body:not(.generating-pdf) .header-row .field input[type="date"]::-webkit-calendar-picker-indicator,
         body:not(.generating-pdf) .info-grid .field input[type="date"]::-webkit-calendar-picker-indicator,
         body:not(.generating-pdf) .info-grid .field-group input[type="date"]::-webkit-calendar-picker-indicator {
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment {
+          display: grid !important;
+          grid-template-columns: repeat(4, minmax(150px, 1fr)) !important;
+          gap: 12px !important;
+          width: 100% !important;
+          margin: 0 0 18px !important;
+          padding: 0 !important;
+          background: transparent !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+        }
+
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment .field {
+          min-width: 0 !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment label {
+          min-height: 18px !important;
+          margin-bottom: 7px !important;
+          line-height: 1.25 !important;
+        }
+
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment input:not([type="checkbox"]):not([type="radio"]),
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment select {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          height: 48px !important;
+          min-height: 48px !important;
+          max-height: 48px !important;
+          padding: 0 14px !important;
+          line-height: 48px !important;
+          display: block !important;
+          align-self: stretch !important;
+          background: rgba(255,255,255,.08) !important;
+          border: 1px solid rgba(255,255,255,.34) !important;
+          border-radius: 14px !important;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.18) !important;
+          -webkit-appearance: none !important;
+          appearance: none !important;
+        }
+
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment input[type="date"]::-webkit-date-and-time-value {
+          min-height: 48px !important;
+          line-height: 48px !important;
+          text-align: inherit !important;
+        }
+
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment input[type="date"]::-webkit-calendar-picker-indicator {
           margin: 0 !important;
           padding: 0 !important;
         }
@@ -5064,6 +5183,10 @@
             max-width: 100% !important;
             margin-left: 0 !important;
             justify-content: flex-start !important;
+          }
+
+          body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment {
+            grid-template-columns: 1fr !important;
           }
         }
       
