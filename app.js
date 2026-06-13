@@ -26,6 +26,8 @@
   let actionSyncTimer = 0;
   let actionStatusTimer = 0;
   let brandTransitionTimer = 0;
+  let titleStartAnimationPending = document.body.classList.contains("app-start-pending");
+  let titleStartAnimationTimer = 0;
   let viewTransitionTimers = [];
 
   const MENU_SECTIONS = [
@@ -2977,22 +2979,44 @@
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
-  function initTitleStartAnimation() {
-    if (!document.body.classList.contains("app-starting")) return;
+  function finishTitleStartAnimation() {
+    const brandTitle = document.querySelector(".brand h1");
+    titleStartAnimationPending = false;
+    window.clearTimeout(titleStartAnimationTimer);
+    document.body.classList.remove("app-start-pending", "app-starting");
+    if (brandTitle) brandTitle.style.willChange = "";
+  }
+
+  function startTitleAnimationWhenReady() {
+    if (!titleStartAnimationPending) return;
 
     const brandTitle = document.querySelector(".brand h1");
-    const finish = () => {
-      document.body.classList.remove("app-starting");
-      if (brandTitle) brandTitle.style.willChange = "";
-    };
+    const menuIsReady = isUnlocked && !activeModuleId && !menuView.hidden && authOverlay.hidden;
+    if (!brandTitle || !menuIsReady) return;
 
-    if (!brandTitle || prefersReducedMotion()) {
-      finish();
+    if (prefersReducedMotion()) {
+      finishTitleStartAnimation();
       return;
     }
 
-    brandTitle.addEventListener("animationend", finish, { once: true });
-    window.setTimeout(finish, 1500);
+    if (document.readyState !== "complete") {
+      window.addEventListener("load", startTitleAnimationWhenReady, { once: true });
+      return;
+    }
+
+    window.clearTimeout(titleStartAnimationTimer);
+    titleStartAnimationTimer = window.setTimeout(() => {
+      if (!titleStartAnimationPending || activeModuleId || menuView.hidden || !authOverlay.hidden) return;
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (!titleStartAnimationPending || activeModuleId || menuView.hidden || !authOverlay.hidden) return;
+          document.body.classList.remove("app-start-pending");
+          document.body.classList.add("app-starting");
+          brandTitle.addEventListener("animationend", finishTitleStartAnimation, { once: true });
+          titleStartAnimationTimer = window.setTimeout(finishTitleStartAnimation, 2300);
+        });
+      });
+    }, 280);
   }
 
   function animateBrandLayoutChange(updateLayout) {
@@ -3104,6 +3128,7 @@
     const module = registry[id];
     if (!module) return;
 
+    finishTitleStartAnimation();
     const html = decorateModuleHtml(module.html, id);
     activeModuleId = id;
     applyModuleHeadingAccent(id);
@@ -3139,6 +3164,7 @@
     if (!replaceHistory) {
       history.pushState({ module: null }, "", location.pathname);
     }
+    startTitleAnimationWhenReady();
   }
 
   function ensureModuleActionBar() {
@@ -5239,7 +5265,6 @@
   });
 
   renderMenu();
-  initTitleStartAnimation();
   localStorage.removeItem(OLD_PASS_HASH_KEY);
   showAuth();
 }());
