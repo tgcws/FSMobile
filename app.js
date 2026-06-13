@@ -752,7 +752,26 @@
       background: rgba(255,255,255,.018) !important;
       border: 1px solid rgba(255,255,255,.34) !important;
     }
-</style>
+
+    /* FSMobile report dropdown height alignment */
+    select,
+    .card select,
+    .field select,
+    .input-unit select,
+    .dynamic-row select,
+    .measurement-row select,
+    .cell-row select,
+    .signature-block select,
+    .signature-wrap select {
+      min-height: 44px !important;
+      height: 44px !important;
+      padding: 10px 12px !important;
+      line-height: 1.25 !important;
+      display: block !important;
+      align-self: stretch !important;
+    }
+
+  </style>
 </head>
 <body>
   <div class="container" id="reportRoot">
@@ -1991,7 +2010,26 @@
       background: rgba(255,255,255,.018) !important;
       border: 1px solid rgba(255,255,255,.34) !important;
     }
-</style>
+
+    /* FSMobile report dropdown height alignment */
+    select,
+    .card select,
+    .field select,
+    .input-unit select,
+    .dynamic-row select,
+    .measurement-row select,
+    .cell-row select,
+    .signature-block select,
+    .signature-wrap select {
+      min-height: 44px !important;
+      height: 44px !important;
+      padding: 10px 12px !important;
+      line-height: 1.25 !important;
+      display: block !important;
+      align-self: stretch !important;
+    }
+
+  </style>
 </head>
 <body>
   <div class="container" id="reportRoot">
@@ -2937,6 +2975,24 @@
 
   function prefersReducedMotion() {
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function initTitleStartAnimation() {
+    if (!document.body.classList.contains("app-starting")) return;
+
+    const brandTitle = document.querySelector(".brand h1");
+    const finish = () => {
+      document.body.classList.remove("app-starting");
+      if (brandTitle) brandTitle.style.willChange = "";
+    };
+
+    if (!brandTitle || prefersReducedMotion()) {
+      finish();
+      return;
+    }
+
+    brandTitle.addEventListener("animationend", finish, { once: true });
+    window.setTimeout(finish, 1500);
   }
 
   function animateBrandLayoutChange(updateLayout) {
@@ -4816,20 +4872,24 @@
             ensureRwaClearButton();
             arrangeHeaderActions();
             var arrangeTimer = 0;
-            var observerTarget = document.documentElement || document.body;
-            var observerView = document.defaultView || window;
-            if (!observerTarget || !observerView.Node || !(observerTarget instanceof observerView.Node)) return;
-            try {
-              var reportObserver = new MutationObserver(function() {
+            function refreshReportEnhancements() {
                 markPositionCells();
                 ensureGeneratedTechnikerSignatureField();
                 normalizeSignatureLabels();
                 installJsPdfLoaderPatch();
-                window.clearTimeout(arrangeTimer);
-                arrangeTimer = window.setTimeout(arrangeHeaderActions, 60);
-              });
-              reportObserver.observe(observerTarget, { childList: true, subtree: true });
-            } catch (error) {}
+            }
+            function runReportEnhancementRefresh() {
+              refreshReportEnhancements();
+              arrangeHeaderActions();
+            }
+            function scheduleReportEnhancementRefresh(delay) {
+              window.setTimeout(runReportEnhancementRefresh, delay);
+            }
+            [0, 80, 220, 500, 900, 1400, 2200].forEach(scheduleReportEnhancementRefresh);
+            window.addEventListener("resize", function() {
+              window.clearTimeout(arrangeTimer);
+              arrangeTimer = window.setTimeout(runReportEnhancementRefresh, 80);
+            });
           });
         }());
       <\/script>
@@ -5151,6 +5211,7 @@
   });
 
   renderMenu();
+  initTitleStartAnimation();
   localStorage.removeItem(OLD_PASS_HASH_KEY);
   showAuth();
 }());
