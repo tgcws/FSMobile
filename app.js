@@ -91,6 +91,18 @@
         "anleitung-bsk",
         "anleitung-bs-vorhang"
       ]
+    },
+    {
+      id: "maengelbeschreibungen",
+      title: "Mängelbeschreibungen",
+      accent: "accent-indigo",
+      modules: [
+        "maengel-bt-fsa",
+        "maengel-bsk",
+        "maengel-automatiktueren",
+        "maengel-not-sicherheitsleuchte",
+        "maengel-rauchwarnmelder"
+      ]
     }
   ];
 
@@ -115,20 +127,522 @@
     "pb-zentralbatterie-anlage": "Zentralbatterie-Anlage",
     "anleitung-rwa-pyro": "RWA Pyro",
     "anleitung-rwa-elektrisch": "RWA Elektrisch",
-    "anleitung-rwa-co2": "RWA CO2"
+    "anleitung-rwa-co2": "RWA CO2",
+    "maengel-bt-fsa": "Brandschutztüren / Feststellanlagen",
+    "maengel-bsk": "Brandschutzklappen",
+    "maengel-automatiktueren": "Automatiktüren / Antriebe",
+    "maengel-not-sicherheitsleuchte": "Not- und Sicherheitsleuchte",
+    "maengel-rauchwarnmelder": "Rauchwarnmelder"
   };
 
   const KICKERS = {
     kalkulation: "Kalkulation",
     pruefberichte: "Prüfbericht",
-    wartungsanleitungen: "Wartung"
+    wartungsanleitungen: "Wartung",
+    maengelbeschreibungen: "Mangel"
   };
 
   const MODULE_ACCENT_CLASSES = [
     "module-accent-kalkulation",
     "module-accent-pruefberichte",
-    "module-accent-wartungsanleitungen"
+    "module-accent-wartungsanleitungen",
+    "module-accent-maengelbeschreibungen"
   ];
+
+  const DEFECT_DESCRIPTION_MODULES = [
+    {
+      id: "maengel-bt-fsa",
+      title: "Mängelbeschreibung Brandschutztüren/Feststellanlagen",
+      cardDescription: "Typische Mängel an Brandschutztüren, Toren und Feststellanlagen.",
+      eyebrow: "Brandschutztüren / Feststellanlagen",
+      items: [
+        "Tür, (-Tor) schließt nicht selbstständig",
+        "Tür, (-Tor)blatt schleift",
+        "Tür, (-Tor)blatt defekt / Zarge defekt",
+        "Türblatt verriegelt nicht (Falle)",
+        "Federband defekt / nicht einstellbar",
+        "Federband nicht eingestellt",
+        "Obentürschließer defekt",
+        "Obentürschließer fehlt",
+        "Staudruck im Raum (Türschließer montieren)",
+        "Schließzylinder / Blindzylinder fehlt",
+        "Beschlag lose",
+        "Beschlag defekt",
+        "Beschlag nach DIN 18273 nicht konform",
+        "Einsteckschloss defekt",
+        "Panikschloss fehlt / ist erforderlich",
+        "Tür bzw. Zargendichtung fehlt",
+        "Tür bzw. Zargendichtung defekt",
+        "Absenkbare Bodendichtung fehlt",
+        "Absenkbare Bodendichtung defekt",
+        "Zarge nicht ordnungsgemäß befestigt",
+        "Zarge nicht ordnungsgemäß vermörtelt",
+        "Spaltmaß Türblatt - Boden zu groß",
+        "Spaltmaß Türblatt - Zarge zu groß",
+        "Hinweis: Tür besitzt offensichtlich keine bauaufsichtliche Zulassung",
+        "Mechanische Feststellvorrichtung ist zu demontieren",
+        "Tür/Zarge bestehende Löcher verschließen",
+        "Bodenbelag Trennung fehlt",
+        "Verglasung defekt",
+        "Verglasung ohne Zulassung",
+        "Tür verstellt / nicht zugänglich",
+        "Nicht zugelassene Bauteile verbaut",
+        "Wartung kann durch Umbaumaßnahmen nicht durchgeführt werden",
+        "Schließfolgeregelung fehlt",
+        "Schließfolgeregelung defekt",
+        "Treibriegelstange verriegelt nicht",
+        "Treibriegelstange lässt sich nicht lösen",
+        "Mitnehmerklappe fehlt",
+        "Feststellanlage defekt",
+        "Rauchmeldezentrale defekt",
+        "Feststell-/Rauchmeldezentrale nach DIN 14677 nicht abgenommen",
+        "Rauchmelder defekt",
+        "Rauchmelder fehlt",
+        "Rauchmelder falsch angeordnet",
+        "Rauchmelder falsch verdrahtet / ohne Funktion",
+        "Rauchmelder zu alt nach DIN 14677",
+        "Rauchschaltplatine defekt",
+        "Rauchschaltplatine zu alt nach DIN 14677",
+        "Die Feststellanlage wird durch die BMA angesteuert (keine eigenen Rauchmelder)",
+        "Netzteil defekt",
+        "Haltemagnet ist lose",
+        "Elektromagnetische Feststellung lose / defekt",
+        "Anbauteile haben keine Zulassung in Verbindung mit Feststellanlage",
+        "Taster \"Tür zu\" ohne Funktion",
+        "Taster \"Tür zu\" nicht beschriftet",
+        "Taster \"Tür zu\" nicht vorhanden bei Haftmagnetanlagen",
+        "Türöffner nachträglich in die Zarge eingefräst (ohne Zulassung)",
+        "Türöffner ist nicht als Brandschutztüröffner ausgeführt",
+        "Türöffner ist nicht als Rauchschutztüröffner ausgeführt (Fluchtweg)",
+        "Elektrischer Türöffner defekt"
+      ]
+    },
+    {
+      id: "maengel-bsk",
+      title: "Mängelbeschreibung Brandschutzklappen",
+      cardDescription: "Mängeltexte für Brandschutzklappen, Einbausituationen und Auslösungen.",
+      eyebrow: "Brandschutzklappen",
+      items: [
+        "Nicht zugänglich",
+        "Revisionsöffnung zu klein (600x600mm nach VDI 3803)",
+        "Revisionsöffnung sitzt falsch",
+        "Revisionsöffnung fehlt",
+        "Revisionsdeckel der BSK nicht zugänglich",
+        "Zugang zur BSK durch Einbauten / Mobiliar verhindert",
+        "Einbauort stimmt nicht mit Revisionsplan überein",
+        "Im Plan verzeichnete BSK fehlt",
+        "BSK schließt nicht einwandfrei",
+        "BSK verriegelt nicht",
+        "Die Handauslösung klemmt an anderen Teilen",
+        "Die innere Mechanik ist beschädigt",
+        "Die äußere Mechanik ist beschädigt / vermörtelt",
+        "Das Klappenblatt ist beschädigt",
+        "Die BSK ist stark korrodiert",
+        "Das Auslöseelement (Schmelzlot) fehlt",
+        "Das Auslöseelement wurde durch falsches Material ersetzt",
+        "Der Endschalter wird nicht betätigt",
+        "Die innenliegenden Dichtungen sind beschädigt",
+        "Elektrische oder pneumatische Ansteuerung defekt",
+        "Auslösung über Rauchmelder ohne Funktion",
+        "Auslösung über Prüfschalter ohne Funktion",
+        "Sonstige Fernauslösung ohne Funktion",
+        "Keine Meldung ans Tableau / Schaltschrank",
+        "Meldung ans Tableau / Schaltschrank vertauscht",
+        "Endschalter defekt",
+        "Die Bezeichnung der BSK fehlt",
+        "Die Bezeichnung der BSK ist falsch",
+        "Die Bezeichnung der BSK ist vertauscht",
+        "Die Bezeichnung der BSK an der Revisionsöffnung / Decke fehlt",
+        "Die BSK besitzt kein Prüfzeichen / Typenschild",
+        "Die BSK ist nicht vollständig eingemörtelt",
+        "Die BSK ist nicht flächenbündig eingebaut",
+        "Beim Einbau wurden ungeeignete Materialien verwendet",
+        "Einbau mit loser Mineralwolle ausgeführt",
+        "Mit Mineralwolle verfüllter Spalt ist zu groß (>50mm)",
+        "Es wurde falsche Mineralwolle (Schmelzpunkt >1000°C) eingebaut",
+        "Der Einbauabstand zur Nebenklappe ist zu gering",
+        "Der Abstand zu anderen Bauteilen ist zu gering",
+        "Einbau in GK-Wand nicht nach Zulassung",
+        "Mineralwollausstopfung fehlt",
+        "Einbaurahmen fehlt",
+        "Aufbau der GK-Wand nicht nach Zulassung der BSK (U-Profil)",
+        "Flexibler Stutzen fehlt",
+        "Der flexible Stutzen hat nicht die erforderliche Dehnungsaufnahme (10cm)",
+        "Das Klappenblatt ragt in den flexiblen Stutzen",
+        "Die Einbauart ist nicht zugelassen",
+        "Die Abhängung fehlt",
+        "Der L90 Anschluss ist nicht nach Zulassung ausgeführt",
+        "Schutzgitter fehlt",
+        "Potentialausgleich am flexiblen Stutzen fehlt"
+      ],
+      infoSections: [
+        {
+          title: "Hinweise",
+          entries: [
+            "A) BSK mit Baujahr vor 1980/1981 enthalten Asbest",
+            "BSK mit Baujahr vor 1988 enthalten i.d.R. Dichtungen mit Asbest"
+          ]
+        },
+        {
+          title: "Typ",
+          entries: [
+            "BSK: Brandschutzklappe",
+            "BSE: Brandschutzelement",
+            "BSV: Brandschutzventil"
+          ]
+        }
+      ]
+    },
+    {
+      id: "maengel-automatiktueren",
+      title: "Mängelbeschreibung Automatiktüren/Schiebetürantrieb/Drehflügelantrieb",
+      cardDescription: "Mängeltexte für automatische Türen, Schiebetür- und Drehflügelantriebe.",
+      eyebrow: "Automatiktüren / Antriebe",
+      items: [
+        "Antrieb defekt",
+        "Hebelarm defekt",
+        "Tür mechanisch defekt",
+        "Not / Aus defekt",
+        "Not / Aus nicht vorhanden",
+        "Sicherheitssensorleiste defekt",
+        "Sicherheitssensorleiste nicht vorhanden (Gangflügel - Bandseite)",
+        "Sicherheitssensorleiste nicht vorhanden (Gangflügel - Bandgegenseite)",
+        "Sicherheitssensorleiste nicht vorhanden (Standflügel - Bandseite)",
+        "Sicherheitssensorleiste nicht vorhanden (Standflügel - Bandgegenseite)",
+        "Lichtschranke / IR Vorhang defekt",
+        "Lichtschranke / IR Vorhang fehlt",
+        "Radaröffnungsmelder defekt",
+        "Taster \"Tür auf\" defekt",
+        "Taster \"Tür schließen\" fehlt",
+        "Taster \"Tür schließen\" defekt",
+        "Türöffner defekt",
+        "Riegelschaltkontakt defekt",
+        "Riegelschaltkontakt fehlt",
+        "Rauchmeldezentrale defekt",
+        "Rauchmeldezentrale fehlt",
+        "Deckenrauchmelder defekt",
+        "Deckenrauchmelder fehlt",
+        "Programmschalter defekt",
+        "Schließfolgeregelung fehlt",
+        "Schließfolgeregelung defekt",
+        "Treibriegelstange entriegelt nicht",
+        "Treibriegelstange verriegelt nicht",
+        "Absenkbare Bodendichtung fehlt",
+        "Absenkbare Bodendichtung defekt",
+        "Tür bzw. Zargendichtung fehlt",
+        "Tür bzw. Zargendichtung defekt"
+      ]
+    },
+    {
+      id: "maengel-not-sicherheitsleuchte",
+      title: "Mängelbeschreibung Not- und Sicherheitsleuchte",
+      cardDescription: "Mängeltexte für Not- und Sicherheitsleuchten, Akkus und Piktogramme.",
+      eyebrow: "Not- und Sicherheitsleuchte",
+      items: [
+        "Leuchtmittel defekt",
+        "Akku defekt",
+        "Akku älter als 4 Jahre",
+        "NiCd Akku älter als 4 Jahre",
+        "Leuchte defekt",
+        "Leuchte ohne Strom",
+        "Stromkreis Kennzeichnung fehlt",
+        "Piktogramm falsch",
+        "Hinweis: Norm Vermischung der Piktogramme"
+      ]
+    },
+    {
+      id: "maengel-rauchwarnmelder",
+      title: "Mängelbeschreibung Rauchwarnmelder",
+      cardDescription: "Mängeltexte und Kürzel für Rauchwarnmelder und Funkmodule.",
+      eyebrow: "Rauchwarnmelder",
+      items: [
+        "Rauchmelder defekt",
+        "Rauchmelder fehlt",
+        "Rauchmelder hat max. Alter überschritten",
+        "Testtaste defekt",
+        "Funkvernetzung außer Funktion",
+        "Funkmodul fehlt",
+        "Rauchmelder verschmutzt",
+        "Rauchmelder muss ummontiert werden aufgrund von Umgebungseinflüssen"
+      ],
+      infoSections: [
+        {
+          title: "Hinweise",
+          entries: [
+            "L: Lithium Batterie erneuert Typ 9V",
+            "A9: Alkalische Batterie erneuert Typ 9V",
+            "AM: Alkalische Batterie erneuert Typ Mignon"
+          ]
+        }
+      ]
+    }
+  ];
+
+  DEFECT_DESCRIPTION_MODULES.forEach(config => {
+    registry[config.id] = registry[config.id] || {
+      title: config.title,
+      group: "Mängelbeschreibungen",
+      description: config.cardDescription,
+      html: defectDescriptionHtml(config)
+    };
+  });
+
+  function escapeDefectText(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function defectDescriptionHtml(config) {
+    const rows = config.items.map((item, index) => `
+        <li class="defect-row">
+          <span class="defect-number">${index + 1}</span>
+          <span class="defect-text">${escapeDefectText(item)}</span>
+        </li>`).join("");
+    const infoSections = (config.infoSections || []).map(section => `
+        <section class="info-card">
+          <h2>${escapeDefectText(section.title)}</h2>
+          <ul>
+            ${section.entries.map(entry => `<li>${escapeDefectText(entry)}</li>`).join("")}
+          </ul>
+        </section>`).join("");
+
+    return `<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>${escapeDefectText(config.title)}</title>
+  <meta name="theme-color" content="#5856d6" />
+  <style>
+    :root {
+      --accent: #5856d6;
+      --accent-rgb: 88, 86, 214;
+      --text: #172033;
+      --muted: #5f6b80;
+      --line: rgba(255,255,255,.42);
+      --surface: rgba(255,255,255,.08);
+      --surface-soft: rgba(255,255,255,.045);
+      --radius: 20px;
+      --ease: cubic-bezier(.22,1,.36,1);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; background: transparent; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: transparent;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .defect-page {
+      width: min(1080px, 100%);
+      margin: 0 auto;
+      padding: clamp(18px, 3vw, 30px);
+    }
+
+    .hero,
+    .list-card,
+    .info-card {
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.18), rgba(255,255,255,.07) 58%, rgba(var(--accent-rgb), .055)),
+        var(--surface);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.3),
+        0 16px 38px rgba(2,8,23,.08);
+      -webkit-backdrop-filter: blur(22px) saturate(1.12);
+      backdrop-filter: blur(22px) saturate(1.12);
+    }
+
+    .hero {
+      padding: clamp(18px, 3vw, 26px);
+      border-radius: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: rgba(var(--accent-rgb), .95);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: rgba(17,24,39,.94);
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.06;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-shadow: 0 1px 0 rgba(255,255,255,.45);
+    }
+
+    .hero-meta {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      margin-top: 18px;
+      padding: 7px 12px;
+      border: 1px solid rgba(255,255,255,.38);
+      border-radius: 999px;
+      color: rgba(17,24,39,.78);
+      background: rgba(var(--accent-rgb), .12);
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .list-card,
+    .info-card {
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 54px;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255,255,255,.34);
+      background: rgba(var(--accent-rgb), .14);
+    }
+
+    .section-title h2,
+    .info-card h2 {
+      margin: 0;
+      color: rgba(17,24,39,.9);
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+
+    .count-pill {
+      flex: 0 0 auto;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(0,0,0,.02)), var(--accent);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.26), 0 8px 16px rgba(var(--accent-rgb), .18);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .defect-list,
+    .info-card ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .defect-row {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      min-height: 46px;
+      padding: 8px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.28);
+      background: rgba(255,255,255,.035);
+    }
+
+    .defect-row:nth-child(even) {
+      background: rgba(255,255,255,.065);
+    }
+
+    .defect-row:last-child {
+      border-bottom: 0;
+    }
+
+    .defect-number {
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,.36);
+      border-radius: 999px;
+      color: rgba(17,24,39,.82);
+      background: rgba(var(--accent-rgb), .12);
+      font-size: 13px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .defect-text,
+    .info-card li {
+      color: rgba(17,24,39,.88);
+      font-size: 15px;
+      font-weight: 760;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .info-card {
+      padding: 16px 18px;
+    }
+
+    .info-card ul {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .info-card li {
+      min-height: 34px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,.28);
+      border-radius: 12px;
+      background: var(--surface-soft);
+    }
+
+    @media (max-width: 700px) {
+      .defect-page { padding: 14px; }
+      .section-title { align-items: flex-start; flex-direction: column; }
+      .defect-row { grid-template-columns: 34px minmax(0, 1fr); padding-inline: 12px; }
+      .defect-text, .info-card li { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="defect-page">
+    <header class="hero">
+      <p class="eyebrow">${escapeDefectText(config.eyebrow || "Mängelbeschreibung")}</p>
+      <h1>${escapeDefectText(config.title)}</h1>
+      <div class="hero-meta">${config.items.length} Einträge</div>
+    </header>
+    <div class="content-grid">
+      <section class="list-card">
+        <div class="section-title">
+          <h2>Mängelbeschreibung</h2>
+          <span class="count-pill">${config.items.length}</span>
+        </div>
+        <ol class="defect-list">
+          ${rows}
+        </ol>
+      </section>
+      ${infoSections}
+    </div>
+  </main>
+</body>
+</html>`;
+  }
 
   registry["pb-zentralbatterie-anlage"] = registry["pb-zentralbatterie-anlage"] || {
     title: "Prüfbericht Zentralbatterie-Anlage",
@@ -3553,6 +4067,7 @@
           function normalizePortraitAssignmentSections() {
             if (!isFsmobilePortraitReport() || !document.body || document.body.classList.contains("generating-pdf")) return;
             document.body.classList.add("fsmobile-portrait-report");
+            if (window.FSMOBILE_MODULE_ID === "pb-rwa") document.body.classList.add("fsmobile-rwa-report");
             Array.from(document.querySelectorAll("section.card, .card")).forEach(function(section) {
               if (!section || section.closest(".archive-overlay, .archive-dialog, .pdf-render-wrapper, .pdf-render-area")) return;
               var title = findAssignmentTitle(section);
@@ -3561,6 +4076,24 @@
               fields.classList.add("fsmobile-portrait-assignment");
               if (title && title.parentNode) title.parentNode.removeChild(title);
               section.parentNode.replaceChild(fields, section);
+            });
+          }
+
+          function installRwaChoicePillTapFix() {
+            if (window.FSMOBILE_MODULE_ID !== "pb-rwa") return;
+            window.__fsmobileRwaChoicePillTapFixInstalled = true;
+            Array.from(document.querySelectorAll(".pill-check")).forEach(function(pill) {
+              if (pill.dataset.fsmobileRwaTapFix === "true") return;
+              pill.dataset.fsmobileRwaTapFix = "true";
+              pill.addEventListener("click", function(event) {
+              var input = pill.querySelector("input[type='checkbox']");
+              if (!input || input.disabled) return;
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              input.checked = !input.checked;
+              input.dispatchEvent(new Event("input", { bubbles: true }));
+              input.dispatchEvent(new Event("change", { bubbles: true }));
+              }, true);
             });
           }
 
@@ -4950,6 +5483,7 @@
 	          document.addEventListener("DOMContentLoaded", function() {
 	            markPositionCells();
 	            normalizePortraitAssignmentSections();
+	            installRwaChoicePillTapFix();
 	            ensureGeneratedTechnikerSignatureField();
 	            normalizeSignatureLabels();
 	            installUnifiedActionStatus();
@@ -4961,6 +5495,7 @@
             var arrangeTimer = 0;
             function refreshReportEnhancements() {
                 normalizePortraitAssignmentSections();
+                installRwaChoicePillTapFix();
                 markPositionCells();
                 ensureGeneratedTechnikerSignatureField();
                 normalizeSignatureLabels();
@@ -5259,6 +5794,95 @@
     .hydrant-number {
       background: rgba(255,255,255,.018) !important;
       border: 1px solid rgba(255,255,255,.34) !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-portrait-report select {
+      min-height: 44px !important;
+      height: 44px !important;
+      padding: 10px 12px !important;
+      line-height: 1.25 !important;
+      border-radius: 12px !important;
+      background-clip: padding-box !important;
+      display: block !important;
+      align-self: stretch !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment select {
+      height: 48px !important;
+      min-height: 48px !important;
+      max-height: 48px !important;
+      padding: 0 14px !important;
+      line-height: 48px !important;
+      border-radius: 14px !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report form {
+      gap: 18px !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .card {
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.04) 58%, rgba(235,0,69,.025)),
+        rgba(255,255,255,.02) !important;
+      border-color: rgba(255,255,255,.38) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 10px 24px rgba(0,0,0,.04) !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .card > .sub-card,
+    body:not(.generating-pdf).fsmobile-rwa-report .sub-card .sub-card {
+      margin-top: 16px !important;
+      padding: 14px 0 0 !important;
+      border: 0 !important;
+      border-top: 1px solid rgba(255,255,255,.3) !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .card > .sub-card:first-child {
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      border-top: 0 !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .sub-title {
+      margin: 0 0 10px !important;
+      color: rgba(23,32,51,.86) !important;
+      font-size: 15px !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .dynamic-list {
+      gap: 10px !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .dynamic-row,
+    body:not(.generating-pdf).fsmobile-rwa-report .suela-abstroem-row {
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .dynamic-row + .dynamic-row {
+      padding-top: 12px !important;
+      border-top: 1px solid rgba(255,255,255,.24) !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .dynamic-actions {
+      margin-top: 10px !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .choice-row {
+      margin-bottom: 4px !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report .yesno {
+      border-color: rgba(255,255,255,.28) !important;
     }
 </style>
     `;

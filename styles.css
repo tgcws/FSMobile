@@ -7,6 +7,7 @@
   --ios-orange: #ff9500;
   --ios-red: #ff3b30;
   --ios-teal: #30b0c7;
+  --ios-indigo: #5856d6;
   --ios-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --menu-ease: cubic-bezier(0.22, 1, 0.36, 1);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -298,7 +299,8 @@ body.app-starting .brand h1 {
 
 .topbar.module-accent-kalkulation h1,
 .topbar.module-accent-pruefberichte h1,
-.topbar.module-accent-wartungsanleitungen h1 {
+.topbar.module-accent-wartungsanleitungen h1,
+.topbar.module-accent-maengelbeschreibungen h1 {
   color: rgba(248, 250, 252, 0.5);
   -webkit-text-fill-color: rgba(248, 250, 252, 0.5);
   filter: saturate(1.02);
@@ -326,6 +328,11 @@ body.app-starting .brand h1 {
 .topbar.module-accent-wartungsanleitungen {
   --module-heading-accent: var(--ios-teal);
   --module-heading-accent-rgb: 48, 176, 199;
+}
+
+.topbar.module-accent-maengelbeschreibungen {
+  --module-heading-accent: var(--ios-indigo);
+  --module-heading-accent-rgb: 88, 86, 214;
 }
 
 .brand p {
@@ -423,6 +430,11 @@ body.app-starting .brand h1 {
 .menu-section.accent-teal {
   --section-accent: var(--ios-teal);
   --section-accent-rgb: 48, 176, 199;
+}
+
+.menu-section.accent-indigo {
+  --section-accent: var(--ios-indigo);
+  --section-accent-rgb: 88, 86, 214;
 }
 
 .menu-section-toggle {
@@ -619,7 +631,8 @@ body.app-starting .brand h1 {
 
 .topbar.module-accent-kalkulation ~ .module-view,
 .topbar.module-accent-pruefberichte ~ .module-view,
-.topbar.module-accent-wartungsanleitungen ~ .module-view {
+.topbar.module-accent-wartungsanleitungen ~ .module-view,
+.topbar.module-accent-maengelbeschreibungen ~ .module-view {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08) 52%, rgba(255, 255, 255, 0.035)),
     rgba(255, 255, 255, 0.06);
@@ -641,7 +654,8 @@ body.app-starting .brand h1 {
 
 .topbar.module-accent-kalkulation ~ .module-view iframe,
 .topbar.module-accent-pruefberichte ~ .module-view iframe,
-.topbar.module-accent-wartungsanleitungen ~ .module-view iframe {
+.topbar.module-accent-wartungsanleitungen ~ .module-view iframe,
+.topbar.module-accent-maengelbeschreibungen ~ .module-view iframe {
   background: transparent;
 }
 
@@ -862,7 +876,8 @@ body.app-starting .brand h1 {
 
   .topbar.module-accent-kalkulation h1,
   .topbar.module-accent-pruefberichte h1,
-  .topbar.module-accent-wartungsanleitungen h1 {
+  .topbar.module-accent-wartungsanleitungen h1,
+  .topbar.module-accent-maengelbeschreibungen h1 {
     color: rgba(248, 250, 252, 0.46);
     -webkit-text-fill-color: rgba(248, 250, 252, 0.46);
     -webkit-text-stroke: 0 transparent;
