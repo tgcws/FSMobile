@@ -38,6 +38,7 @@
   let brandTransitionTimer = 0;
   let titleStartAnimationPending = document.body.classList.contains("app-start-pending");
   let titleStartAnimationTimer = 0;
+  let optionsCloseTimer = 0;
   let viewTransitionTimers = [];
 
   const MENU_SECTIONS = [
@@ -3467,15 +3468,25 @@
 
   function openOptionsDialog() {
     if (!optionsOverlay) return;
+    window.clearTimeout(optionsCloseTimer);
     setOptionsStatus("");
+    optionsOverlay.classList.remove("is-closing");
     optionsOverlay.hidden = false;
+    optionsOverlay.setAttribute("aria-hidden", "false");
     window.setTimeout(() => archiveBackupExportButton && archiveBackupExportButton.focus(), 40);
   }
 
   function closeOptionsDialog() {
     if (!optionsOverlay) return;
-    optionsOverlay.hidden = true;
-    if (menuOptionsButton && !menuOptionsButton.hidden) menuOptionsButton.focus();
+    window.clearTimeout(optionsCloseTimer);
+    if (optionsOverlay.hidden) return;
+    optionsOverlay.classList.add("is-closing");
+    optionsOverlay.setAttribute("aria-hidden", "true");
+    optionsCloseTimer = window.setTimeout(() => {
+      optionsOverlay.hidden = true;
+      optionsOverlay.classList.remove("is-closing");
+      if (menuOptionsButton && !menuOptionsButton.hidden) menuOptionsButton.focus();
+    }, prefersReducedMotion() ? 40 : 390);
   }
 
   function updateMenuOptionsVisibility() {

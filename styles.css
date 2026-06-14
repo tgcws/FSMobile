@@ -129,7 +129,7 @@ input:focus-visible {
   top: max(12px, env(safe-area-inset-top));
   z-index: 10;
   display: grid;
-  grid-template-columns: 48px minmax(220px, 1fr) minmax(118px, auto);
+  grid-template-columns: 48px minmax(220px, 1fr);
   align-items: center;
   column-gap: 12px;
   row-gap: 8px;
@@ -375,23 +375,36 @@ body.app-starting .brand h1 {
 }
 
 .menu-options-button {
-  justify-self: end;
+  position: absolute;
+  top: 50%;
+  right: calc(env(safe-area-inset-right) - 16px - max(0px, (100vw - 1240px) / 2));
+  transform: translateY(-50%);
   min-height: 44px;
   padding: 11px 18px;
   border: 1px solid rgba(255, 255, 255, 0.48);
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.96);
+  color: rgba(31, 41, 55, 0.42);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08)),
-    rgba(15, 23, 42, 0.16);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.11)),
+    rgba(255, 255, 255, 0.12);
   box-shadow:
-    0 12px 26px rgba(2, 8, 23, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+    0 12px 28px rgba(2, 8, 23, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.12);
+  -webkit-backdrop-filter: blur(20px) saturate(1.12);
   backdrop-filter: blur(20px) saturate(1.12);
   font-size: 15px;
-  font-weight: 850;
+  font-weight: 900;
   line-height: 1;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.52),
+    0 -1px 0 rgba(15, 23, 42, 0.18);
   white-space: nowrap;
+  mix-blend-mode: multiply;
+}
+
+.menu-options-button:active {
+  transform: translateY(-50%) scale(0.975);
 }
 
 .menu-options-button[hidden] {
@@ -778,32 +791,77 @@ body.app-starting .brand h1 {
   display: grid;
   place-items: center;
   padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
-  background: rgba(17, 24, 39, 0.18);
-  backdrop-filter: blur(20px) saturate(1.08);
+  opacity: 1;
+  visibility: visible;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.2)),
+    rgba(238, 243, 250, 0.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  backdrop-filter: blur(18px) saturate(1.08);
+  pointer-events: auto;
+  transition:
+    opacity 380ms var(--menu-ease),
+    visibility 0s linear 0s;
 }
 
-.options-overlay[hidden] {
-  display: none;
+.options-overlay[hidden],
+.options-overlay.is-closing {
+  display: grid !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 340ms var(--menu-ease),
+    visibility 0s linear 340ms;
 }
 
 .options-dialog {
   width: min(460px, calc(100vw - 36px));
+  position: relative;
+  overflow: hidden;
   display: grid;
   gap: 22px;
   padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.54);
   border-radius: 28px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(222, 231, 243, 0.4) 56%, rgba(170, 188, 213, 0.26)),
-    rgba(238, 243, 250, 0.66);
+    linear-gradient(145deg, rgba(255, 255, 255, 0.34), rgba(232, 239, 249, 0.16) 54%, rgba(129, 153, 190, 0.08)),
+    rgba(255, 255, 255, 0.12);
   box-shadow:
-    0 28px 72px rgba(2, 8, 23, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.76),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.12);
-  backdrop-filter: blur(34px) saturate(1.16);
+    0 28px 72px rgba(2, 8, 23, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.66),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.1);
+  -webkit-backdrop-filter: blur(38px) saturate(1.22);
+  backdrop-filter: blur(38px) saturate(1.22);
+  opacity: 1;
+  transform: scale(1);
+  transform-origin: center;
+  transition:
+    opacity 390ms var(--menu-ease),
+    transform 390ms var(--menu-ease);
+  will-change: opacity, transform;
+}
+
+.options-overlay[hidden] .options-dialog,
+.options-overlay.is-closing .options-dialog {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.options-dialog::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 36%),
+    linear-gradient(315deg, rgba(255, 255, 255, 0.1), transparent 46%);
+  opacity: 0.72;
 }
 
 .options-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -828,22 +886,30 @@ body.app-starting .brand h1 {
 }
 
 .options-close-button {
+  position: relative;
+  z-index: 1;
   width: 42px;
   height: 42px;
   min-height: 42px;
   padding: 0;
   border-radius: 999px;
   color: rgba(17, 24, 39, 0.72);
-  background: rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.16);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.08),
     0 8px 18px rgba(15, 23, 42, 0.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  backdrop-filter: blur(16px) saturate(1.1);
   font-size: 26px;
   font-weight: 650;
   line-height: 1;
 }
 
 .options-actions {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 12px;
 }
@@ -860,20 +926,32 @@ body.app-starting .brand h1 {
 }
 
 .options-action-button.primary {
-  background: linear-gradient(180deg, #1688ff 0%, var(--primary) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(48, 142, 255, 0.68), rgba(0, 122, 255, 0.48)),
+    rgba(255, 255, 255, 0.12);
   box-shadow:
-    0 12px 24px rgba(0, 122, 255, 0.24),
+    0 12px 24px rgba(0, 122, 255, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  -webkit-backdrop-filter: blur(16px) saturate(1.12);
+  backdrop-filter: blur(16px) saturate(1.12);
 }
 
 .options-action-button.secondary {
-  background: linear-gradient(180deg, #a6a6ad 0%, #8e8e93 100%);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(142, 142, 147, 0.22)),
+    rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 12px 24px rgba(142, 142, 147, 0.2),
+    0 12px 24px rgba(142, 142, 147, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  backdrop-filter: blur(16px) saturate(1.08);
 }
 
 .options-status {
+  position: relative;
+  z-index: 1;
   min-height: 20px;
   color: rgba(31, 41, 55, 0.72);
   font-size: 13px;
@@ -1057,7 +1135,7 @@ body.app-starting .brand h1 {
 @media (max-width: 980px) {
   .topbar,
   .topbar.has-module-actions {
-    grid-template-columns: 48px minmax(180px, 1fr) auto;
+    grid-template-columns: 48px minmax(180px, 1fr);
   }
 
   .module-action-bar {
@@ -1161,5 +1239,13 @@ body.app-starting .brand h1 {
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
+  }
+
+  .options-overlay,
+  .options-overlay[hidden],
+  .options-overlay.is-closing,
+  .options-dialog {
+    transition-delay: 0s !important;
+    transform: none !important;
   }
 }
