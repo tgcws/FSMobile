@@ -3491,7 +3491,7 @@
 
   function updateMenuOptionsVisibility() {
     if (!menuOptionsButton) return;
-    menuOptionsButton.hidden = Boolean(activeModuleId) || !isUnlocked || menuView.hidden;
+    menuOptionsButton.hidden = Boolean(activeModuleId) || !isUnlocked;
   }
 
   function normalizeArchiveKeyPart(value, options = {}) {

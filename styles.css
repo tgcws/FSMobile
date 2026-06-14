@@ -377,7 +377,7 @@ body.app-starting .brand h1 {
 .menu-options-button {
   position: absolute;
   top: 50%;
-  right: calc(env(safe-area-inset-right) - 16px - max(0px, (100vw - 1240px) / 2));
+  right: env(safe-area-inset-right, 0px);
   transform: translateY(-50%);
   min-height: 44px;
   padding: 11px 18px;
@@ -725,22 +725,23 @@ body.app-starting .brand h1 {
   z-index: 24;
   width: min(430px, calc(100vw - 36px));
   min-height: 78px;
-  padding: 14px;
+  padding: 15px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.52);
-  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 24px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.52), rgba(221, 229, 241, 0.3) 58%, rgba(255, 255, 255, 0.16)),
-    rgba(238, 243, 250, 0.58);
+    linear-gradient(145deg, rgba(255, 255, 255, 0.56), rgba(226, 234, 246, 0.28) 58%, rgba(255, 255, 255, 0.14)),
+    rgba(238, 243, 250, 0.44);
   box-shadow:
-    0 20px 54px rgba(15, 23, 42, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.64),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.08);
-  -webkit-backdrop-filter: blur(28px) saturate(1.16);
-  backdrop-filter: blur(28px) saturate(1.16);
+    0 22px 58px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.07),
+    inset 0 0 22px rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(30px) saturate(1.14);
+  backdrop-filter: blur(30px) saturate(1.14);
   opacity: 1;
   transform: translateY(0) scale(1);
   transition:
@@ -766,7 +767,9 @@ body.app-starting .brand h1 {
   font-size: 16px;
   font-weight: 900;
   line-height: 1.15;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.38);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.48),
+    0 -1px 0 rgba(15, 23, 42, 0.08);
 }
 
 .update-text {
@@ -779,9 +782,48 @@ body.app-starting .brand h1 {
 
 .update-button {
   min-height: 44px;
-  padding: 11px 16px;
-  background: linear-gradient(180deg, #1688ff 0%, var(--primary) 100%);
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  color: rgba(17, 24, 39, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.14)),
+    rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  backdrop-filter: blur(18px) saturate(1.12);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.52),
+    0 -1px 0 rgba(15, 23, 42, 0.14);
   white-space: nowrap;
+}
+
+.update-button:hover {
+  filter: brightness(1.03) saturate(1.02);
+  box-shadow:
+    0 14px 30px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.64),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.1);
+}
+
+.update-button:active {
+  transform: scale(0.975);
+  filter: brightness(0.98);
+}
+
+.update-button:disabled {
+  cursor: default;
+  color: rgba(17, 24, 39, 0.44);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.1)),
+    rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.44);
 }
 
 .options-overlay {
