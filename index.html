@@ -9,11 +9,11 @@
   <meta name="apple-mobile-web-app-title" content="FSMobile" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
-  <link rel="manifest" href="manifest.webmanifest?v=163" />
+  <link rel="manifest" href="manifest.webmanifest?v=165" />
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=163" />
+  <link rel="stylesheet" href="styles.css?v=165" />
   <title>FSMobile</title>
   <script>
     (function () {
@@ -53,7 +53,9 @@
           <p id="viewSubtitle">Menüauswahl</p>
         </div>
       </div>
-      <button class="menu-options-button" id="menuOptionsButton" type="button">Optionen</button>
+      <button class="menu-options-button" id="menuOptionsButton" type="button" aria-label="Optionen" title="Optionen">
+        <span class="menu-options-glyph" aria-hidden="true">•••</span>
+      </button>
     </header>
 
     <main id="menuView" class="menu-view">
@@ -85,7 +87,18 @@
         <div class="options-actions">
           <button class="options-action-button primary" id="archiveBackupExportButton" type="button">Backup erstellen</button>
           <button class="options-action-button secondary" id="archiveBackupImportButton" type="button">Backup importieren</button>
+          <button class="options-action-button danger" id="archiveDeleteButton" type="button">Archivdaten löschen</button>
           <input id="archiveBackupFile" type="file" accept="application/json,.json" hidden />
+        </div>
+        <div class="options-confirm" id="archiveDeleteConfirm" hidden>
+          <div>
+            <p class="options-confirm-title">Alle Archivdaten wirklich löschen?</p>
+            <p class="options-confirm-text">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+          </div>
+          <div class="options-confirm-actions">
+            <button class="options-confirm-button secondary" id="archiveDeleteCancelButton" type="button">Abbrechen</button>
+            <button class="options-confirm-button danger" id="archiveDeleteConfirmButton" type="button">Löschen</button>
+          </div>
         </div>
         <p class="options-status" id="archiveBackupStatus" role="status" aria-live="polite"></p>
       </div>
@@ -104,7 +117,7 @@
     </section>
   </div>
 
-  <script src="modules.js?v=163"></script>
-  <script src="app.js?v=163"></script>
+  <script src="modules.js?v=165"></script>
+  <script src="app.js?v=165"></script>
 </body>
 </html>

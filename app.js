@@ -24,6 +24,10 @@
   const optionsCloseButton = document.getElementById("optionsCloseButton");
   const archiveBackupExportButton = document.getElementById("archiveBackupExportButton");
   const archiveBackupImportButton = document.getElementById("archiveBackupImportButton");
+  const archiveDeleteButton = document.getElementById("archiveDeleteButton");
+  const archiveDeleteConfirm = document.getElementById("archiveDeleteConfirm");
+  const archiveDeleteCancelButton = document.getElementById("archiveDeleteCancelButton");
+  const archiveDeleteConfirmButton = document.getElementById("archiveDeleteConfirmButton");
   const archiveBackupFile = document.getElementById("archiveBackupFile");
   const archiveBackupStatus = document.getElementById("archiveBackupStatus");
   const OLD_PASS_HASH_KEY = "fsmobile-unified-passhash-v1";
@@ -3466,10 +3470,23 @@
     archiveBackupStatus.textContent = message || "";
   }
 
+  function hideArchiveDeleteConfirm() {
+    if (!archiveDeleteConfirm) return;
+    archiveDeleteConfirm.hidden = true;
+  }
+
+  function showArchiveDeleteConfirm() {
+    if (!archiveDeleteConfirm) return;
+    setOptionsStatus("");
+    archiveDeleteConfirm.hidden = false;
+    window.setTimeout(() => archiveDeleteCancelButton && archiveDeleteCancelButton.focus(), 40);
+  }
+
   function openOptionsDialog() {
     if (!optionsOverlay) return;
     window.clearTimeout(optionsCloseTimer);
     setOptionsStatus("");
+    hideArchiveDeleteConfirm();
     optionsOverlay.classList.remove("is-closing");
     optionsOverlay.hidden = false;
     optionsOverlay.setAttribute("aria-hidden", "false");
@@ -3480,6 +3497,7 @@
     if (!optionsOverlay) return;
     window.clearTimeout(optionsCloseTimer);
     if (optionsOverlay.hidden) return;
+    hideArchiveDeleteConfirm();
     optionsOverlay.classList.add("is-closing");
     optionsOverlay.setAttribute("aria-hidden", "true");
     optionsCloseTimer = window.setTimeout(() => {
@@ -3551,6 +3569,14 @@
     return true;
   }
 
+  function isArchivePointerStorageKey(key) {
+    const value = String(key || "");
+    if (!/^fsmobile-/i.test(value) || !/current/i.test(value)) return false;
+    if (/session|temp|draft|pending|auth|update/i.test(value)) return false;
+    if (/archive/i.test(value)) return true;
+    return /^fsmobile-pb-.*-current-v\d+$/i.test(value);
+  }
+
   function readArchiveEntries(key) {
     try {
       const entries = JSON.parse(localStorage.getItem(key) || "[]");
@@ -3573,6 +3599,17 @@
       if (entries.length) archives[key] = entries;
     }
     return archives;
+  }
+
+  function collectArchiveStorageKeys() {
+    const archiveKeys = [];
+    const pointerKeys = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (isArchiveStorageKey(key)) archiveKeys.push(key);
+      else if (isArchivePointerStorageKey(key)) pointerKeys.push(key);
+    }
+    return { archiveKeys, pointerKeys };
   }
 
   function getAppVersion() {
@@ -3699,6 +3736,23 @@
       setOptionsStatus(error instanceof SyntaxError ? "Backup-Datei ungültig." : "Import fehlgeschlagen.");
     } finally {
       if (archiveBackupFile) archiveBackupFile.value = "";
+    }
+  }
+
+  function deleteAllArchiveData() {
+    hideArchiveDeleteConfirm();
+    try {
+      const { archiveKeys, pointerKeys } = collectArchiveStorageKeys();
+      const entryCount = archiveKeys.reduce((sum, key) => sum + readArchiveEntries(key).length, 0);
+      if (!archiveKeys.length && !pointerKeys.length) {
+        setOptionsStatus("Keine Archivdaten vorhanden.");
+        return;
+      }
+      archiveKeys.concat(pointerKeys).forEach(key => localStorage.removeItem(key));
+      refreshOpenArchiveLists();
+      setOptionsStatus(entryCount ? "Archivdaten gelöscht." : "Keine Archivdaten vorhanden.");
+    } catch {
+      setOptionsStatus("Archivdaten konnten nicht gelöscht werden.");
     }
   }
 
@@ -6664,7 +6718,19 @@
     archiveBackupImportButton.addEventListener("click", () => archiveBackupFile.click());
     archiveBackupFile.addEventListener("change", () => importArchiveBackupFile(archiveBackupFile.files && archiveBackupFile.files[0]));
   }
+  if (archiveDeleteButton) archiveDeleteButton.addEventListener("click", showArchiveDeleteConfirm);
+  if (archiveDeleteCancelButton) archiveDeleteCancelButton.addEventListener("click", () => {
+    hideArchiveDeleteConfirm();
+    setOptionsStatus("");
+    archiveDeleteButton && archiveDeleteButton.focus();
+  });
+  if (archiveDeleteConfirmButton) archiveDeleteConfirmButton.addEventListener("click", deleteAllArchiveData);
   document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && archiveDeleteConfirm && !archiveDeleteConfirm.hidden) {
+      hideArchiveDeleteConfirm();
+      archiveDeleteButton && archiveDeleteButton.focus();
+      return;
+    }
     if (event.key === "Escape" && optionsOverlay && !optionsOverlay.hidden) closeOptionsDialog();
   });
   frame.addEventListener("load", () => {
