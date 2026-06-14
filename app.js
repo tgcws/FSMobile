@@ -145,7 +145,7 @@
     "anleitung-rwa-co2": "RWA CO2",
     "maengel-bt-fsa": "Brandschutztüren / Feststellanlagen",
     "maengel-bsk": "Brandschutzklappen",
-    "maengel-automatiktueren": "Automatiktüren / Antriebe",
+    "maengel-automatiktueren": "Automatiktüren",
     "maengel-not-sicherheitsleuchte": "Not- und Sicherheitsleuchte",
     "maengel-rauchwarnmelder": "Rauchwarnmelder"
   };
@@ -310,9 +310,9 @@
     },
     {
       id: "maengel-automatiktueren",
-      title: "Mängelbeschreibung Automatiktüren/Schiebetürantrieb/Drehflügelantrieb",
+      title: "Mängelbeschreibung Automatiktüren",
       cardDescription: "Mängeltexte für automatische Türen, Schiebetür- und Drehflügelantriebe.",
-      eyebrow: "Automatiktüren / Antriebe",
+      eyebrow: "Automatiktüren",
       items: [
         "Antrieb defekt",
         "Hebelarm defekt",
