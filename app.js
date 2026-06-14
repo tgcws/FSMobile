@@ -17,9 +17,12 @@
   const authHint = document.getElementById("authHint");
   const authSubmit = document.getElementById("authSubmit");
   const authError = document.getElementById("authError");
+  const updateToast = document.getElementById("updateToast");
+  const updateButton = document.getElementById("updateButton");
   const OLD_PASS_HASH_KEY = "fsmobile-unified-passhash-v1";
   const AUTH_UNLOCK_KEY = "fsmobile-auth-unlocked-v2";
   const AUTH_UNLOCK_VALUE = "confirmed";
+  const UPDATE_RELOAD_KEY = "fsmobile-update-reload-v1";
   const REQUIRED_PASS_HASH = "745731644d9e569b873095e3a2a5a3fae47202b83d2d5879397ea14415edee95";
   let isUnlocked = false;
   let activeModuleId = null;
@@ -5919,31 +5922,99 @@
 
   if ("serviceWorker" in navigator && window.self === window.top) {
     let serviceWorkerReloading = false;
+    let updateRegistration = null;
+    let pendingServiceWorker = null;
+    let updateCheckTimer = 0;
+
+    function resetUpdateButton() {
+      if (!updateButton) return;
+      updateButton.disabled = false;
+      updateButton.textContent = "Aktualisieren";
+    }
+
+    function showUpdatePrompt(worker) {
+      if (!updateToast || !updateButton || !navigator.serviceWorker.controller) return;
+      pendingServiceWorker = worker || (updateRegistration && updateRegistration.waiting);
+      if (!pendingServiceWorker) return;
+      resetUpdateButton();
+      updateToast.hidden = false;
+    }
+
+    function hideUpdatePrompt() {
+      if (updateToast) updateToast.hidden = true;
+    }
+
+    function trackInstallingWorker(worker) {
+      if (!worker) return;
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "installed") {
+          if (navigator.serviceWorker.controller) showUpdatePrompt(worker);
+          return;
+        }
+        if (worker.state === "redundant" && pendingServiceWorker === worker) {
+          pendingServiceWorker = null;
+          resetUpdateButton();
+        }
+      });
+    }
+
+    function checkForServiceWorkerUpdate() {
+      if (!updateRegistration || document.visibilityState === "hidden") return;
+      window.clearTimeout(updateCheckTimer);
+      updateCheckTimer = window.setTimeout(() => {
+        updateRegistration.update()
+          .then(() => {
+            if (updateRegistration.waiting) showUpdatePrompt(updateRegistration.waiting);
+          })
+          .catch(() => undefined);
+      }, 250);
+    }
+
+    if (sessionStorage.getItem(UPDATE_RELOAD_KEY) === "done") {
+      sessionStorage.removeItem(UPDATE_RELOAD_KEY);
+    }
 
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (serviceWorkerReloading) return;
       serviceWorkerReloading = true;
+      hideUpdatePrompt();
+      sessionStorage.setItem(UPDATE_RELOAD_KEY, "done");
       window.location.reload();
     });
 
+    if (updateButton) {
+      updateButton.addEventListener("click", () => {
+        const worker = pendingServiceWorker || (updateRegistration && updateRegistration.waiting);
+        if (!worker) {
+          hideUpdatePrompt();
+          return;
+        }
+        updateButton.disabled = true;
+        updateButton.textContent = "Aktualisiere...";
+        sessionStorage.setItem(UPDATE_RELOAD_KEY, "pending");
+        worker.postMessage({ type: "SKIP_WAITING" });
+        window.setTimeout(() => {
+          if (!serviceWorkerReloading) window.location.reload();
+        }, 6500);
+      });
+    }
+
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
       .then(registration => {
-        const activateWaitingWorker = () => {
-          if (registration.waiting) registration.waiting.postMessage({ type: "SKIP_WAITING" });
-        };
-
-        activateWaitingWorker();
-        registration.update().then(activateWaitingWorker).catch(() => undefined);
+        updateRegistration = registration;
+        if (registration.waiting) showUpdatePrompt(registration.waiting);
+        trackInstallingWorker(registration.installing);
 
         registration.addEventListener("updatefound", () => {
-          const worker = registration.installing;
-          if (!worker) return;
-          worker.addEventListener("statechange", () => {
-            if (worker.state === "installed" && navigator.serviceWorker.controller) {
-              worker.postMessage({ type: "SKIP_WAITING" });
-            }
-          });
+          trackInstallingWorker(registration.installing);
         });
+
+        checkForServiceWorkerUpdate();
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") checkForServiceWorkerUpdate();
+        });
+        window.addEventListener("focus", checkForServiceWorkerUpdate);
+        window.addEventListener("online", checkForServiceWorkerUpdate);
       })
       .catch(() => undefined);
   }

@@ -1,5 +1,5 @@
-const CACHE_NAME = "fsmobile-v148";
-const APP_VERSION = "2026-06-13-v148";
+const CACHE_NAME = "fsmobile-v149";
+const APP_VERSION = "2026-06-14-v149";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -38,11 +38,7 @@ function shouldReloadFromNetwork(url) {
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => Promise.all(CORE_ASSETS.map(asset => {
-        const request = new Request(asset, { cache: "reload" });
-        return cache.add(request).catch(() => undefined);
-      })))
-      .then(() => self.skipWaiting())
+      .then(cache => cache.addAll(CORE_ASSETS.map(asset => new Request(asset, { cache: "reload" }))))
   );
 });
 
