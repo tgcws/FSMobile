@@ -9,11 +9,11 @@
   <meta name="apple-mobile-web-app-title" content="FSMobile" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
-  <link rel="manifest" href="manifest.webmanifest?v=149" />
+  <link rel="manifest" href="manifest.webmanifest?v=155" />
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=149" />
+  <link rel="stylesheet" href="styles.css?v=155" />
   <title>FSMobile</title>
   <script>
     (function () {
@@ -53,6 +53,7 @@
           <p id="viewSubtitle">Menüauswahl</p>
         </div>
       </div>
+      <button class="menu-options-button" id="menuOptionsButton" type="button">Optionen</button>
     </header>
 
     <main id="menuView" class="menu-view">
@@ -72,6 +73,24 @@
       <button class="update-button" id="updateButton" type="button">Aktualisieren</button>
     </section>
 
+    <section class="options-overlay" id="optionsOverlay" aria-labelledby="optionsTitle" hidden>
+      <div class="options-dialog" role="dialog" aria-modal="true">
+        <div class="options-header">
+          <div>
+            <p class="options-kicker">FSMOBILE</p>
+            <h2 id="optionsTitle">Optionen</h2>
+          </div>
+          <button class="options-close-button" id="optionsCloseButton" type="button" aria-label="Optionen schließen">×</button>
+        </div>
+        <div class="options-actions">
+          <button class="options-action-button primary" id="archiveBackupExportButton" type="button">Alle Archivdaten exportieren</button>
+          <button class="options-action-button secondary" id="archiveBackupImportButton" type="button">Archivdaten importieren</button>
+          <input id="archiveBackupFile" type="file" accept="application/json,.json" hidden />
+        </div>
+        <p class="options-status" id="archiveBackupStatus" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
     <section class="auth-overlay" id="authOverlay" aria-labelledby="authTitle">
       <form class="auth-card" id="authForm" autocomplete="off">
         <p class="auth-kicker" id="authMode">FSMOBILE</p>
@@ -85,7 +104,7 @@
     </section>
   </div>
 
-  <script src="modules.js?v=149"></script>
-  <script src="app.js?v=149"></script>
+  <script src="modules.js?v=155"></script>
+  <script src="app.js?v=155"></script>
 </body>
 </html>

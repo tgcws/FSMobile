@@ -19,6 +19,13 @@
   const authError = document.getElementById("authError");
   const updateToast = document.getElementById("updateToast");
   const updateButton = document.getElementById("updateButton");
+  const menuOptionsButton = document.getElementById("menuOptionsButton");
+  const optionsOverlay = document.getElementById("optionsOverlay");
+  const optionsCloseButton = document.getElementById("optionsCloseButton");
+  const archiveBackupExportButton = document.getElementById("archiveBackupExportButton");
+  const archiveBackupImportButton = document.getElementById("archiveBackupImportButton");
+  const archiveBackupFile = document.getElementById("archiveBackupFile");
+  const archiveBackupStatus = document.getElementById("archiveBackupStatus");
   const OLD_PASS_HASH_KEY = "fsmobile-unified-passhash-v1";
   const AUTH_UNLOCK_KEY = "fsmobile-auth-unlocked-v2";
   const AUTH_UNLOCK_VALUE = "confirmed";
@@ -3453,6 +3460,237 @@
     moduleGrid.replaceChildren(fragment);
   }
 
+  function setOptionsStatus(message) {
+    if (!archiveBackupStatus) return;
+    archiveBackupStatus.textContent = message || "";
+  }
+
+  function openOptionsDialog() {
+    if (!optionsOverlay) return;
+    setOptionsStatus("");
+    optionsOverlay.hidden = false;
+    window.setTimeout(() => archiveBackupExportButton && archiveBackupExportButton.focus(), 40);
+  }
+
+  function closeOptionsDialog() {
+    if (!optionsOverlay) return;
+    optionsOverlay.hidden = true;
+    if (menuOptionsButton && !menuOptionsButton.hidden) menuOptionsButton.focus();
+  }
+
+  function updateMenuOptionsVisibility() {
+    if (!menuOptionsButton) return;
+    menuOptionsButton.hidden = Boolean(activeModuleId) || !isUnlocked || menuView.hidden;
+  }
+
+  function normalizeArchiveKeyPart(value, options = {}) {
+    const normalized = String(value ?? "").replace(/\s+/g, " ").trim();
+    return options.lower ? normalized.toLowerCase() : normalized;
+  }
+
+  function normalizeArchiveDate(value) {
+    const raw = normalizeArchiveKeyPart(value);
+    const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+    const german = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (german) return `${german[3]}-${german[2].padStart(2, "0")}-${german[1].padStart(2, "0")}`;
+    return raw;
+  }
+
+  function firstArchiveValue(source, keys) {
+    if (!source || typeof source !== "object") return "";
+    for (const key of keys) {
+      if (source[key] != null && String(source[key]).trim()) return source[key];
+    }
+    const wanted = keys.map(key => String(key).toLowerCase());
+    for (const key of Object.keys(source)) {
+      if (!wanted.includes(String(key).toLowerCase())) continue;
+      if (source[key] != null && String(source[key]).trim()) return source[key];
+    }
+    return "";
+  }
+
+  function archiveEntryFields(entry) {
+    const report = entry && entry.report && typeof entry.report === "object" ? entry.report : {};
+    return report.fields && typeof report.fields === "object" ? report.fields : report;
+  }
+
+  function archiveEntryAssignmentKey(storageKey, entry) {
+    const fields = archiveEntryFields(entry);
+    const anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+    const object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]);
+    const date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]);
+    return [
+      storageKey,
+      normalizeArchiveKeyPart(anlage),
+      normalizeArchiveKeyPart(object, { lower: true }),
+      normalizeArchiveDate(date)
+    ].join("||");
+  }
+
+  function archiveEntryTimestamp(entry) {
+    const timestamp = Date.parse((entry && (entry.updatedAt || entry.savedAt || entry.createdAt)) || "");
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  }
+
+  function isArchiveStorageKey(key) {
+    const value = String(key || "");
+    if (!/^fsmobile-.*archive.*v\d+$/i.test(value)) return false;
+    if (/current|session|temp|draft|pending/i.test(value)) return false;
+    return true;
+  }
+
+  function readArchiveEntries(key) {
+    try {
+      const entries = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(entries) ? entries.filter(entry => entry && typeof entry === "object") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeArchiveEntries(key, entries) {
+    localStorage.setItem(key, JSON.stringify(entries));
+  }
+
+  function collectArchiveBackupData() {
+    const archives = {};
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!isArchiveStorageKey(key)) continue;
+      const entries = readArchiveEntries(key);
+      if (entries.length) archives[key] = entries;
+    }
+    return archives;
+  }
+
+  function getAppVersion() {
+    const script = Array.from(document.scripts).find(item => /app\.js\?v=/.test(item.src || ""));
+    const match = script && script.src.match(/[?&]v=([^&]+)/);
+    return match ? `v${match[1]}` : "unbekannt";
+  }
+
+  function todayIso() {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
+  function downloadJsonFile(filename, payload) {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportAllArchiveData() {
+    const archives = collectArchiveBackupData();
+    const archiveKeys = Object.keys(archives);
+    const entryCount = archiveKeys.reduce((sum, key) => sum + archives[key].length, 0);
+    if (!entryCount) {
+      setOptionsStatus("Keine Archivdaten gefunden.");
+      return;
+    }
+    const payload = {
+      format: "FSMobileArchiveBackup",
+      formatVersion: 1,
+      metadata: {
+        appName: "FSMobile",
+        appVersion: getAppVersion(),
+        exportedAt: new Date().toISOString(),
+        archiveAreaCount: archiveKeys.length,
+        entryCount
+      },
+      archives
+    };
+    downloadJsonFile(`FSMobile_Archiv_Backup_${todayIso()}.json`, payload);
+    setOptionsStatus(`Export erfolgreich. ${entryCount} Archiv-Einträge exportiert.`);
+  }
+
+  function validateArchiveBackup(payload) {
+    if (!payload || typeof payload !== "object") return false;
+    if (payload.format !== "FSMobileArchiveBackup") return false;
+    if (!payload.archives || typeof payload.archives !== "object" || Array.isArray(payload.archives)) return false;
+    return true;
+  }
+
+  function mergeArchiveEntries(storageKey, existingEntries, incomingEntries) {
+    const merged = existingEntries.slice();
+    let added = 0;
+    let updated = 0;
+    incomingEntries.forEach(incoming => {
+      if (!incoming || typeof incoming !== "object") return;
+      const incomingId = String(incoming.id || "").trim();
+      const incomingAssignment = archiveEntryAssignmentKey(storageKey, incoming);
+      let index = incomingId
+        ? merged.findIndex(entry => String(entry && entry.id || "").trim() === incomingId)
+        : -1;
+      if (index < 0) {
+        index = merged.findIndex(entry => archiveEntryAssignmentKey(storageKey, entry) === incomingAssignment);
+      }
+      if (index < 0) {
+        merged.push(incoming);
+        added += 1;
+        return;
+      }
+      const existing = merged[index];
+      if (archiveEntryTimestamp(incoming) >= archiveEntryTimestamp(existing)) {
+        merged[index] = Object.assign({}, existing, incoming, {
+          id: (existing && existing.id) || incoming.id,
+          createdAt: (existing && existing.createdAt) || incoming.createdAt
+        });
+        updated += 1;
+      }
+    });
+    return { entries: merged, added, updated };
+  }
+
+  function refreshOpenArchiveLists() {
+    const doc = frameDocument();
+    if (!doc) return;
+    try {
+      const win = doc.defaultView;
+      if (win && typeof win.renderArchiveList === "function") win.renderArchiveList();
+      win && win.postMessage({ type: "fsmobile-archives-imported" }, "*");
+    } catch {}
+  }
+
+  async function importArchiveBackupFile(file) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      if (!validateArchiveBackup(payload)) {
+        setOptionsStatus("Backup-Datei ungültig.");
+        return;
+      }
+      let areaCount = 0;
+      let importedCount = 0;
+      Object.entries(payload.archives).forEach(([storageKey, entries]) => {
+        if (!isArchiveStorageKey(storageKey) || !Array.isArray(entries) || !entries.length) return;
+        const existing = readArchiveEntries(storageKey);
+        const merged = mergeArchiveEntries(storageKey, existing, entries);
+        writeArchiveEntries(storageKey, merged.entries);
+        areaCount += 1;
+        importedCount += merged.added + merged.updated;
+      });
+      if (!areaCount || !importedCount) {
+        setOptionsStatus("Keine Archivdaten gefunden.");
+        return;
+      }
+      refreshOpenArchiveLists();
+      setOptionsStatus(`Import erfolgreich. ${importedCount} Archiv-Einträge eingespielt.`);
+    } catch (error) {
+      setOptionsStatus(error instanceof SyntaxError ? "Backup-Datei ungültig." : "Import fehlgeschlagen.");
+    } finally {
+      if (archiveBackupFile) archiveBackupFile.value = "";
+    }
+  }
+
   function createModuleCard(id, module, sectionId) {
       const card = document.createElement("article");
       card.className = "module-card";
@@ -3650,6 +3888,7 @@
     activeModuleId = id;
     applyModuleHeadingAccent(id);
     clearModuleActionBar();
+    updateMenuOptionsVisibility();
     frame.srcdoc = html;
     frame.title = module.title;
     backButton.hidden = false;
@@ -3672,10 +3911,12 @@
     activeModuleId = null;
     clearModuleHeadingAccent();
     clearModuleActionBar();
+    updateMenuOptionsVisibility();
     backButton.hidden = true;
     subtitle.textContent = "Menüauswahl";
     switchToMenuView(() => {
       frame.srcdoc = "";
+      updateMenuOptionsVisibility();
     });
 
     if (!replaceHistory) {
@@ -4833,11 +5074,496 @@
 	            host.appendChild(button);
 	          }
 
+            function normalizeArchiveKeyPart(value, options) {
+              var text = String(value == null ? "" : value).trim().replace(/\\s+/g, " ");
+              if (options && options.lower) text = text.toLocaleLowerCase("de-DE");
+              return text;
+            }
+
+            function normalizeArchiveDate(value) {
+              var raw = normalizeArchiveKeyPart(value);
+              var iso = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+              if (iso) return iso[1] + "-" + iso[2].padStart(2, "0") + "-" + iso[3].padStart(2, "0");
+              var german = raw.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$/);
+              if (german) return german[3] + "-" + german[2].padStart(2, "0") + "-" + german[1].padStart(2, "0");
+              return raw;
+            }
+
+            function firstArchiveValue(source, keys) {
+              if (!source || typeof source !== "object") return "";
+              for (var index = 0; index < keys.length; index += 1) {
+                var key = keys[index];
+                if (source[key] != null && String(source[key]).trim()) return source[key];
+              }
+              var wanted = keys.map(function(key) { return String(key).toLowerCase(); });
+              var found = "";
+              Object.keys(source).some(function(key) {
+                if (wanted.indexOf(String(key).toLowerCase()) < 0) return false;
+                if (source[key] == null || !String(source[key]).trim()) return false;
+                found = source[key];
+                return true;
+              });
+              return found;
+            }
+
+            function archiveFields(entry) {
+              var report = entry && entry.report && typeof entry.report === "object" ? entry.report : {};
+              return report.fields && typeof report.fields === "object" ? report.fields : report;
+            }
+
+            function archiveEntryIdentity(storageKey, entry) {
+              var fields = archiveFields(entry);
+              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]);
+              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]);
+              return [
+                storageKey,
+                normalizeArchiveKeyPart(anlage),
+                normalizeArchiveKeyPart(object, { lower: true }),
+                normalizeArchiveDate(date)
+              ].join("||");
+            }
+
+            function currentArchiveReport() {
+              var collectors = ["buildStoragePayload", "collectReportData", "collectData"];
+              for (var index = 0; index < collectors.length; index += 1) {
+                var fn = window[collectors[index]];
+                if (typeof fn !== "function") continue;
+                try { return fn(); } catch (error) {}
+              }
+              return { fields: {
+                anlage: firstArchiveDomValue(["anlageInput", "anlagenNrInput", "anlagenNummerInput", "anlageNrInput"]),
+                object: firstArchiveDomValue(["objectInput", "objektInput"]),
+                date: firstArchiveDomValue(["dateInput", "datumInput"])
+              }};
+            }
+
+            function firstArchiveDomValue(ids) {
+              for (var index = 0; index < ids.length; index += 1) {
+                var field = document.getElementById(ids[index]);
+                if (field && "value" in field && String(field.value || "").trim()) return field.value;
+              }
+              return "";
+            }
+
+            function archiveTimestamp(entry, fallbackIndex) {
+              var value = Date.parse((entry && (entry.updatedAt || entry.savedAt || entry.createdAt)) || "");
+              return Number.isFinite(value) ? value : fallbackIndex;
+            }
+
+            function dedupeArchiveEntriesForKey(storageKey) {
+              var raw = null;
+              try { raw = localStorage.getItem(storageKey); } catch (error) { return { changed: false }; }
+              if (!raw) return { changed: false };
+              var entries = null;
+              try { entries = JSON.parse(raw); } catch (error) { return { changed: false }; }
+              if (!Array.isArray(entries) || entries.length < 2) return { changed: false };
+
+              var groups = {};
+              entries.forEach(function(entry, index) {
+                var key = archiveEntryIdentity(storageKey, entry);
+                if (!groups[key]) groups[key] = [];
+                groups[key].push({ entry: entry, index: index });
+              });
+
+              var changed = false;
+              var removedIds = [];
+              var idReplacements = {};
+              var removeIndexes = {};
+              Object.keys(groups).forEach(function(key) {
+                var group = groups[key];
+                if (group.length < 2) return;
+                changed = true;
+                var keep = group.reduce(function(best, item) {
+                  return item.index < best.index ? item : best;
+                }, group[0]);
+                var latest = group.reduce(function(best, item) {
+                  var itemTime = archiveTimestamp(item.entry, item.index);
+                  var bestTime = archiveTimestamp(best.entry, best.index);
+                  if (itemTime > bestTime) return item;
+                  if (itemTime === bestTime && item.index > best.index) return item;
+                  return best;
+                }, group[0]);
+                var keepId = keep.entry && keep.entry.id ? keep.entry.id : latest.entry && latest.entry.id;
+                var latestId = latest.entry && latest.entry.id ? latest.entry.id : keepId;
+                var merged = Object.assign({}, latest.entry, {
+                  id: keepId,
+                  createdAt: (keep.entry && keep.entry.createdAt) || (latest.entry && latest.entry.createdAt) || new Date().toISOString(),
+                  updatedAt: (latest.entry && latest.entry.updatedAt) || new Date().toISOString()
+                });
+                entries[keep.index] = merged;
+                group.forEach(function(item) {
+                  if (item.index === keep.index) return;
+                  removeIndexes[item.index] = true;
+                  if (item.entry && item.entry.id) {
+                    removedIds.push(item.entry.id);
+                    idReplacements[item.entry.id] = keepId;
+                  }
+                });
+                if (latestId && latestId !== keepId) idReplacements[latestId] = keepId;
+              });
+
+              if (!changed) return { changed: false };
+              var deduped = entries.filter(function(entry, index) { return !removeIndexes[index]; });
+              try { localStorage.setItem(storageKey, JSON.stringify(deduped)); } catch (error) { return { changed: false }; }
+
+              try {
+                for (var index = 0; index < localStorage.length; index += 1) {
+                  var key = localStorage.key(index);
+                  var value = localStorage.getItem(key);
+                  if (idReplacements[value]) localStorage.setItem(key, idReplacements[value]);
+                }
+              } catch (error) {}
+
+              return { changed: true, removedIds: removedIds };
+            }
+
+            function normalizedArchiveToken(value) {
+              return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+            }
+
+            function archiveKeyMatchesCurrentModule(key) {
+              var moduleToken = normalizedArchiveToken(window.FSMOBILE_MODULE_ID || "");
+              var keyToken = normalizedArchiveToken(key);
+              if (!moduleToken) return true;
+              if (keyToken.indexOf(moduleToken) >= 0) return true;
+              if (moduleToken === "pbzentralbatterieanlage" && keyToken.indexOf("pbzentralbatterie") >= 0) return true;
+              return false;
+            }
+
+            function archiveStorageKeys(options) {
+              var keys = [];
+              try {
+                for (var index = 0; index < localStorage.length; index += 1) {
+                  var key = localStorage.key(index);
+                  if (!/^fsmobile-.*pb.*archive.*v\\d+$/i.test(key) || /current/i.test(key)) continue;
+                  if (options && options.currentOnly && !archiveKeyMatchesCurrentModule(key)) continue;
+                  keys.push(key);
+                }
+              } catch (error) {}
+              return keys;
+            }
+
+            function archiveStorageKeyFromScripts() {
+              var scripts = document.querySelectorAll("script");
+              for (var index = 0; index < scripts.length; index += 1) {
+                var text = scripts[index].textContent || "";
+                var match = text.match(/\bARCHIVE_STORAGE_KEY\s*=\s*["']([^"']+)["']/);
+                if (match && match[1]) return match[1];
+              }
+              return "";
+            }
+
+            function inferredArchiveStorageKeys() {
+              var moduleId = String(window.FSMOBILE_MODULE_ID || "").trim();
+              var keys = [];
+              if (moduleId) keys.push("fsmobile-" + moduleId + "-archive-v1");
+              if (moduleId === "pb-zentralbatterie-anlage") keys.push("fsmobile-pb-zentralbatterie-archive-v1");
+              return keys;
+            }
+
+            function resolveArchiveStorageKey() {
+              var scripted = archiveStorageKeyFromScripts();
+              if (scripted && archiveKeyMatchesCurrentModule(scripted)) return scripted;
+              var existing = archiveStorageKeys({ currentOnly: true });
+              if (existing.length) return existing[0];
+              return inferredArchiveStorageKeys()[0] || "";
+            }
+
+            function readArchiveEntriesForKey(storageKey) {
+              if (!storageKey) return [];
+              var raw = null;
+              try { raw = localStorage.getItem(storageKey); } catch (error) { return []; }
+              if (!raw) return [];
+              try {
+                var entries = JSON.parse(raw);
+                return Array.isArray(entries) ? entries : [];
+              } catch (error) {
+                return [];
+              }
+            }
+
+            function writeArchiveEntriesForKey(storageKey, entries) {
+              if (!storageKey) return false;
+              try {
+                localStorage.setItem(storageKey, JSON.stringify(entries));
+                return true;
+              } catch (error) {
+                return false;
+              }
+            }
+
+            function createBridgeArchiveId() {
+              if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+              return "archive-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+            }
+
+            function archiveDisplayDate(value) {
+              var normalized = normalizeArchiveDate(value);
+              var parts = normalized.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+              return parts ? parts[3] + "." + parts[2] + "." + parts[1] : (String(value || "").trim() || "Ohne Datum");
+            }
+
+            function archiveDisplayTitle(entry) {
+              var fields = archiveFields(entry);
+              var anlage = String(firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]) || "").trim() || "Ohne Anlagen Nr.";
+              var object = String(firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]) || "").trim() || "Ohne Objekt";
+              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]);
+              var report = entry && entry.report && typeof entry.report === "object" ? entry.report : {};
+              var count = Array.isArray(report.rows) ? " (" + report.rows.length + ")" : "";
+              return anlage + " - " + object + count + " - " + archiveDisplayDate(date);
+            }
+
+            function applyArchiveEntryReport(entry, storageKey) {
+              if (!entry || !entry.report) return;
+              var applied = false;
+              ["applyData", "applyReportData", "restoreReportData"].some(function(name) {
+                var fn = window[name];
+                if (typeof fn !== "function") return false;
+                try {
+                  fn(entry.report);
+                  applied = true;
+                } catch (error) {}
+                return applied;
+              });
+              if (entry.id) writeCurrentArchiveIdForKey(storageKey, entry.id);
+              persistCurrentDraftBeforeArchive();
+              var overlay = document.getElementById("archiveOverlay");
+              if (overlay) overlay.hidden = true;
+              setUnifiedActionStatus("Prüfbericht wurde aus dem Archiv geöffnet.");
+            }
+
+            function deleteArchiveEntryFromDisplay(entry, storageKey) {
+              if (!entry || !entry.id || !storageKey) return;
+              if (!confirm("Archiv-Eintrag '" + archiveDisplayTitle(entry) + "' löschen?")) return;
+              var entries = readArchiveEntriesForKey(storageKey).filter(function(item) {
+                return item && item.id !== entry.id;
+              });
+              if (writeArchiveEntriesForKey(storageKey, entries)) {
+                candidateCurrentArchiveIdKeys(storageKey).forEach(function(key) {
+                  try {
+                    if (localStorage.getItem(key) === entry.id) localStorage.removeItem(key);
+                  } catch (error) {}
+                });
+                refreshArchiveListDisplay(storageKey);
+                setUnifiedActionStatus("Archiv-Eintrag wurde gelöscht.");
+              }
+            }
+
+            function refreshArchiveListDisplay(storageKey) {
+              var archiveList = document.getElementById("archiveList");
+              if (!archiveList || !storageKey) return;
+              var entries = readArchiveEntriesForKey(storageKey).slice().sort(function(a, b) {
+                return String((b && b.updatedAt) || "").localeCompare(String((a && a.updatedAt) || ""));
+              });
+              archiveList.innerHTML = "";
+              if (!entries.length) {
+                var empty = document.createElement("p");
+                empty.className = "archive-empty";
+                empty.textContent = "Noch keine gespeicherten Prüfberichte im Archiv.";
+                archiveList.appendChild(empty);
+                return;
+              }
+              entries.forEach(function(entry) {
+                var item = document.createElement("article");
+                item.className = "archive-item";
+                var text = document.createElement("div");
+                var title = document.createElement("div");
+                var meta = document.createElement("div");
+                title.className = "archive-title";
+                meta.className = "archive-meta";
+                title.textContent = archiveDisplayTitle(entry);
+                meta.textContent = "Geändert: " + archiveDisplayDate(String((entry && entry.updatedAt) || "").slice(0, 10));
+                text.append(title, meta);
+                var openButton = document.createElement("button");
+                openButton.type = "button";
+                openButton.textContent = "Öffnen";
+                openButton.addEventListener("click", function() { applyArchiveEntryReport(entry, storageKey); });
+                var deleteButton = document.createElement("button");
+                deleteButton.type = "button";
+                deleteButton.className = "danger";
+                deleteButton.textContent = "Löschen";
+                deleteButton.addEventListener("click", function() { deleteArchiveEntryFromDisplay(entry, storageKey); });
+                item.append(text, openButton, deleteButton);
+                archiveList.appendChild(item);
+              });
+            }
+
+            function persistCurrentDraftBeforeArchive() {
+              ["saveToStorageNow", "saveFormToStorage", "saveCurrentDraft"].some(function(name) {
+                var fn = window[name];
+                if (typeof fn !== "function") return false;
+                try { fn(); } catch (error) {}
+                return true;
+              });
+            }
+
+            function saveReportArchiveByIdentity() {
+              if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return false;
+              persistCurrentDraftBeforeArchive();
+              var storageKey = resolveArchiveStorageKey();
+              var report = currentArchiveReport();
+              var entries = readArchiveEntriesForKey(storageKey);
+              var identity = archiveEntryIdentity(storageKey, { report: report });
+              var existingIndex = entries.findIndex(function(entry) {
+                return archiveEntryIdentity(storageKey, entry) === identity;
+              });
+              var now = new Date().toISOString();
+              var wasUpdate = existingIndex >= 0;
+              var previous = wasUpdate ? entries[existingIndex] : null;
+              var entry = {
+                id: previous && previous.id ? previous.id : createBridgeArchiveId(),
+                createdAt: previous && previous.createdAt ? previous.createdAt : now,
+                updatedAt: now,
+                report: report
+              };
+              if (wasUpdate) entries[existingIndex] = entry;
+              else entries.push(entry);
+              if (!writeArchiveEntriesForKey(storageKey, entries)) {
+                setUnifiedActionStatus("Prüfbericht konnte nicht im Archiv gespeichert werden.");
+                return true;
+              }
+              var cleanup = dedupeArchiveEntriesForKey(storageKey);
+              if (cleanup.changed) entries = readArchiveEntriesForKey(storageKey);
+              writeCurrentArchiveIdForKey(storageKey, entry.id);
+              if (typeof window.renderArchiveList === "function") {
+                try { window.renderArchiveList(); } catch (error) {}
+              }
+              refreshArchiveListDisplay(storageKey);
+              setUnifiedActionStatus(wasUpdate ? "Vorhandener Archiv-Eintrag aktualisiert." : "Bericht im Archiv gespeichert.");
+              return true;
+            }
+
+            function candidateCurrentArchiveIdKeys(storageKey) {
+              var keys = [];
+              var match = String(storageKey || "").match(/^(.*)-archive-v(\\d+)$/i);
+              if (match) {
+                keys.push(match[1] + "-current-v" + match[2]);
+                keys.push(match[1] + "-current-archive-id-v" + match[2]);
+              }
+              try {
+                for (var index = 0; index < localStorage.length; index += 1) {
+                  var key = localStorage.key(index);
+                  if (!/current/i.test(key) || !archiveKeyMatchesCurrentModule(key)) continue;
+                  if (keys.indexOf(key) < 0) keys.push(key);
+                }
+              } catch (error) {}
+              return keys;
+            }
+
+            function writeCurrentArchiveIdForKey(storageKey, id) {
+              if (!id) return;
+              candidateCurrentArchiveIdKeys(storageKey).forEach(function(key) {
+                try { localStorage.setItem(key, id); } catch (error) {}
+              });
+            }
+
+            function clearCurrentArchiveIdsForCurrentModule() {
+              archiveStorageKeys({ currentOnly: true }).forEach(function(storageKey) {
+                candidateCurrentArchiveIdKeys(storageKey).forEach(function(key) {
+                  try { localStorage.removeItem(key); } catch (error) {}
+                });
+              });
+            }
+
+            function findArchiveEntryByIdentity(report) {
+              var match = null;
+              archiveStorageKeys({ currentOnly: true }).some(function(storageKey) {
+                var wanted = archiveEntryIdentity(storageKey, { report: report });
+                var raw = null;
+                try { raw = localStorage.getItem(storageKey); } catch (error) { return false; }
+                if (!raw) return false;
+                var entries = null;
+                try { entries = JSON.parse(raw); } catch (error) { return false; }
+                if (!Array.isArray(entries)) return false;
+                return entries.some(function(entry, index) {
+                  if (archiveEntryIdentity(storageKey, entry) !== wanted) return false;
+                  match = { storageKey: storageKey, entry: entry, index: index };
+                  return true;
+                });
+              });
+              return match;
+            }
+
+            function prepareArchiveSaveTarget() {
+              var report = currentArchiveReport();
+              var existing = findArchiveEntryByIdentity(report);
+              if (existing && existing.entry && existing.entry.id) {
+                writeCurrentArchiveIdForKey(existing.storageKey, existing.entry.id);
+                return true;
+              }
+              clearCurrentArchiveIdsForCurrentModule();
+              return false;
+            }
+
+            function dedupeReportArchives() {
+              if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return false;
+              var hadExistingIdentity = Boolean(window.__fsmobileArchiveSaveHadExistingIdentity);
+              window.__fsmobileArchiveSaveHadExistingIdentity = false;
+              var changed = archiveStorageKeys({ currentOnly: true }).some(function(key) {
+                return dedupeArchiveEntriesForKey(key).changed;
+              });
+              if (changed && typeof window.renderArchiveList === "function") {
+                try { window.renderArchiveList(); } catch (error) {}
+              }
+              setUnifiedActionStatus(changed || hadExistingIdentity ? "Vorhandener Archiv-Eintrag aktualisiert." : "Bericht im Archiv gespeichert.");
+              return changed;
+            }
+
+            function isArchiveSaveButton(button) {
+              if (!button || button.closest(".archive-dialog, .archive-overlay, .pdf-render-wrapper")) return false;
+              var text = (button.textContent || "").replace(/\\s+/g, " ").trim();
+              var haystack = (button.id || "") + " " + (button.className || "");
+              return text === "Im Archiv speichern" || /archive-save|archiveSaveBtn|btn-archive-save/.test(haystack);
+            }
+
+            function isArchiveOpenButton(button) {
+              if (!button || button.closest(".archive-dialog, .archive-overlay, .pdf-render-wrapper")) return false;
+              var text = (button.textContent || "").replace(/\\s+/g, " ").trim();
+              var haystack = (button.id || "") + " " + (button.className || "");
+              return text === "Archiv" || /archive-open|archiveBtn|archive-btn/.test(haystack);
+            }
+
+            function scheduleArchiveDedupe() {
+              window.clearTimeout(window.__fsmobileArchiveDedupeTimer);
+              window.__fsmobileArchiveDedupeTimer = window.setTimeout(dedupeReportArchives, 80);
+            }
+
+            function installArchiveDedupe() {
+              if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "") || document.__fsmobileArchiveDedupeInstalled) return;
+              Object.defineProperty(document, "__fsmobileArchiveDedupeInstalled", { value: true });
+              window.addEventListener("message", function(event) {
+                var data = event.data || {};
+                if (!data || data.type !== "fsmobile-archives-imported") return;
+                refreshArchiveListDisplay(resolveArchiveStorageKey());
+              });
+              document.addEventListener("click", function(event) {
+                var button = event.target && event.target.closest ? event.target.closest("button") : null;
+                if (isArchiveSaveButton(button)) {
+                  event.preventDefault();
+                  event.stopImmediatePropagation();
+                  saveReportArchiveByIdentity();
+                } else if (isArchiveOpenButton(button)) {
+                  window.setTimeout(function() { refreshArchiveListDisplay(resolveArchiveStorageKey()); }, 0);
+                }
+              }, true);
+              if (typeof window.saveCurrentReportToArchive === "function" && !window.saveCurrentReportToArchive.__fsmobileArchiveDedupeWrapped) {
+                var originalSaveCurrentReportToArchive = window.saveCurrentReportToArchive;
+                window.saveCurrentReportToArchive = function() {
+                  if (saveReportArchiveByIdentity()) return;
+                  return originalSaveCurrentReportToArchive.apply(this, arguments);
+                };
+                window.saveCurrentReportToArchive.__fsmobileArchiveDedupeWrapped = true;
+              }
+            }
+
 	          function normalizedActionStatus(message) {
 	            var text = String(message || "").replace(/\\s+/g, " ").trim();
 	            if (!text) return "";
 	            if (/konnte nicht.*archiv/i.test(text)) return "Prüfbericht konnte nicht im Archiv gespeichert werden.";
-	            if (/archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Prüfbericht wurde im Archiv gespeichert.";
+	            if (/vorhandener archiv-eintrag aktualisiert/i.test(text)) return "Vorhandener Archiv-Eintrag aktualisiert.";
+	            if (/bericht im archiv gespeichert/i.test(text)) return "Bericht im Archiv gespeichert.";
+	            if (/archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Bericht im Archiv gespeichert.";
 	            if (/aus dem archiv geöffnet/i.test(text)) return "Prüfbericht wurde aus dem Archiv geöffnet.";
 	            if (/archiv.*geöffnet/i.test(text)) return "Archiv wurde geöffnet.";
 	            if (/archiv.*gelöscht/i.test(text)) return "Archiv-Eintrag wurde gelöscht.";
@@ -5490,6 +6216,7 @@
 	            ensureGeneratedTechnikerSignatureField();
 	            normalizeSignatureLabels();
 	            installUnifiedActionStatus();
+	            installArchiveDedupe();
 	            installPdfFileNamePatch();
 	            installJsPdfLoaderPatch();
 	            setupReportDataTransfer();
@@ -5914,6 +6641,21 @@
   }
 
   backButton.addEventListener("click", () => showMenu(false));
+  if (menuOptionsButton) menuOptionsButton.addEventListener("click", openOptionsDialog);
+  if (optionsCloseButton) optionsCloseButton.addEventListener("click", closeOptionsDialog);
+  if (optionsOverlay) {
+    optionsOverlay.addEventListener("click", event => {
+      if (event.target === optionsOverlay) closeOptionsDialog();
+    });
+  }
+  if (archiveBackupExportButton) archiveBackupExportButton.addEventListener("click", exportAllArchiveData);
+  if (archiveBackupImportButton && archiveBackupFile) {
+    archiveBackupImportButton.addEventListener("click", () => archiveBackupFile.click());
+    archiveBackupFile.addEventListener("change", () => importArchiveBackupFile(archiveBackupFile.files && archiveBackupFile.files[0]));
+  }
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && optionsOverlay && !optionsOverlay.hidden) closeOptionsDialog();
+  });
   frame.addEventListener("load", () => {
     window.clearTimeout(actionSyncTimer);
     actionSyncTimer = window.setTimeout(syncModuleActionBar, 120);
@@ -6052,6 +6794,7 @@
     authError.textContent = "";
     authCode.value = "";
     authOverlay.hidden = true;
+    updateMenuOptionsVisibility();
     handleRoute(true);
   }
 
@@ -6061,6 +6804,7 @@
     menuView.hidden = false;
     moduleView.hidden = true;
     backButton.hidden = true;
+    updateMenuOptionsVisibility();
     subtitle.textContent = "Menüauswahl";
     history.replaceState({ module: null }, "", location.pathname);
     showAuth();
