@@ -2,7 +2,7 @@
   "name": "FSMobile",
   "short_name": "FSMobile",
   "description": "Eine installierbare Progressive Web App für FSMobile Berichte, Aufmaß und Wartungsanleitungen.",
-  "start_url": "./?v=162",
+  "start_url": "./?v=163",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
