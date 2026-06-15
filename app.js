@@ -4206,7 +4206,12 @@
             Object.defineProperty(window.MutationObserver.prototype, "__fsmobileSafeObserve", { value: true });
             window.MutationObserver.prototype.observe = function(target, options) {
               if (!target || typeof target.nodeType !== "number") return undefined;
-              return nativeObserve.call(this, target, options);
+              try {
+                return nativeObserve.call(this, target, options);
+              } catch (error) {
+                if (error && /parameter 1 is not of type 'Node'/i.test(String(error.message || error))) return undefined;
+                throw error;
+              }
             };
           }
           if (navigator.serviceWorker) {
@@ -7290,6 +7295,229 @@
     body:not(.generating-pdf).fsmobile-portrait-report .input-unit textarea {
       border-radius: 14px !important;
       background-clip: padding-box !important;
+    }
+
+    /* Einheitliche Archiv-Ansicht in allen Prüfberichten */
+    body:not(.generating-pdf) .archive-overlay[hidden] {
+      display: none !important;
+    }
+
+    body:not(.generating-pdf) .archive-overlay {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 9999 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding:
+        max(18px, env(safe-area-inset-top))
+        max(18px, env(safe-area-inset-right))
+        max(18px, env(safe-area-inset-bottom))
+        max(18px, env(safe-area-inset-left)) !important;
+      background: rgba(15, 23, 42, .34) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    body:not(.generating-pdf) .archive-dialog {
+      box-sizing: border-box !important;
+      width: min(760px, calc(100vw - 36px)) !important;
+      max-width: min(760px, calc(100vw - 36px)) !important;
+      max-height: min(680px, calc(100vh - 36px)) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      color: #172033 !important;
+      border: 1px solid rgba(255,255,255,.48) !important;
+      border-radius: 24px !important;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.24), rgba(255,255,255,.10) 58%, rgba(122,162,211,.10)),
+        rgba(238,244,252,.18) !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.42),
+        inset 0 -1px 0 rgba(255,255,255,.10),
+        0 26px 72px rgba(2,8,23,.24) !important;
+      -webkit-backdrop-filter: blur(26px) saturate(1.12) !important;
+      backdrop-filter: blur(26px) saturate(1.12) !important;
+    }
+
+    body:not(.generating-pdf) .archive-header {
+      flex: 0 0 auto !important;
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 14px !important;
+      min-height: 68px !important;
+      margin: 0 !important;
+      padding: 18px 20px 14px !important;
+      border: 0 !important;
+      border-bottom: 1px solid rgba(255,255,255,.34) !important;
+      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.03)) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.24) !important;
+    }
+
+    body:not(.generating-pdf) .archive-header h2,
+    body:not(.generating-pdf) #archiveTitle {
+      margin: 0 !important;
+      color: rgba(17,24,39,.92) !important;
+      font-size: 24px !important;
+      line-height: 1.12 !important;
+      font-weight: 850 !important;
+      letter-spacing: 0 !important;
+      text-shadow: 0 1px 0 rgba(255,255,255,.42) !important;
+    }
+
+    body:not(.generating-pdf) .archive-header button,
+    body:not(.generating-pdf) .archive-close-btn {
+      flex: 0 0 auto !important;
+      width: auto !important;
+      min-width: 44px !important;
+      min-height: 44px !important;
+      padding: 10px 16px !important;
+      border: 1px solid rgba(255,255,255,.42) !important;
+      border-radius: 999px !important;
+      color: rgba(17,24,39,.78) !important;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.12)),
+        rgba(255,255,255,.14) !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.42),
+        0 8px 18px rgba(2,8,23,.08) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
+      backdrop-filter: blur(16px) saturate(1.08) !important;
+    }
+
+    body:not(.generating-pdf) .archive-list {
+      flex: 1 1 auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 14px !important;
+      overflow: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      background: transparent !important;
+    }
+
+    body:not(.generating-pdf) .archive-empty {
+      margin: 0 !important;
+      padding: 28px 14px !important;
+      text-align: center !important;
+      color: rgba(17,24,39,.62) !important;
+      font-size: 14px !important;
+      line-height: 1.35 !important;
+      font-weight: 760 !important;
+      border: 1px solid rgba(255,255,255,.36) !important;
+      border-radius: 16px !important;
+      background: rgba(255,255,255,.08) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.22) !important;
+    }
+
+    body:not(.generating-pdf) .archive-item {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto auto !important;
+      gap: 10px !important;
+      align-items: center !important;
+      min-height: 72px !important;
+      margin: 0 !important;
+      padding: 12px !important;
+      color: #172033 !important;
+      border: 1px solid rgba(255,255,255,.40) !important;
+      border-radius: 16px !important;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.055) 58%, rgba(235,0,69,.028)),
+        rgba(255,255,255,.06) !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.30),
+        0 10px 24px rgba(2,8,23,.06) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+      backdrop-filter: blur(18px) saturate(1.08) !important;
+    }
+
+    body:not(.generating-pdf) .archive-title {
+      min-width: 0 !important;
+      color: rgba(17,24,39,.9) !important;
+      font-size: 15px !important;
+      line-height: 1.25 !important;
+      font-weight: 850 !important;
+      letter-spacing: 0 !important;
+      overflow-wrap: anywhere !important;
+    }
+
+    body:not(.generating-pdf) .archive-meta {
+      margin-top: 4px !important;
+      color: rgba(17,24,39,.58) !important;
+      font-size: 12px !important;
+      line-height: 1.25 !important;
+      font-weight: 720 !important;
+      letter-spacing: 0 !important;
+    }
+
+    body:not(.generating-pdf) .archive-item button {
+      width: auto !important;
+      min-width: 86px !important;
+      min-height: 42px !important;
+      padding: 10px 14px !important;
+      border: 0 !important;
+      border-radius: 999px !important;
+      font-size: 14px !important;
+      line-height: 1.1 !important;
+      font-weight: 850 !important;
+      white-space: nowrap !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.32),
+        0 10px 20px rgba(2,8,23,.10) !important;
+    }
+
+    body:not(.generating-pdf) .archive-item button:not(.danger),
+    body:not(.generating-pdf) .archive-open-btn,
+    body:not(.generating-pdf) .archive-open-button,
+    body:not(.generating-pdf) button.archive-open {
+      color: #fff !important;
+      background: linear-gradient(180deg, #2f93ff 0%, #0a84ff 100%) !important;
+    }
+
+    body:not(.generating-pdf) .archive-item button.danger,
+    body:not(.generating-pdf) .archive-delete-btn,
+    body:not(.generating-pdf) .archive-delete-button {
+      color: #fff !important;
+      background: linear-gradient(180deg, #ff4f45 0%, #ff3b30 100%) !important;
+    }
+
+    body:not(.generating-pdf) .archive-status {
+      min-height: 20px !important;
+      margin: 10px 0 0 !important;
+      color: rgba(17,24,39,.62) !important;
+      font-size: 13px !important;
+      line-height: 1.35 !important;
+      font-weight: 740 !important;
+    }
+
+    @media (max-width: 760px) {
+      body:not(.generating-pdf) .archive-dialog {
+        width: calc(100vw - 28px) !important;
+        max-width: calc(100vw - 28px) !important;
+        max-height: calc(100vh - 28px) !important;
+        border-radius: 22px !important;
+      }
+
+      body:not(.generating-pdf) .archive-header {
+        flex-direction: row !important;
+        align-items: center !important;
+        padding: 16px !important;
+      }
+
+      body:not(.generating-pdf) .archive-item {
+        grid-template-columns: 1fr !important;
+      }
+
+      body:not(.generating-pdf) .archive-item button {
+        width: 100% !important;
+      }
     }
 </style>
     `;
