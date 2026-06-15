@@ -4337,9 +4337,28 @@
             "pb-wandhydranten": true
           };
 
-          function isFsmobilePortraitReport() {
-            return Boolean(FSMOBILE_PORTRAIT_REPORT_IDS[window.FSMOBILE_MODULE_ID || ""]);
-          }
+	          function isFsmobilePortraitReport() {
+	            return Boolean(FSMOBILE_PORTRAIT_REPORT_IDS[window.FSMOBILE_MODULE_ID || ""]);
+	          }
+
+	          var FSMOBILE_LANDSCAPE_REMARK_REPORT_IDS = {
+	            "pb-feuerloescher": true,
+	            "pb-brandschutztueren": true,
+	            "pb-not-sicherheitsbeleuchtung": true,
+	            "pb-brandschutzklappen": true,
+	            "pb-brandschutzschiebetor": true,
+	            "pb-brandschutzrolltore": true,
+	            "pb-rolltoranlagen": true,
+	            "pb-schiebetuerantrieb": true,
+	            "pb-drehfluegelantrieb": true,
+	            "pb-rauchschutzvorhaenge": true,
+	            "pb-feststellanlagen": true,
+	            "pb-rauchwarnmelder": true
+	          };
+
+	          function isFsmobileLandscapeRemarkReport() {
+	            return Boolean(FSMOBILE_LANDSCAPE_REMARK_REPORT_IDS[window.FSMOBILE_MODULE_ID || ""]);
+	          }
 
           function isAssignmentTitle(node) {
             return node && normalizeFsmobileKey(node.textContent || "") === "zuordnung";
@@ -4632,11 +4651,55 @@
               var title = block.querySelector("h2, h3, h4, legend, label, .section-title");
               if (title && looksLikeSignatureNode(title)) title.textContent = normalizeSignatureText(title.textContent);
             });
-          }
+	          }
 
-          function canvasIsBlank(canvas) {
-            if (!canvas) return true;
-            try {
+	          function resizeSignatureCanvasForCurrentLayout(canvas) {
+	            if (!canvas || !canvasLooksLikeSignature(canvas)) return;
+	            var rect = canvas.getBoundingClientRect();
+	            if (!rect || rect.width < 8 || rect.height < 8) return;
+	            var ratio = window.devicePixelRatio || 1;
+	            var expectedWidth = Math.max(1, Math.round(rect.width * ratio));
+	            var expectedHeight = Math.max(1, Math.round(rect.height * ratio));
+	            canvas.style.pointerEvents = "auto";
+	            canvas.style.touchAction = "none";
+	            if (Math.abs((canvas.width || 0) - expectedWidth) <= 1 && Math.abs((canvas.height || 0) - expectedHeight) <= 1) return;
+	            var context = canvas.getContext("2d", { willReadFrequently: true });
+	            var oldData = "";
+	            try {
+	              if (!canvasIsBlank(canvas)) oldData = canvas.toDataURL("image/png");
+	            } catch (error) {}
+	            canvas.width = expectedWidth;
+	            canvas.height = expectedHeight;
+	            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+	            context.lineWidth = 2.4;
+	            context.lineCap = "round";
+	            context.lineJoin = "round";
+	            context.strokeStyle = "#1c1c1e";
+	            if (oldData) {
+	              var image = new Image();
+	              image.onload = function() {
+	                try { context.drawImage(image, 0, 0, rect.width, rect.height); } catch (error) {}
+	              };
+	              image.src = oldData;
+	            }
+	          }
+
+	          function refreshSignatureCanvasesForReadyLayout() {
+	            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
+	            Array.from(document.querySelectorAll("canvas")).forEach(resizeSignatureCanvasForCurrentLayout);
+	          }
+
+	          function scheduleSignatureCanvasReadyRefresh(delay) {
+	            window.setTimeout(function() {
+	              window.requestAnimationFrame(function() {
+	                refreshSignatureCanvasesForReadyLayout();
+	              });
+	            }, delay);
+	          }
+
+	          function canvasIsBlank(canvas) {
+	            if (!canvas) return true;
+	            try {
               var data = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height).data;
               for (var index = 3; index < data.length; index += 4) {
                 if (data[index] !== 0) return false;
@@ -4745,29 +4808,267 @@
             restoreGeneratedSignature(canvas);
           }
 
-          function ensureGeneratedTechnikerSignatureField() {
-            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
-            if (Array.from(document.querySelectorAll("canvas")).some(canvasLooksLikeSignature)) return;
-            var block = document.createElement("section");
-            block.className = "signature-block fsmobile-generated-signature-block";
+	          function ensureGeneratedTechnikerSignatureField() {
+	            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
+	            if (Array.from(document.querySelectorAll("canvas")).some(canvasLooksLikeSignature)) return;
+	            var block = document.createElement("section");
+	            block.className = "signature-block fsmobile-generated-signature-block";
             block.innerHTML = '<h3>' + FSMOBILE_SIGNATURE_LABEL + '</h3><canvas id="fsmobileTechnikerSignaturePad" aria-label="' + FSMOBILE_SIGNATURE_LABEL + '"></canvas><div class="signature-actions"><button type="button" class="danger">Unterschrift löschen</button></div>';
             var anchor = document.getElementById("archiveOverlay") || document.querySelector("script");
             if (anchor && anchor.parentNode === document.body) document.body.insertBefore(block, anchor);
             else document.body.appendChild(block);
-            setupGeneratedSignaturePad(block.querySelector("canvas"), block.querySelector("button"));
-          }
+	            setupGeneratedSignaturePad(block.querySelector("canvas"), block.querySelector("button"));
+	          }
 
-          function appendGeneratedSignatureToPdf(doc) {
-            if (!doc || doc.__fsmobileGeneratedSignatureAppended || !document.getElementById("fsmobileTechnikerSignaturePad")) return;
-            Object.defineProperty(doc, "__fsmobileGeneratedSignatureAppended", { value: true });
-            try {
-              var pageWidth = doc.internal.pageSize.getWidth();
-              var margin = 14;
-              var y = 24;
-              doc.addPage();
-              doc.setTextColor(17, 24, 39);
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(12);
+	          function reportRemarkTextarea() {
+	            return document.getElementById("fsmobileReportBemerkung") || document.querySelector("[data-field='berichtBemerkung']");
+	          }
+
+	          function reportRemarkStorageKey() {
+	            return "fsmobile-report-remark-" + (window.FSMOBILE_MODULE_ID || "unknown") + "-v1";
+	          }
+
+	          function autoResizeReportRemarkField(field) {
+	            if (!field) return;
+	            field.style.height = "auto";
+	            field.style.height = Math.max(field.scrollHeight, 88) + "px";
+	          }
+
+	          function readStoredReportRemark() {
+	            try { return localStorage.getItem(reportRemarkStorageKey()) || ""; }
+	            catch (error) { return ""; }
+	          }
+
+	          function writeStoredReportRemark(value) {
+	            try { localStorage.setItem(reportRemarkStorageKey(), String(value || "")); }
+	            catch (error) {}
+	          }
+
+	          function extractReportRemarkFromData(data) {
+	            if (!data || typeof data !== "object") return "";
+	            var candidates = [
+	              data.berichtBemerkung,
+	              data.reportRemark,
+	              data.allgemeineBemerkung,
+	              data.bemerkungGesamt
+	            ];
+	            if (data.fields && typeof data.fields === "object") {
+	              candidates.push(data.fields.berichtBemerkung, data.fields.reportRemark, data.fields.allgemeineBemerkung, data.fields.bemerkungGesamt);
+	            }
+	            if (data.report && typeof data.report === "object") {
+	              candidates.push(extractReportRemarkFromData(data.report));
+	            }
+	            for (var index = 0; index < candidates.length; index += 1) {
+	              if (typeof candidates[index] === "string") return candidates[index];
+	            }
+	            return "";
+	          }
+
+	          function setReportRemarkValue(value, options) {
+	            var field = reportRemarkTextarea();
+	            if (!field) return;
+	            field.value = String(value || "");
+	            autoResizeReportRemarkField(field);
+	            if (!options || options.persist !== false) writeStoredReportRemark(field.value);
+	            if (options && options.dispatch) {
+	              field.dispatchEvent(new Event("input", { bubbles: true }));
+	              field.dispatchEvent(new Event("change", { bubbles: true }));
+	            }
+	          }
+
+	          function currentReportRemarkValue() {
+	            var field = reportRemarkTextarea();
+	            return field ? String(field.value || "") : "";
+	          }
+
+	          function mergeReportRemarkIntoData(data) {
+	            if (!isFsmobileLandscapeRemarkReport() || !data || typeof data !== "object") return data;
+	            var value = currentReportRemarkValue();
+	            data.berichtBemerkung = value;
+	            if (!data.fields || typeof data.fields !== "object" || Array.isArray(data.fields)) data.fields = {};
+	            if (data.fields && typeof data.fields === "object" && !Array.isArray(data.fields)) data.fields.berichtBemerkung = value;
+	            return data;
+	          }
+
+	          function installReportRemarkDataBridge() {
+	            if (!isFsmobileLandscapeRemarkReport() || window.__fsmobileReportRemarkDataBridgeInstalled) return;
+	            window.__fsmobileReportRemarkDataBridgeInstalled = true;
+	            ["getCurrentReport", "collectData", "collectReportData", "buildStoragePayload"].forEach(function(name) {
+	              var original = window[name];
+	              if (typeof original !== "function" || original.__fsmobileReportRemarkWrapped) return;
+	              window[name] = function() {
+	                return mergeReportRemarkIntoData(original.apply(this, arguments));
+	              };
+	              window[name].__fsmobileReportRemarkWrapped = true;
+	            });
+	            ["applyReport", "applyData", "applyReportData", "applyStoragePayload", "restoreReportData"].forEach(function(name) {
+	              var original = window[name];
+	              if (typeof original !== "function" || original.__fsmobileReportRemarkWrapped) return;
+	              window[name] = function(data) {
+	                var result = original.apply(this, arguments);
+	                var value = extractReportRemarkFromData(data);
+	                window.setTimeout(function() {
+	                  if (value || !currentReportRemarkValue()) setReportRemarkValue(value, { persist: true, dispatch: false });
+	                }, 0);
+	                return result;
+	              };
+	              window[name].__fsmobileReportRemarkWrapped = true;
+	            });
+	            document.addEventListener("input", function(event) {
+	              if (event.target && event.target.id === "fsmobileReportBemerkung") {
+	                autoResizeReportRemarkField(event.target);
+	                writeStoredReportRemark(event.target.value || "");
+	              }
+	            });
+	          }
+
+	          function restoreReportRemarkFromCurrentStorage() {
+	            var field = reportRemarkTextarea();
+	            if (!field || field.value) return;
+	            var stored = readStoredReportRemark();
+	            if (stored) {
+	              setReportRemarkValue(stored, { persist: false, dispatch: false });
+	              return;
+	            }
+	            try {
+	              for (var index = 0; index < localStorage.length; index += 1) {
+	                var key = localStorage.key(index) || "";
+	                if (key.indexOf(window.FSMOBILE_MODULE_ID || "") < 0) continue;
+	                var value = extractReportRemarkFromData(JSON.parse(localStorage.getItem(key) || "null"));
+	                if (value) {
+	                  setReportRemarkValue(value, { persist: true, dispatch: false });
+	                  return;
+	                }
+	              }
+	            } catch (error) {}
+	          }
+
+	          function ensureLandscapeReportRemarkField() {
+	            if (!isFsmobileLandscapeRemarkReport() || document.body.classList.contains("generating-pdf")) return;
+	            document.body.classList.add("fsmobile-landscape-report");
+	            var field = reportRemarkTextarea();
+	            if (!field) {
+	              var block = document.createElement("section");
+	              block.className = "fsmobile-report-remark-block";
+	              block.innerHTML = '<label for="fsmobileReportBemerkung">Bemerkung</label><textarea id="fsmobileReportBemerkung" name="berichtBemerkung" data-field="berichtBemerkung" rows="3" aria-label="Bemerkung"></textarea>';
+	              var signature = document.querySelector(".signature-block, .signature-wrap, .fsmobile-generated-signature-block");
+	              var status = document.getElementById("archiveStatus");
+	              var overlay = document.getElementById("archiveOverlay");
+	              var anchor = signature || status || overlay || document.querySelector("script");
+	              if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(block, anchor);
+	              else document.body.appendChild(block);
+	              field = block.querySelector("textarea");
+	            }
+	            autoResizeReportRemarkField(field);
+	            restoreReportRemarkFromCurrentStorage();
+	            installReportRemarkDataBridge();
+	          }
+
+	          function splitPdfText(doc, text, width) {
+	            try {
+	              var lines = doc.splitTextToSize(String(text || "-"), width);
+	              return Array.isArray(lines) ? lines : [String(lines || "-")];
+	            } catch (error) {
+	              return String(text || "-").split(/\\n/);
+	            }
+	          }
+
+	          function getFsmobilePdfPageHeight(doc) {
+	            try {
+	              if (doc && doc.internal && doc.internal.pageSize && typeof doc.internal.pageSize.getHeight === "function") {
+	                return doc.internal.pageSize.getHeight();
+	              }
+	              if (doc && doc.internal && doc.internal.pageSize && doc.internal.pageSize.height) return doc.internal.pageSize.height;
+	            } catch (error) {}
+	            return 297;
+	          }
+
+	          function definePdfRemarkNextY(doc, value) {
+	            try { Object.defineProperty(doc, "__fsmobileReportRemarkNextY", { value: value, configurable: true }); }
+	            catch (error) { doc.__fsmobileReportRemarkNextY = value; }
+	          }
+
+	          function appendLandscapeReportRemarkToPdf(doc, y, options) {
+	            if (!isFsmobileLandscapeRemarkReport() || !doc || doc.__fsmobileReportRemarkPdfAppended) return typeof y === "number" ? y : y;
+	            try { Object.defineProperty(doc, "__fsmobileReportRemarkPdfAppended", { value: true }); }
+	            catch (error) { doc.__fsmobileReportRemarkPdfAppended = true; }
+	            options = options || {};
+	            var pageWidth = Number(options.pageWidth) || getFsmobilePdfPageWidth(doc);
+	            var pageHeight = Number(options.pageHeight) || getFsmobilePdfPageHeight(doc);
+	            var margin = Number(options.margin) || 10;
+	            var bottom = Number(options.bottom) || pageHeight - margin;
+	            var top = Number(options.top) || 30;
+	            var maxWidth = Math.max(30, pageWidth - margin * 2);
+	            var currentY = typeof y === "number" ? y : top;
+	            var text = currentReportRemarkValue().trim() || "-";
+	            var lines = splitPdfText(doc, text, maxWidth - 4);
+	            var lineHeight = 4;
+
+	            function addPage() {
+	              try { doc.addPage(); } catch (error) {}
+	              currentY = top;
+	            }
+
+	            function ensure(space) {
+	              if (currentY + space <= bottom) return;
+	              addPage();
+	            }
+
+	            function drawHeader(title) {
+	              ensure(10);
+	              doc.setDrawColor(255, 255, 255);
+	              doc.setLineWidth(0.2);
+	              doc.setFillColor(255, 180, 71);
+	              doc.rect(margin, currentY, maxWidth, 8, "FD");
+	              doc.setTextColor(0, 0, 0);
+	              doc.setFont("helvetica", "bold");
+	              doc.setFontSize(8.5);
+	              doc.text(title, margin + 2, currentY + 5.4);
+	              currentY += 8;
+	            }
+
+	            drawHeader("Bemerkung");
+	            while (lines.length) {
+	              var availableLines = Math.max(1, Math.floor((bottom - currentY - 6) / lineHeight));
+	              var chunk = lines.splice(0, availableLines);
+	              var rowHeight = Math.max(12, chunk.length * lineHeight + 6);
+	              ensure(rowHeight);
+	              doc.setDrawColor(255, 255, 255);
+	              doc.setLineWidth(0.2);
+	              doc.setFillColor(245, 245, 245);
+	              doc.rect(margin, currentY, maxWidth, rowHeight, "FD");
+	              doc.setTextColor(17, 24, 39);
+	              doc.setFont("helvetica", "normal");
+	              doc.setFontSize(8);
+	              doc.text(chunk, margin + 2, currentY + 5);
+	              currentY += rowHeight;
+	              if (lines.length) {
+	                addPage();
+	                drawHeader("Bemerkung (Fortsetzung)");
+	              }
+	            }
+	            currentY += 6;
+	            definePdfRemarkNextY(doc, currentY);
+	            return currentY;
+	          }
+
+	          window.FSMOBILE_APPEND_REPORT_REMARK_TO_PDF = appendLandscapeReportRemarkToPdf;
+
+	          function appendGeneratedSignatureToPdf(doc) {
+	            if (!doc || doc.__fsmobileGeneratedSignatureAppended || !document.getElementById("fsmobileTechnikerSignaturePad")) return;
+	            Object.defineProperty(doc, "__fsmobileGeneratedSignatureAppended", { value: true });
+	            try {
+	              var pageWidth = doc.internal.pageSize.getWidth();
+	              var margin = 14;
+	              var y = typeof doc.__fsmobileReportRemarkNextY === "number" ? doc.__fsmobileReportRemarkNextY : 24;
+	              if (typeof doc.__fsmobileReportRemarkNextY !== "number") doc.addPage();
+	              if (y + 46 > getFsmobilePdfPageHeight(doc) - 10) {
+	                doc.addPage();
+	                y = 24;
+	              }
+	              doc.setTextColor(17, 24, 39);
+	              doc.setFont("helvetica", "bold");
+	              doc.setFontSize(12);
               doc.text(FSMOBILE_SIGNATURE_LABEL, margin, y);
               var signature = generatedSignatureDataUrl();
               if (signature) {
@@ -4940,12 +5241,13 @@
             if (instance.__fsmobileSavePatched || typeof instance.save !== "function") return instance;
             var originalSave = instance.save;
 	            Object.defineProperty(instance, "__fsmobileSavePatched", { value: true });
-	            instance.save = function(fileName) {
-	              var args = Array.prototype.slice.call(arguments);
-	              args[0] = fsmobilePdfFileName(fileName);
-	              appendGeneratedSignatureToPdf(this);
-              stampFsmobilePdfLogo(this);
-	              try {
+		            instance.save = function(fileName) {
+		              var args = Array.prototype.slice.call(arguments);
+		              args[0] = fsmobilePdfFileName(fileName);
+		              appendLandscapeReportRemarkToPdf(this);
+		              appendGeneratedSignatureToPdf(this);
+	              stampFsmobilePdfLogo(this);
+		              try {
 	                if (finishCombinedPdfExport(this.output("blob"), args[0])) return this;
 	              } catch (error) {}
 	              return originalSave.apply(this, args);
@@ -4961,11 +5263,12 @@
             var originalSave = JsPDF.prototype.save;
             if (typeof originalSave !== "function") return;
 	            Object.defineProperty(JsPDF.prototype, "__fsmobileSavePatched", { value: true });
-	            JsPDF.prototype.save = function(fileName) {
-	              var args = Array.prototype.slice.call(arguments);
-	              args[0] = fsmobilePdfFileName(fileName);
-	              appendGeneratedSignatureToPdf(this);
-              stampFsmobilePdfLogo(this);
+		            JsPDF.prototype.save = function(fileName) {
+		              var args = Array.prototype.slice.call(arguments);
+		              args[0] = fsmobilePdfFileName(fileName);
+		              appendLandscapeReportRemarkToPdf(this);
+		              appendGeneratedSignatureToPdf(this);
+	              stampFsmobilePdfLogo(this);
 	              try {
 	                if (finishCombinedPdfExport(this.output("blob"), args[0])) return this;
 	              } catch (error) {}
@@ -5193,7 +5496,7 @@
             }
 
             function currentArchiveReport() {
-              var collectors = ["buildStoragePayload", "collectReportData", "collectData"];
+              var collectors = ["buildStoragePayload", "collectReportData", "collectData", "getCurrentReport"];
               for (var index = 0; index < collectors.length; index += 1) {
                 var fn = window[collectors[index]];
                 if (typeof fn !== "function") continue;
@@ -5888,7 +6191,7 @@
             }
 
             function collectStructuredData() {
-              var collectors = ["buildStoragePayload", "collectReportData", "collectData"];
+              var collectors = ["buildStoragePayload", "collectReportData", "collectData", "getCurrentReport"];
               for (var index = 0; index < collectors.length; index += 1) {
                 var fn = window[collectors[index]];
                 if (typeof fn !== "function") continue;
@@ -6277,28 +6580,32 @@
 
             installControls();
           }
-	          document.addEventListener("DOMContentLoaded", function() {
-	            markPositionCells();
-	            normalizePortraitAssignmentSections();
-	            installRwaChoicePillTapFix();
-	            ensureGeneratedTechnikerSignatureField();
-	            normalizeSignatureLabels();
-	            installUnifiedActionStatus();
-	            installArchiveDedupe();
-	            installPdfFileNamePatch();
-	            installJsPdfLoaderPatch();
+			          document.addEventListener("DOMContentLoaded", function() {
+			            markPositionCells();
+			            normalizePortraitAssignmentSections();
+			            ensureLandscapeReportRemarkField();
+			            installRwaChoicePillTapFix();
+			            ensureGeneratedTechnikerSignatureField();
+		            normalizeSignatureLabels();
+		            refreshSignatureCanvasesForReadyLayout();
+		            installUnifiedActionStatus();
+		            installArchiveDedupe();
+		            installPdfFileNamePatch();
+		            installJsPdfLoaderPatch();
 	            setupReportDataTransfer();
             ensureRwaClearButton();
             arrangeHeaderActions();
             var arrangeTimer = 0;
-            function refreshReportEnhancements() {
-                normalizePortraitAssignmentSections();
-                installRwaChoicePillTapFix();
-                markPositionCells();
-                ensureGeneratedTechnikerSignatureField();
-                normalizeSignatureLabels();
-                installJsPdfLoaderPatch();
-            }
+	            function refreshReportEnhancements() {
+	                normalizePortraitAssignmentSections();
+		                ensureLandscapeReportRemarkField();
+		                installRwaChoicePillTapFix();
+	                markPositionCells();
+	                ensureGeneratedTechnikerSignatureField();
+	                normalizeSignatureLabels();
+	                refreshSignatureCanvasesForReadyLayout();
+	                installJsPdfLoaderPatch();
+	            }
             function runReportEnhancementRefresh() {
               refreshReportEnhancements();
               arrangeHeaderActions();
@@ -6306,7 +6613,8 @@
             function scheduleReportEnhancementRefresh(delay) {
               window.setTimeout(runReportEnhancementRefresh, delay);
             }
-            [0, 80, 220, 500, 900, 1400, 2200].forEach(scheduleReportEnhancementRefresh);
+	            [0, 80, 220, 500, 900, 1400, 2200].forEach(scheduleReportEnhancementRefresh);
+	            [0, 120, 320, 700, 1200, 2000].forEach(scheduleSignatureCanvasReadyRefresh);
             window.addEventListener("resize", function() {
               window.clearTimeout(arrangeTimer);
               arrangeTimer = window.setTimeout(runReportEnhancementRefresh, 80);
@@ -6459,12 +6767,51 @@
           white-space: nowrap !important;
         }
 
-        .fsmobile-actions-empty {
-          display: none !important;
-        }
+	        .fsmobile-actions-empty {
+	          display: none !important;
+	        }
 
-        .fsmobile-generated-signature-block {
-          margin-top: 16px !important;
+	        .fsmobile-report-remark-block {
+	          margin-top: 18px !important;
+	          padding: 14px !important;
+	          background:
+	            linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.035) 58%, rgba(235,0,69,.025)),
+	            rgba(255,255,255,.045) !important;
+	          border: 1px solid rgba(255,255,255,.38) !important;
+	          border-radius: 14px !important;
+	          box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 10px 26px rgba(0,0,0,.045) !important;
+	          -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+	          backdrop-filter: blur(18px) saturate(1.08) !important;
+	        }
+
+	        .fsmobile-report-remark-block label {
+	          display: block !important;
+	          margin: 0 0 10px !important;
+	          color: #1c1c1e !important;
+	          font-size: 18px !important;
+	          font-weight: 800 !important;
+	          line-height: 1.2 !important;
+	        }
+
+	        .fsmobile-report-remark-block textarea {
+	          display: block !important;
+	          width: 100% !important;
+	          min-height: 88px !important;
+	          resize: none !important;
+	          overflow: hidden !important;
+	          line-height: 1.35 !important;
+	          border: 1px solid rgba(255,255,255,.34) !important;
+	          border-radius: 12px !important;
+	          background:
+	            linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.018)),
+	            rgba(255,255,255,.018) !important;
+	          box-shadow: inset 0 1px 0 rgba(255,255,255,.18) !important;
+	          -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+	          backdrop-filter: blur(18px) saturate(1.08) !important;
+	        }
+
+	        .fsmobile-generated-signature-block {
+	          margin-top: 16px !important;
           padding: 14px !important;
           background:
             linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.035) 58%, rgba(235,0,69,.025)),

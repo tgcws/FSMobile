@@ -379,20 +379,16 @@ body.app-starting .brand h1 {
   top: 50%;
   right: env(safe-area-inset-right, 0px);
   transform: translateY(-50%);
+  width: 44px;
   min-height: 44px;
-  padding: 11px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.48);
+  padding: 0;
+  border: 0;
   border-radius: 999px;
-  color: rgba(31, 41, 55, 0.42);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.11)),
-    rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 12px 28px rgba(2, 8, 23, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.46),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.12);
-  -webkit-backdrop-filter: blur(20px) saturate(1.12);
-  backdrop-filter: blur(20px) saturate(1.12);
+  color: rgba(31, 41, 55, 0.58);
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   font-size: 15px;
   font-weight: 900;
   line-height: 1;
@@ -401,6 +397,7 @@ body.app-starting .brand h1 {
     0 -1px 0 rgba(15, 23, 42, 0.18);
   white-space: nowrap;
   mix-blend-mode: multiply;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .menu-options-button:active {
@@ -409,10 +406,11 @@ body.app-starting .brand h1 {
 
 .menu-options-glyph {
   display: block;
-  min-width: 24px;
+  min-width: 44px;
   font-size: 21px;
-  line-height: 1;
+  line-height: 44px;
   letter-spacing: 0.02em;
+  text-align: center;
 }
 
 .menu-options-button[hidden] {
@@ -1360,7 +1358,7 @@ body.app-starting .brand h1 {
   }
 
   .menu-options-button {
-    padding-inline: 14px;
+    padding-inline: 0;
     font-size: 14px;
   }
 
