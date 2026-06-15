@@ -4388,23 +4388,26 @@
             });
           }
 
-          function installRwaChoicePillTapFix() {
-            if (window.FSMOBILE_MODULE_ID !== "pb-rwa") return;
-            window.__fsmobileRwaChoicePillTapFixInstalled = true;
-            Array.from(document.querySelectorAll(".pill-check")).forEach(function(pill) {
-              if (pill.dataset.fsmobileRwaTapFix === "true") return;
-              pill.dataset.fsmobileRwaTapFix = "true";
-              pill.addEventListener("click", function(event) {
-              var input = pill.querySelector("input[type='checkbox']");
-              if (!input || input.disabled) return;
-              event.preventDefault();
-              event.stopImmediatePropagation();
-              input.checked = !input.checked;
-              input.dispatchEvent(new Event("input", { bubbles: true }));
-              input.dispatchEvent(new Event("change", { bubbles: true }));
-              }, true);
-            });
-          }
+	          function installRwaChoicePillTapFix() {
+	            if (window.FSMOBILE_MODULE_ID !== "pb-rwa") return;
+	            window.__fsmobileRwaChoicePillTapFixInstalled = true;
+	            Array.from(document.querySelectorAll(".pill-check")).forEach(function(pill) {
+	              if (pill.dataset.fsmobileRwaTapFix === "true") return;
+	              pill.dataset.fsmobileRwaTapFix = "true";
+	              pill.addEventListener("click", function(event) {
+	                var input = pill.querySelector("input[type='checkbox']");
+	                if (!input || input.disabled) return;
+	                if (event.target === input || (event.target && event.target.closest && event.target.closest("input[type='checkbox']") === input)) {
+	                  return;
+	                }
+	                event.preventDefault();
+	                event.stopImmediatePropagation();
+	                input.checked = !input.checked;
+	                input.dispatchEvent(new Event("input", { bubbles: true }));
+	                input.dispatchEvent(new Event("change", { bubbles: true }));
+	              }, true);
+	            });
+	          }
 
           function safeFsmobileFileSegment(value, fallback) {
             return String(value || fallback || "")
@@ -6596,10 +6599,17 @@
       height: 44px !important;
       padding: 10px 12px !important;
       line-height: 1.25 !important;
-      border-radius: 12px !important;
+      border-radius: 14px !important;
       background-clip: padding-box !important;
       display: block !important;
       align-self: stretch !important;
+    }
+
+    body:not(.generating-pdf).fsmobile-portrait-report input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report select {
+      border-radius: 14px !important;
+      background-clip: padding-box !important;
     }
 
     body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment select {
@@ -6672,12 +6682,68 @@
       margin-top: 10px !important;
     }
 
-    body:not(.generating-pdf).fsmobile-rwa-report .choice-row {
-      margin-bottom: 4px !important;
+	    body:not(.generating-pdf).fsmobile-rwa-report .choice-row {
+	      margin-bottom: 4px !important;
+	    }
+
+	    body:not(.generating-pdf).fsmobile-rwa-report .pill-check {
+	      pointer-events: auto !important;
+	      min-height: 44px !important;
+	      touch-action: manipulation !important;
+	    }
+
+	    body:not(.generating-pdf).fsmobile-rwa-report .pill-check input[type="checkbox"] {
+	      position: relative !important;
+	      z-index: 2 !important;
+	      pointer-events: auto !important;
+	      touch-action: manipulation !important;
+	      cursor: pointer !important;
+	    }
+
+	    body:not(.generating-pdf).fsmobile-rwa-report .yesno {
+	      border-color: rgba(255,255,255,.28) !important;
+	    }
+
+    body:not(.generating-pdf).fsmobile-rwa-report input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-rwa-report textarea,
+    body:not(.generating-pdf).fsmobile-rwa-report select {
+      border-radius: 14px !important;
+      background-clip: padding-box !important;
     }
 
-    body:not(.generating-pdf).fsmobile-rwa-report .yesno {
-      border-color: rgba(255,255,255,.28) !important;
+    body:not(.generating-pdf).fsmobile-portrait-report .field input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .field select,
+    body:not(.generating-pdf).fsmobile-portrait-report .field textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .card input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .card select,
+    body:not(.generating-pdf).fsmobile-portrait-report .card textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .sub-card input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .sub-card select,
+    body:not(.generating-pdf).fsmobile-portrait-report .sub-card textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .dynamic-row input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .dynamic-row select,
+    body:not(.generating-pdf).fsmobile-portrait-report .dynamic-row textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .suela-abstroem-row input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .suela-abstroem-row select,
+    body:not(.generating-pdf).fsmobile-portrait-report .suela-abstroem-row textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .strand-row input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .strand-row select,
+    body:not(.generating-pdf).fsmobile-portrait-report .strand-row textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .cell-row input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .cell-row select,
+    body:not(.generating-pdf).fsmobile-portrait-report .cell-row textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .hydrant-card input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .hydrant-card select,
+    body:not(.generating-pdf).fsmobile-portrait-report .hydrant-card textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .whd-card input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .whd-card select,
+    body:not(.generating-pdf).fsmobile-portrait-report .whd-card textarea,
+    body:not(.generating-pdf).fsmobile-portrait-report .input-unit,
+    body:not(.generating-pdf).fsmobile-portrait-report .input-unit input:not([type="checkbox"]):not([type="radio"]),
+    body:not(.generating-pdf).fsmobile-portrait-report .input-unit select,
+    body:not(.generating-pdf).fsmobile-portrait-report .input-unit textarea {
+      border-radius: 14px !important;
+      background-clip: padding-box !important;
     }
 </style>
     `;
@@ -6688,6 +6754,9 @@
         .replace(/(\blink\.download\s*=\s*)([^;\n]+)(;)/g, "$1(window.FSMOBILE_PDF_FILE_NAME ? window.FSMOBILE_PDF_FILE_NAME($2) : $2)$3")
       : html;
 
+    if (/<\/head>/i.test(patchedHtml)) {
+      return patchedHtml.replace(/<\/head>/i, `${bridge}</head>`);
+    }
     return patchedHtml.replace(/<head([^>]*)>/i, `<head$1>${bridge}`);
   }
 
