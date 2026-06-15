@@ -9,11 +9,11 @@
   <meta name="apple-mobile-web-app-title" content="FSMobile" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
-  <link rel="manifest" href="manifest.webmanifest?v=178" />
+  <link rel="manifest" href="manifest.webmanifest?v=182" />
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=178" />
+  <link rel="stylesheet" href="styles.css?v=182" />
   <title>FSMobile</title>
   <script>
     (function () {
@@ -23,6 +23,14 @@
           message.indexOf("Failed to execute 'observe' on 'MutationObserver'") !== -1 &&
           message.indexOf("parameter 1 is not of type 'Node'") !== -1
         );
+      }
+      if (window.MutationObserver && window.MutationObserver.prototype && !window.MutationObserver.prototype.__fsmobileSafeObserve) {
+        var nativeObserve = window.MutationObserver.prototype.observe;
+        Object.defineProperty(window.MutationObserver.prototype, "__fsmobileSafeObserve", { value: true });
+        window.MutationObserver.prototype.observe = function (target, options) {
+          if (!target || typeof target.nodeType !== "number") return undefined;
+          return nativeObserve.call(this, target, options);
+        };
       }
       var previousOnError = window.onerror;
       window.onerror = function (message, source, lineno, colno, error) {
@@ -117,7 +125,7 @@
     </section>
   </div>
 
-  <script src="modules.js?v=178"></script>
-  <script src="app.js?v=178"></script>
+  <script src="modules.js?v=179"></script>
+  <script src="app.js?v=179"></script>
 </body>
 </html>

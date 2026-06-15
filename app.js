@@ -3546,14 +3546,15 @@
 
   function archiveEntryAssignmentKey(storageKey, entry) {
     const fields = archiveEntryFields(entry);
-    const anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
-    const object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]);
-    const date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]);
+    const anlage = normalizeArchiveKeyPart(firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]));
+    const object = normalizeArchiveKeyPart(firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]), { lower: true });
+    const date = normalizeArchiveDate(firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]));
+    if (!anlage || !object || !date) return "";
     return [
       storageKey,
-      normalizeArchiveKeyPart(anlage),
-      normalizeArchiveKeyPart(object, { lower: true }),
-      normalizeArchiveDate(date)
+      anlage,
+      object,
+      date
     ].join("||");
   }
 
@@ -3677,7 +3678,7 @@
       let index = incomingId
         ? merged.findIndex(entry => String(entry && entry.id || "").trim() === incomingId)
         : -1;
-      if (index < 0) {
+      if (index < 0 && incomingAssignment) {
         index = merged.findIndex(entry => archiveEntryAssignmentKey(storageKey, entry) === incomingAssignment);
       }
       if (index < 0) {
@@ -4200,6 +4201,14 @@
         window.FSMOBILE_EMBEDDED_MODULE = true;
         window.FSMOBILE_MODULE_ID = ${JSON.stringify(id)};
         (function(){
+          if (window.MutationObserver && window.MutationObserver.prototype && !window.MutationObserver.prototype.__fsmobileSafeObserve) {
+            var nativeObserve = window.MutationObserver.prototype.observe;
+            Object.defineProperty(window.MutationObserver.prototype, "__fsmobileSafeObserve", { value: true });
+            window.MutationObserver.prototype.observe = function(target, options) {
+              if (!target || typeof target.nodeType !== "number") return undefined;
+              return nativeObserve.call(this, target, options);
+            };
+          }
           if (navigator.serviceWorker) {
             try {
               navigator.serviceWorker.register = function(){ return Promise.resolve({ scope: location.href, update: function(){ return Promise.resolve(); } }); };
@@ -5484,14 +5493,15 @@
 
             function archiveEntryIdentity(storageKey, entry) {
               var fields = archiveFields(entry);
-              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
-              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]);
-              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]);
+              var anlage = normalizeArchiveKeyPart(firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]));
+              var object = normalizeArchiveKeyPart(firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]), { lower: true });
+              var date = normalizeArchiveDate(firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]));
+              if (!anlage || !object || !date) return "";
               return [
                 storageKey,
-                normalizeArchiveKeyPart(anlage),
-                normalizeArchiveKeyPart(object, { lower: true }),
-                normalizeArchiveDate(date)
+                anlage,
+                object,
+                date
               ].join("||");
             }
 
@@ -5500,21 +5510,206 @@
               for (var index = 0; index < collectors.length; index += 1) {
                 var fn = window[collectors[index]];
                 if (typeof fn !== "function") continue;
-                try { return fn(); } catch (error) {}
+                try { return normalizeCurrentArchiveReport(fn()); } catch (error) {}
               }
-              return { fields: {
-                anlage: firstArchiveDomValue(["anlageInput", "anlagenNrInput", "anlagenNummerInput", "anlageNrInput"]),
-                object: firstArchiveDomValue(["objectInput", "objektInput"]),
-                date: firstArchiveDomValue(["dateInput", "datumInput"])
-              }};
+              return normalizeCurrentArchiveReport({});
             }
 
-            function firstArchiveDomValue(ids) {
+            function normalizeCurrentArchiveReport(report) {
+              if (!report || typeof report !== "object" || Array.isArray(report)) report = {};
+              if (!report.fields || typeof report.fields !== "object" || Array.isArray(report.fields)) report.fields = {};
+              var fields = report.fields;
+              var domFields = currentArchiveDomFields();
+              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]) || domFields.anlage;
+              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]) || domFields.object;
+              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]) || domFields.date;
+              if (anlage) {
+                fields.anlage = String(anlage).trim();
+                if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
+              }
+              if (object) {
+                fields.object = String(object).trim();
+                if (!fields.objekt) fields.objekt = fields.object;
+              }
+              if (date) {
+                fields.date = normalizeArchiveDate(date);
+                if (!fields.datum) fields.datum = fields.date;
+              }
+              return report;
+            }
+
+            function currentArchiveDomFields() {
+              return {
+                anlage: firstArchiveDomValue(
+                  ["anlageInput", "anlagenNrInput", "anlagenNummerInput", "anlageNrInput", "anlagennrInput"],
+                  ["[name='anlage']", "[name='anlagenNr']", "[name='anlagenNummer']", "[name='anlageNr']", "[name='anlagen_nr']", "[data-field='anlage']", "[data-field='anlagenNr']", "[data-field='anlagenNummer']", "[data-field='anlageNr']", "[data-field='anlagen_nr']", "[aria-label='Anlagen Nr.']", "[aria-label='Anlagen Nr']", "[placeholder*='Anlagen']"],
+                  [["anlagen", "nr"], ["anlage", "nr"]]
+                ),
+                object: firstArchiveDomValue(
+                  ["objectInput", "objektInput"],
+                  ["[name='object']", "[name='objekt']", "[data-field='object']", "[data-field='objekt']", "[aria-label='Objekt']", "[placeholder*='Objekt']"],
+                  [["objekt"], ["object"]]
+                ),
+                date: firstArchiveDomValue(
+                  ["dateInput", "datumInput"],
+                  ["[name='date']", "[name='datum']", "[data-field='date']", "[data-field='datum']", "[aria-label='Datum']", "input[type='date']"],
+                  [["datum"], ["date"]]
+                )
+              };
+            }
+
+            function firstArchiveDomValue(ids, selectors, labelGroups) {
+              return archiveDomFieldValue(firstArchiveDomField(ids, selectors, labelGroups));
+            }
+
+            function firstArchiveDomField(ids, selectors, labelGroups) {
               for (var index = 0; index < ids.length; index += 1) {
                 var field = document.getElementById(ids[index]);
-                if (field && "value" in field && String(field.value || "").trim()) return field.value;
+                if (field && "value" in field) return field;
+              }
+              selectors = selectors || [];
+              for (var selectorIndex = 0; selectorIndex < selectors.length; selectorIndex += 1) {
+                var found = null;
+                try { found = document.querySelector(selectors[selectorIndex]); } catch (error) {}
+                if (found && "value" in found) return found;
+              }
+              return firstArchiveLabeledDomField(labelGroups || []);
+            }
+
+            function archiveDomFieldValue(field) {
+              if (!field || !("value" in field)) return "";
+              return String(field.value || "").trim();
+            }
+
+            function firstArchiveLabeledDomValue(labelGroups) {
+              return archiveDomFieldValue(firstArchiveLabeledDomField(labelGroups));
+            }
+
+            function firstArchiveLabeledDomField(labelGroups) {
+              if (!labelGroups.length) return "";
+              var labels = document.querySelectorAll("label");
+              for (var index = 0; index < labels.length; index += 1) {
+                var label = labels[index];
+                var text = normalizeArchiveKeyPart(label.textContent, { lower: true });
+                var matches = labelGroups.some(function(group) {
+                  return group.every(function(needle) { return text.indexOf(needle) >= 0; });
+                });
+                if (!matches) continue;
+                var host = label.closest("label, .field, .field-group, .form-field, .control, .input-group, .info-field, td");
+                var field = host ? host.querySelector("input, select, textarea") : null;
+                if (field && "value" in field) return field;
               }
               return "";
+            }
+
+            function setArchiveFieldValue(field, value) {
+              if (!field || !("value" in field)) return false;
+              field.value = value == null ? "" : String(value);
+              try { field.dispatchEvent(new Event("input", { bubbles: true })); } catch (error) {}
+              try { field.dispatchEvent(new Event("change", { bubbles: true })); } catch (error) {}
+              if (field.tagName === "TEXTAREA") {
+                field.style.height = "auto";
+                field.style.height = Math.max(field.scrollHeight, 44) + "px";
+              }
+              return true;
+            }
+
+            function setFirstArchiveDomValue(ids, selectors, labelGroups, value) {
+              return setArchiveFieldValue(firstArchiveDomField(ids, selectors, labelGroups), value);
+            }
+
+            function archiveReportFieldBundle(report) {
+              var normalized = report && typeof report === "object" ? report : {};
+              return normalized.fields && typeof normalized.fields === "object" ? normalized.fields : normalized;
+            }
+
+            function archiveHasAnyKey(source, keys) {
+              if (!source || typeof source !== "object") return false;
+              var wanted = keys.map(function(key) { return String(key).toLowerCase(); });
+              return Object.keys(source).some(function(key) {
+                return wanted.indexOf(String(key).toLowerCase()) >= 0;
+              });
+            }
+
+            function latestArchiveEntryForOpen(storageKey, entry) {
+              if (!storageKey || !entry) return entry;
+              var entries = readArchiveEntriesForKey(storageKey);
+              if (entry.id) {
+                var byId = entries.find(function(item) { return item && item.id === entry.id; });
+                if (byId) return byId;
+              }
+              var wanted = archiveEntryIdentity(storageKey, entry);
+              if (!wanted) return entry;
+              return entries.find(function(item) {
+                return archiveEntryIdentity(storageKey, item) === wanted;
+              }) || entry;
+            }
+
+            function archiveReportMatchesDom(report) {
+              var fields = archiveReportFieldBundle(report);
+              var expectedAnlage = normalizeArchiveKeyPart(firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]));
+              var expectedObject = normalizeArchiveKeyPart(firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]), { lower: true });
+              var expectedDate = normalizeArchiveDate(firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]));
+              var domFields = currentArchiveDomFields();
+              var actualAnlage = normalizeArchiveKeyPart(domFields.anlage);
+              var actualObject = normalizeArchiveKeyPart(domFields.object, { lower: true });
+              var actualDate = normalizeArchiveDate(domFields.date);
+              if (expectedAnlage && expectedAnlage !== actualAnlage) return false;
+              if (expectedObject && expectedObject !== actualObject) return false;
+              if (expectedDate && expectedDate !== actualDate) return false;
+              return true;
+            }
+
+            function applyArchiveReportDomFallback(report) {
+              var fields = archiveReportFieldBundle(report);
+              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]);
+              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]);
+              var technician = firstArchiveValue(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"]);
+              var hasReportRemark = archiveHasAnyKey(fields, ["berichtBemerkung", "reportRemark", "reportBemerkung"]) || archiveHasAnyKey(report, ["berichtBemerkung", "reportRemark", "reportBemerkung"]);
+              var reportRemark = firstArchiveValue(fields, ["berichtBemerkung", "reportRemark", "reportBemerkung"]);
+              if (!reportRemark && report && typeof report === "object") reportRemark = firstArchiveValue(report, ["berichtBemerkung", "reportRemark", "reportBemerkung"]);
+
+              if (archiveHasAnyKey(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])) {
+                setFirstArchiveDomValue(
+                  ["anlageInput", "anlagenNrInput", "anlagenNummerInput", "anlageNrInput", "anlagennrInput"],
+                  ["[name='anlage']", "[name='anlagenNr']", "[name='anlagenNummer']", "[name='anlageNr']", "[name='anlagen_nr']", "[data-field='anlage']", "[data-field='anlagenNr']", "[data-field='anlagenNummer']", "[data-field='anlageNr']", "[data-field='anlagen_nr']", "[aria-label='Anlagen Nr.']", "[aria-label='Anlagen Nr']"],
+                  [["anlagen", "nr"], ["anlage", "nr"]],
+                  anlage
+                );
+              }
+              if (archiveHasAnyKey(fields, ["object", "objekt", "objectInput", "objektInput"])) {
+                setFirstArchiveDomValue(
+                  ["objectInput", "objektInput"],
+                  ["[name='object']", "[name='objekt']", "[data-field='object']", "[data-field='objekt']", "[aria-label='Objekt']"],
+                  [["objekt"], ["object"]],
+                  object
+                );
+              }
+              if (archiveHasAnyKey(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])) {
+                setFirstArchiveDomValue(
+                  ["prueferInput", "technikerInput", "nameInput", "technicianInput"],
+                  ["[name='pruefer']", "[name='techniker']", "[name='name']", "[name='technician']", "[data-field='pruefer']", "[data-field='techniker']", "[data-field='name']", "[aria-label='Techniker']", "[aria-label='Prüfer']"],
+                  [["techniker"], ["prüfer"], ["pruefer"]],
+                  technician
+                );
+              }
+              if (archiveHasAnyKey(fields, ["date", "datum", "dateInput", "datumInput"])) {
+                setFirstArchiveDomValue(
+                  ["dateInput", "datumInput"],
+                  ["[name='date']", "[name='datum']", "[data-field='date']", "[data-field='datum']", "[aria-label='Datum']", "input[type='date']"],
+                  [["datum"], ["date"]],
+                  date
+                );
+              }
+              if (hasReportRemark) {
+                setFirstArchiveDomValue(
+                  ["fsmobileReportBemerkung", "berichtBemerkungInput", "reportRemarkInput"],
+                  ["[name='berichtBemerkung']", "[name='reportRemark']", "[data-field='berichtBemerkung']", "[data-field='reportRemark']"],
+                  [["bemerkung"]],
+                  reportRemark
+                );
+              }
             }
 
             function archiveTimestamp(entry, fallbackIndex) {
@@ -5533,6 +5728,7 @@
               var groups = {};
               entries.forEach(function(entry, index) {
                 var key = archiveEntryIdentity(storageKey, entry);
+                if (!key) key = "__incomplete__||" + (entry && entry.id ? entry.id : index);
                 if (!groups[key]) groups[key] = [];
                 groups[key].push({ entry: entry, index: index });
               });
@@ -5687,8 +5883,9 @@
 
             function applyArchiveEntryReport(entry, storageKey) {
               if (!entry || !entry.report) return;
+              entry = latestArchiveEntryForOpen(storageKey, entry);
               var applied = false;
-              ["applyData", "applyReportData", "restoreReportData"].some(function(name) {
+              ["applyReport", "applyData", "applyReportData", "restoreReportData", "applyStoragePayload"].some(function(name) {
                 var fn = window[name];
                 if (typeof fn !== "function") return false;
                 try {
@@ -5697,6 +5894,7 @@
                 } catch (error) {}
                 return applied;
               });
+              if (!applied || !archiveReportMatchesDom(entry.report)) applyArchiveReportDomFallback(entry.report);
               if (entry.id) writeCurrentArchiveIdForKey(storageKey, entry.id);
               persistCurrentDraftBeforeArchive();
               var overlay = document.getElementById("archiveOverlay");
@@ -5749,7 +5947,7 @@
                 var openButton = document.createElement("button");
                 openButton.type = "button";
                 openButton.textContent = "Öffnen";
-                openButton.addEventListener("click", function() { applyArchiveEntryReport(entry, storageKey); });
+                openButton.addEventListener("click", function() { applyArchiveEntryReport(latestArchiveEntryForOpen(storageKey, entry), storageKey); });
                 var deleteButton = document.createElement("button");
                 deleteButton.type = "button";
                 deleteButton.className = "danger";
@@ -5776,9 +5974,9 @@
               var report = currentArchiveReport();
               var entries = readArchiveEntriesForKey(storageKey);
               var identity = archiveEntryIdentity(storageKey, { report: report });
-              var existingIndex = entries.findIndex(function(entry) {
+              var existingIndex = identity ? entries.findIndex(function(entry) {
                 return archiveEntryIdentity(storageKey, entry) === identity;
-              });
+              }) : -1;
               var now = new Date().toISOString();
               var wasUpdate = existingIndex >= 0;
               var previous = wasUpdate ? entries[existingIndex] : null;
@@ -5801,7 +5999,7 @@
                 try { window.renderArchiveList(); } catch (error) {}
               }
               refreshArchiveListDisplay(storageKey);
-              setUnifiedActionStatus(wasUpdate ? "Vorhandener Archiv-Eintrag aktualisiert." : "Bericht im Archiv gespeichert.");
+              setUnifiedActionStatus(wasUpdate ? "Vorhandener Archiv-Eintrag aktualisiert." : (identity ? "Bericht im Archiv gespeichert." : "Bericht im Archiv gespeichert. Zuordnungsdaten unvollständig."));
               return true;
             }
 
@@ -5841,6 +6039,7 @@
               var match = null;
               archiveStorageKeys({ currentOnly: true }).some(function(storageKey) {
                 var wanted = archiveEntryIdentity(storageKey, { report: report });
+                if (!wanted) return false;
                 var raw = null;
                 try { raw = localStorage.getItem(storageKey); } catch (error) { return false; }
                 if (!raw) return false;
