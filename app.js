@@ -6789,7 +6789,7 @@
 	          margin: 0 0 10px !important;
 	          color: #1c1c1e !important;
 	          font-size: 18px !important;
-	          font-weight: 800 !important;
+		          font-weight: 400 !important;
 	          line-height: 1.2 !important;
 	        }
 
