@@ -3640,10 +3640,6 @@
     const archives = collectArchiveBackupData();
     const archiveKeys = Object.keys(archives);
     const entryCount = archiveKeys.reduce((sum, key) => sum + archives[key].length, 0);
-    if (!entryCount) {
-      setOptionsStatus("Keine Archivdaten gefunden.");
-      return;
-    }
     const payload = {
       format: "FSMobileArchiveBackup",
       formatVersion: 1,
@@ -3657,7 +3653,11 @@
       archives
     };
     downloadJsonFile(`FSMobile_Archiv_Backup_${todayIso()}.json`, payload);
-    setOptionsStatus(`Export erfolgreich. ${entryCount} Archiv-Einträge exportiert.`);
+    if (entryCount) {
+      setOptionsStatus(`Export erfolgreich. ${entryCount} Archiv-Einträge exportiert.`);
+    } else {
+      setOptionsStatus("Export erfolgreich. Keine Archivdaten vorhanden.");
+    }
   }
 
   function validateArchiveBackup(payload) {

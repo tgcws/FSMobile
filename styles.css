@@ -10,6 +10,7 @@
   --ios-indigo: #5856d6;
   --ios-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --menu-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --menu-collapse-ease: cubic-bezier(0.32, 0, 0.2, 1);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -285,7 +286,7 @@ body.app-starting .brand h1 {
 }
 
 body.app-starting .brand h1 {
-  animation: fsmobileTitleIntro 1800ms cubic-bezier(0.18, 1, 0.28, 1) both;
+  animation: fsmobileTitleIntro 2400ms cubic-bezier(0.18, 1, 0.24, 1) both;
 }
 
 @keyframes fsmobileTitleIntro {
@@ -295,11 +296,11 @@ body.app-starting .brand h1 {
     filter: blur(3px) saturate(0.96);
   }
 
-  38% {
-    opacity: 0.58;
+  34% {
+    opacity: 0.52;
   }
 
-  68% {
+  72% {
     opacity: 0.94;
   }
 
@@ -423,10 +424,19 @@ body.app-starting .brand h1 {
   display: grid;
   align-content: start;
   gap: 42px;
+  background: transparent;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
   animation: menuEnter 0.72s var(--menu-ease) both;
+}
+
+.menu-view::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .menu-view,
@@ -546,7 +556,10 @@ body.app-starting .brand h1 {
   color: #fff;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, transparent 34%), var(--section-accent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 8px 16px rgba(var(--section-accent-rgb), 0.2);
-  transition: transform 0.44s var(--menu-ease), box-shadow 0.44s var(--menu-ease);
+  transition:
+    transform 0.76s var(--menu-collapse-ease),
+    box-shadow 0.5s var(--menu-ease);
+  will-change: transform;
 }
 
 .menu-section-icon::before {
@@ -569,8 +582,9 @@ body.app-starting .brand h1 {
   opacity: 1;
   transform-origin: top;
   transition:
-    grid-template-rows 0.56s var(--menu-ease),
-    opacity 0.42s ease;
+    grid-template-rows 0.86s var(--menu-collapse-ease),
+    opacity 0.54s ease-out;
+  will-change: grid-template-rows, opacity;
 }
 
 .menu-grid-inner {
@@ -580,11 +594,12 @@ body.app-starting .brand h1 {
   gap: 14px;
   visibility: visible;
   opacity: 1;
-  transform: translateY(0);
+  transform: translate3d(0, 0, 0);
   transition:
-    opacity 0.42s ease,
-    transform 0.56s var(--menu-ease),
+    opacity 0.56s ease-out 0.08s,
+    transform 0.86s var(--menu-collapse-ease),
     visibility 0s linear 0s;
+  will-change: opacity, transform;
 }
 
 .menu-section.is-collapsed .menu-grid {
@@ -596,11 +611,11 @@ body.app-starting .brand h1 {
 .menu-section.is-collapsed .menu-grid-inner {
   visibility: hidden;
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translate3d(0, -10px, 0);
   transition:
-    opacity 0.34s ease,
-    transform 0.48s var(--menu-ease),
-    visibility 0s linear 0.48s;
+    opacity 0.32s ease-in,
+    transform 0.72s var(--menu-collapse-ease),
+    visibility 0s linear 0.82s;
 }
 
 .module-card {
