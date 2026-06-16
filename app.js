@@ -55,7 +55,8 @@
         "maengelliste-bilddoku",
         "aufmass-akku",
         "aufmass-einsteckschloss",
-        "aufmass-tueren"
+        "aufmass-tueren",
+        "aufmass-brandabschottungen"
       ]
     },
     {
@@ -122,6 +123,7 @@
   ];
 
   const CARD_TITLES = {
+    "aufmass-brandabschottungen": "Brandabschottungen",
     "pb-feuerloescher": "Feuerlöscher",
     "pb-brandschutztueren": "Brandschutztüren",
     "pb-rwa": "RWA-Anlagen",
@@ -655,6 +657,621 @@
       ${infoSections}
     </div>
   </main>
+</body>
+</html>`;
+  }
+
+  registry["aufmass-brandabschottungen"] = registry["aufmass-brandabschottungen"] || {
+    title: "Aufmaß Brandabschottungen",
+    group: "Aufmaß",
+    description: "Brandabschottungen mit Bild, Standort, Art, Maßen und Wandbeschaffenheit erfassen.",
+    html: fireStoppingMeasurementHtml()
+  };
+
+  function fireStoppingMeasurementHtml() {
+    return `<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Aufmaß Brandabschottungen</title>
+  <meta name="theme-color" content="#ff9500" />
+  <meta name="application-name" content="Aufmaß Brandabschottungen" />
+  <script defer src="vendor/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --primary:#007aff; --accent:#ff9500; --success:#34c759; --danger:#ff3b30; --neutral:#8e8e93;
+      --text:#1c1c1e; --muted:#6e6e73; --line:rgba(60,60,67,.14); --field:rgba(255,255,255,.055);
+      --radius-lg:22px; --radius-md:14px; --radius-sm:10px; --shadow:0 12px 34px rgba(0,0,0,.08);
+      --ios-ease:cubic-bezier(.2,.8,.2,1);
+    }
+    *{box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%;background:transparent}
+    body{margin:0;min-height:100vh;background:transparent;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Arial,sans-serif}
+    .container{width:min(100%,1280px);margin:0 auto;padding:18px}
+    .title-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding:4px 2px}
+    h1{margin:0;text-align:left;font-size:34px;line-height:1.08;font-weight:800;letter-spacing:0}
+    h2{margin:0 0 12px;font-size:19px;line-height:1.15;font-weight:800;letter-spacing:0}
+    .section,.table-shell,.title-actions,.button-area{background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.1) 52%,rgba(255,255,255,.04)),rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.46);border-radius:var(--radius-lg);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.32);-webkit-backdrop-filter:blur(18px) saturate(1.08);backdrop-filter:blur(18px) saturate(1.08)}
+    .section{margin-bottom:14px;padding:14px}
+    .header-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .field-group{display:flex;min-width:0;flex-direction:column;gap:5px}
+    label{padding-left:2px;color:var(--muted);font-size:12px;line-height:1.15;font-weight:700;letter-spacing:0}
+    input,select,textarea,button{font:inherit}
+    input:not([type="file"]),select,textarea{width:100%;min-height:38px;padding:8px 11px;border:1px solid rgba(255,255,255,.34);border-radius:var(--radius-sm);color:var(--text);background:var(--field);font-size:14px;line-height:1.2;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+    .table-shell select,.table-shell input[type="number"]{min-height:44px}
+    textarea{display:block;min-height:44px;resize:none;overflow:hidden;line-height:1.35}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(0,122,255,.45);box-shadow:0 0 0 4px rgba(0,122,255,.12)}
+    .title-actions,.button-area{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;padding:12px}
+    .button-area{justify-content:flex-start;margin-top:14px}
+    button{min-height:46px;padding:12px 18px;border:0;border-radius:999px;cursor:pointer;color:#fff;background:linear-gradient(180deg,#1688ff 0%,var(--primary) 100%);font-size:15px;font-weight:700;letter-spacing:0;box-shadow:0 10px 20px rgba(0,122,255,.24),inset 0 1px 0 rgba(255,255,255,.32);transition:transform .18s var(--ios-ease),box-shadow .18s var(--ios-ease),filter .18s var(--ios-ease);-webkit-tap-highlight-color:transparent}
+    button:hover{filter:brightness(1.02)}
+    button:active{transform:scale(.975)}
+    button:disabled{opacity:.55;cursor:default;transform:none}
+    .archive-save{background:linear-gradient(180deg,#ffad33 0%,var(--accent) 100%);box-shadow:0 10px 20px rgba(255,149,0,.24),inset 0 1px 0 rgba(255,255,255,.32)}
+    .archive-open,.pdf-btn{background:linear-gradient(180deg,#1688ff 0%,var(--primary) 100%)}
+    .clear-btn,.secondary{background:linear-gradient(180deg,#a6a6ad 0%,var(--neutral) 100%);box-shadow:0 10px 20px rgba(142,142,147,.22),inset 0 1px 0 rgba(255,255,255,.28)}
+    .success{background:linear-gradient(180deg,#40d96a 0%,var(--success) 100%);box-shadow:0 10px 20px rgba(52,199,89,.22),inset 0 1px 0 rgba(255,255,255,.28)}
+    .danger{background:linear-gradient(180deg,#ff453a 0%,var(--danger) 100%);box-shadow:0 10px 20px rgba(255,59,48,.22),inset 0 1px 0 rgba(255,255,255,.28)}
+    .table-shell{overflow-x:auto;overflow-y:hidden}
+    table{width:100%;min-width:1110px;border-collapse:separate;border-spacing:0;table-layout:fixed}
+    th,td{padding:10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);vertical-align:top;background:rgba(255,255,255,.045);overflow-wrap:anywhere;word-break:break-word}
+    th:last-child,td:last-child{border-right:0} tbody tr:last-child td{border-bottom:0}
+    th{position:sticky;top:0;z-index:1;background:linear-gradient(180deg,#ffad33 0%,var(--accent) 100%);color:#fff;text-align:left;font-size:12px;line-height:1.15;font-weight:800}
+    td{font-size:14px}
+    .pos-field{display:flex;align-items:center;justify-content:center;min-height:38px;border-radius:var(--radius-sm);background:rgba(255,255,255,.05);font-weight:800}
+    .image-control{display:flex;flex-direction:column;gap:8px}
+    .image-actions{display:flex;flex-wrap:wrap;gap:6px}
+    .image-button,.image-clear{min-width:86px;min-height:34px;padding:8px 10px;font-size:12px;box-shadow:none}
+    .image-button{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#fff;cursor:pointer}
+    .image-input{display:none}
+    .image-box{display:flex;align-items:center;justify-content:center;width:100%;height:92px;border:1px dashed rgba(255,255,255,.48);border-radius:var(--radius-sm);background:rgba(255,255,255,.04);overflow:hidden;color:var(--muted);font-size:12px;font-weight:700;text-align:center}
+    .image-box img{display:block;width:100%;height:100%;object-fit:contain}
+    #duplicateRowButton{background:linear-gradient(180deg,#6b69ee 0%,#5856d6 100%);box-shadow:0 10px 20px rgba(88,86,214,.22),inset 0 1px 0 rgba(255,255,255,.28)}
+    .row-actions{display:flex;flex-direction:column;align-items:center;gap:6px}
+    .row-actions button{min-width:44px;width:44px;min-height:44px;padding:0;font-size:20px}
+    .status{min-height:18px;margin:10px 2px 0;color:var(--muted);font-size:13px;font-weight:700;line-height:1.3}
+    .archive-overlay[hidden]{display:none}
+    .archive-overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(28,28,30,.34);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+    .archive-dialog{width:min(100%,760px);max-height:min(680px,92vh);display:flex;flex-direction:column;overflow:hidden;background:rgba(245,247,251,.94);border:1px solid rgba(255,255,255,.52);border-radius:var(--radius-lg);box-shadow:0 18px 50px rgba(0,0,0,.18)}
+    .archive-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+    .archive-header h2{margin:0;font-size:22px}.archive-close-btn{min-width:46px;padding:8px 14px}
+    .archive-list{display:flex;flex-direction:column;gap:8px;padding:12px;overflow:auto}
+    .archive-empty{margin:0;padding:24px 12px;color:var(--muted);text-align:center;font-weight:700}
+    .archive-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:12px;background:#f7f7fb;border:1px solid var(--line);border-radius:var(--radius-md)}
+    .archive-title{min-width:0;font-weight:800;line-height:1.25;overflow-wrap:anywhere}.archive-meta{margin-top:3px;color:var(--muted);font-size:12px;font-weight:700;line-height:1.25}
+    .archive-item button{min-height:38px;padding:8px 13px;font-size:13px;box-shadow:none}
+    body.generating-pdf .title-actions,body.generating-pdf .button-area,body.generating-pdf .status{display:none!important}
+    @media(max-width:900px){.container{padding:12px}.title-bar{align-items:stretch;flex-direction:column}.title-actions,.title-actions button,.button-area button{width:100%}.header-grid{grid-template-columns:1fr}.archive-item{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="container" id="reportRoot">
+    <div class="title-bar">
+      <h1>Aufmaß Brandabschottungen</h1>
+      <div class="title-actions" aria-label="Archivaktionen">
+        <button type="button" class="archive-save" id="archiveSaveBtn">Im Archiv speichern</button>
+        <button type="button" class="archive-open" id="archiveBtn">Archiv</button>
+        <button type="button" class="clear-btn secondary" id="clearButton">Leeren</button>
+        <button type="button" class="pdf-btn" id="pdfButton">PDF</button>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="header-grid">
+        <div class="field-group"><label for="objektInput">Objekt</label><input id="objektInput" name="objekt" type="text" autocomplete="off" /></div>
+        <div class="field-group"><label for="nameInput">Name</label><input id="nameInput" name="name" type="text" autocomplete="off" /></div>
+        <div class="field-group"><label for="dateInput">Datum</label><input id="dateInput" name="datum" type="date" /></div>
+      </div>
+    </section>
+
+    <div class="table-shell">
+      <table aria-label="Aufmaß Brandabschottungen">
+        <colgroup>
+          <col style="width:48px" />
+          <col style="width:132px" />
+          <col style="width:205px" />
+          <col style="width:165px" />
+          <col style="width:90px" />
+          <col style="width:90px" />
+          <col style="width:85px" />
+          <col style="width:235px" />
+          <col style="width:64px" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Pos.</th>
+            <th>Bild</th>
+            <th>Standort</th>
+            <th>Art</th>
+            <th>Breite in mm</th>
+            <th>Länge in mm</th>
+            <th>Ø in mm</th>
+            <th>Wandstärke und Beschaffenheit</th>
+            <th aria-label="Zeilenaktionen"></th>
+          </tr>
+        </thead>
+        <tbody id="rowsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="button-area">
+      <button type="button" class="success" id="addRowButton">Neue Zeile</button>
+      <button type="button" id="duplicateRowButton">Duplizieren</button>
+      <button type="button" class="danger" id="removeRowButton">Letzte Zeile löschen</button>
+    </div>
+    <p class="status" id="archiveStatus" role="status" aria-live="polite"></p>
+  </div>
+
+  <div class="archive-overlay" id="archiveOverlay" hidden>
+    <div class="archive-dialog" role="dialog" aria-modal="true" aria-labelledby="archiveTitle">
+      <div class="archive-header">
+        <h2 id="archiveTitle">Archiv</h2>
+        <button type="button" class="archive-close-btn secondary" id="archiveCloseBtn">Schließen</button>
+      </div>
+      <div class="archive-list" id="archiveList"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "fsmobile-aufmass-brandabschottungen-form-v1";
+    const ARCHIVE_STORAGE_KEY = "fsmobile-aufmass-brandabschottungen-archive-v1";
+    const CURRENT_ARCHIVE_ID_KEY = "fsmobile-aufmass-brandabschottungen-archive-current-v1";
+    const ART_OPTIONS = ["Multischott","Kabel-Leichtbauschott","Kabelmörtelschott","MLAR-Schott","Vorschott","Schaumschott","Mörtel-Rohrschott","Einzelkabelschott","Manschette"];
+    let rows = [];
+    let saveTimer = 0;
+    let statusTimer = 0;
+    let restoring = false;
+
+    function createRow(data) {
+      return Object.assign({ id: "row-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8), image: "", standort: "", art: "", breite: "", laenge: "", durchschnitt: "", wand: "" }, data || {});
+    }
+    function escapeHtml(value) {
+      return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function optionHtml(value, selected) {
+      return '<option value="' + escapeHtml(value) + '"' + (value === selected ? " selected" : "") + ">" + escapeHtml(value) + "</option>";
+    }
+    function autoResize(textarea) {
+      if (!textarea) return;
+      textarea.style.height = "auto";
+      textarea.style.height = Math.max(textarea.scrollHeight, 44) + "px";
+    }
+    function renderRows() {
+      const body = document.getElementById("rowsBody");
+      body.innerHTML = rows.map(function(row, index) {
+        const image = row.image ? '<img src="' + escapeHtml(row.image) + '" alt="Bild Position ' + (index + 1) + '">' : "Kein Bild";
+        return '<tr data-row-id="' + escapeHtml(row.id) + '">' +
+          '<td><div class="pos-field">' + (index + 1) + '</div></td>' +
+          '<td><div class="image-control"><div class="image-box">' + image + '</div><div class="image-actions"><label class="image-button success" for="image-' + escapeHtml(row.id) + '">Auswählen</label><button type="button" class="image-clear secondary" data-action="clear-image" data-row-id="' + escapeHtml(row.id) + '">Entfernen</button></div><input class="image-input" id="image-' + escapeHtml(row.id) + '" type="file" accept="image/*" data-action="image" data-row-id="' + escapeHtml(row.id) + '"></div></td>' +
+          '<td><textarea data-field="standort" data-row-id="' + escapeHtml(row.id) + '" aria-label="Standort">' + escapeHtml(row.standort) + '</textarea></td>' +
+          '<td><select data-field="art" data-row-id="' + escapeHtml(row.id) + '" aria-label="Art"><option value="">Bitte auswählen</option>' + ART_OPTIONS.map(function(option) { return optionHtml(option, row.art); }).join("") + '</select></td>' +
+          '<td><input data-field="breite" data-row-id="' + escapeHtml(row.id) + '" type="number" inputmode="numeric" min="0" step="1" value="' + escapeHtml(row.breite) + '" aria-label="Breite in mm"></td>' +
+          '<td><input data-field="laenge" data-row-id="' + escapeHtml(row.id) + '" type="number" inputmode="numeric" min="0" step="1" value="' + escapeHtml(row.laenge) + '" aria-label="Länge in mm"></td>' +
+          '<td><input data-field="durchschnitt" data-row-id="' + escapeHtml(row.id) + '" type="number" inputmode="numeric" min="0" step="1" value="' + escapeHtml(row.durchschnitt) + '" aria-label="Durchschnitt in mm"></td>' +
+          '<td><textarea data-field="wand" data-row-id="' + escapeHtml(row.id) + '" aria-label="Wandstärke und Beschaffenheit">' + escapeHtml(row.wand) + '</textarea></td>' +
+          '<td><div class="row-actions"><button type="button" class="success" data-action="insert" data-row-id="' + escapeHtml(row.id) + '" aria-label="Zeile darunter hinzufügen">+</button><button type="button" class="danger" data-action="remove" data-row-id="' + escapeHtml(row.id) + '" aria-label="Diese Zeile entfernen">-</button></div></td>' +
+        '</tr>';
+      }).join("");
+      document.querySelectorAll("textarea").forEach(autoResize);
+    }
+    function findRow(id) {
+      return rows.find(function(row) { return row.id === id; });
+    }
+    function readHeaderFields() {
+      return {
+        objekt: document.getElementById("objektInput").value || "",
+        name: document.getElementById("nameInput").value || "",
+        datum: document.getElementById("dateInput").value || ""
+      };
+    }
+    function applyHeaderFields(fields) {
+      fields = fields || {};
+      document.getElementById("objektInput").value = fields.objekt || "";
+      document.getElementById("nameInput").value = fields.name || "";
+      document.getElementById("dateInput").value = fields.datum || "";
+    }
+    function collectData() {
+      return { fields: readHeaderFields(), rows: rows.map(function(row) { return Object.assign({}, row); }), savedAt: new Date().toISOString() };
+    }
+    window.collectData = collectData;
+    function applyData(data) {
+      restoring = true;
+      applyHeaderFields(data && data.fields);
+      rows = Array.isArray(data && data.rows) && data.rows.length ? data.rows.map(createRow) : [createRow()];
+      renderRows();
+      restoring = false;
+    }
+    window.applyData = applyData;
+    function saveToStorageNow() {
+      if (restoring) return;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collectData())); } catch (error) { console.warn("Aufmaß konnte nicht lokal gespeichert werden:", error); }
+    }
+    function scheduleSave() {
+      if (restoring) return;
+      window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(saveToStorageNow, 160);
+    }
+    function restoreFromStorage() {
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch (error) {}
+      applyData(saved);
+    }
+    function setArchiveStatus(message) {
+      const status = document.getElementById("archiveStatus");
+      if (!status) return;
+      status.textContent = message || "";
+      window.clearTimeout(statusTimer);
+      if (message) statusTimer = window.setTimeout(function() { status.textContent = ""; }, 4000);
+      try { window.parent.postMessage({ type: "fsmobile-action-status", moduleId: window.FSMOBILE_MODULE_ID, message: message || "" }, "*"); } catch (error) {}
+    }
+    window.setArchiveStatus = setArchiveStatus;
+    function readStoredValue(key) { try { return localStorage.getItem(key); } catch (error) { return null; } }
+    function writeStoredValue(key, value) { try { localStorage.setItem(key, value); return true; } catch (error) { return false; } }
+    function removeStoredValue(key) { try { localStorage.removeItem(key); } catch (error) {} }
+    function createArchiveId() { return window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : "archive-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10); }
+    function getCurrentArchiveId() { return readStoredValue(CURRENT_ARCHIVE_ID_KEY); }
+    function setCurrentArchiveId(id) { if (id) writeStoredValue(CURRENT_ARCHIVE_ID_KEY, id); else removeStoredValue(CURRENT_ARCHIVE_ID_KEY); }
+    function loadArchiveEntries() {
+      try { const entries = JSON.parse(readStoredValue(ARCHIVE_STORAGE_KEY) || "[]"); return Array.isArray(entries) ? entries : []; } catch (error) { return []; }
+    }
+    function writeArchiveEntries(entries) { return writeStoredValue(ARCHIVE_STORAGE_KEY, JSON.stringify(entries)); }
+    function formatDisplayDate(value) {
+      if (!value) return "Ohne Datum";
+      const parts = String(value).split("-");
+      return parts.length === 3 ? parts[2] + "." + parts[1] + "." + parts[0] : value;
+    }
+    function archiveTitle(entry) {
+      const data = entry && entry.data ? entry.data : {};
+      const fields = data.fields || {};
+      const object = String(fields.objekt || "").trim() || "Ohne Objekt";
+      const name = String(fields.name || "").trim() || "Ohne Name";
+      const count = Array.isArray(data.rows) ? data.rows.length : 0;
+      return object + " - " + name + " - Brandabschottungen (" + count + ") - " + formatDisplayDate(fields.datum || "");
+    }
+    function saveCurrentReportToArchive() {
+      saveToStorageNow();
+      const now = new Date().toISOString();
+      const currentId = getCurrentArchiveId();
+      const entries = loadArchiveEntries();
+      const existingIndex = currentId ? entries.findIndex(function(entry) { return entry.id === currentId; }) : -1;
+      const entry = { id: existingIndex >= 0 ? entries[existingIndex].id : createArchiveId(), createdAt: existingIndex >= 0 ? entries[existingIndex].createdAt : now, updatedAt: now, data: collectData() };
+      if (existingIndex >= 0) entries[existingIndex] = entry; else entries.push(entry);
+      if (writeArchiveEntries(entries)) {
+        setCurrentArchiveId(entry.id);
+        renderArchiveList();
+        setArchiveStatus(existingIndex >= 0 ? "Archiv-Eintrag wurde aktualisiert." : "Aufmaß wurde im Archiv gespeichert.");
+      } else {
+        setArchiveStatus("Aufmaß konnte nicht im Archiv gespeichert werden.");
+      }
+    }
+    window.saveCurrentReportToArchive = saveCurrentReportToArchive;
+    function openArchiveEntry(id) {
+      const entry = loadArchiveEntries().find(function(item) { return item.id === id; });
+      if (!entry) return;
+      applyData(entry.data);
+      setCurrentArchiveId(entry.id);
+      saveToStorageNow();
+      closeArchive();
+      setArchiveStatus("Aufmaß wurde aus dem Archiv geöffnet.");
+    }
+    function deleteArchiveEntry(id) {
+      const entries = loadArchiveEntries();
+      const entry = entries.find(function(item) { return item.id === id; });
+      if (!entry) return;
+      if (!confirm('Archiv-Eintrag "' + archiveTitle(entry) + '" löschen?')) return;
+      writeArchiveEntries(entries.filter(function(item) { return item.id !== id; }));
+      if (getCurrentArchiveId() === id) setCurrentArchiveId("");
+      renderArchiveList();
+      setArchiveStatus("Archiv-Eintrag wurde gelöscht.");
+    }
+    function renderArchiveList() {
+      const list = document.getElementById("archiveList");
+      const entries = loadArchiveEntries().slice().sort(function(a, b) { return String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")); });
+      list.innerHTML = "";
+      if (!entries.length) {
+        const empty = document.createElement("p");
+        empty.className = "archive-empty";
+        empty.textContent = "Noch keine gespeicherten Aufmaße im Archiv.";
+        list.appendChild(empty);
+        return;
+      }
+      entries.forEach(function(entry) {
+        const item = document.createElement("article");
+        item.className = "archive-item";
+        const text = document.createElement("div");
+        const title = document.createElement("div");
+        const meta = document.createElement("div");
+        title.className = "archive-title";
+        meta.className = "archive-meta";
+        title.textContent = archiveTitle(entry);
+        meta.textContent = "Geändert: " + formatDisplayDate(String(entry.updatedAt || "").slice(0, 10));
+        text.append(title, meta);
+        const openButton = document.createElement("button");
+        openButton.type = "button";
+        openButton.textContent = "Öffnen";
+        openButton.addEventListener("click", function() { openArchiveEntry(entry.id); });
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "danger";
+        deleteButton.textContent = "Löschen";
+        deleteButton.addEventListener("click", function() { deleteArchiveEntry(entry.id); });
+        item.append(text, openButton, deleteButton);
+        list.appendChild(item);
+      });
+    }
+    function openArchive() {
+      renderArchiveList();
+      document.getElementById("archiveOverlay").hidden = false;
+      setArchiveStatus("Archiv wurde geöffnet.");
+    }
+    window.openArchive = openArchive;
+    function closeArchive() { document.getElementById("archiveOverlay").hidden = true; }
+    window.closeArchive = closeArchive;
+    function clearForm() {
+      if (!confirm("Alle Eingaben wirklich löschen?")) return;
+      removeStoredValue(STORAGE_KEY);
+      setCurrentArchiveId("");
+      applyData(null);
+      saveToStorageNow();
+      setArchiveStatus("Aufmaß wurde geleert.");
+    }
+    window.clearForm = clearForm;
+    function readImageFile(file) {
+      return new Promise(function(resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function() { resolve(String(reader.result || "")); };
+        reader.onerror = function() { reject(reader.error); };
+        reader.readAsDataURL(file);
+      });
+    }
+    function loadImage(src) {
+      return new Promise(function(resolve, reject) {
+        const img = new Image();
+        img.onload = function() { resolve(img); };
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+    async function normalizeImage(src, maxSize, quality) {
+      const img = await loadImage(src);
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+      const scale = Math.min(1, (maxSize || 1400) / Math.max(width, height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", quality || 0.86);
+    }
+    async function handleImageInput(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const row = findRow(input.dataset.rowId || "");
+      if (!row) return;
+      try {
+        row.image = await normalizeImage(await readImageFile(file), 1400, 0.86);
+        renderRows();
+        saveToStorageNow();
+        setArchiveStatus("Bild wurde eingefügt.");
+      } catch (error) {
+        console.error("Bild konnte nicht verarbeitet werden", error);
+        alert("Bild konnte nicht verarbeitet werden.");
+      }
+    }
+    function jsPdf() {
+      if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+      if (window.jsPDF) return window.jsPDF;
+      return null;
+    }
+    async function ensurePdf() {
+      const existing = jsPdf();
+      if (existing) return existing;
+      return new Promise(function(resolve) {
+        const script = document.createElement("script");
+        script.src = "vendor/jspdf.umd.min.js";
+        script.onload = function() { resolve(jsPdf()); };
+        script.onerror = function() { resolve(null); };
+        document.head.appendChild(script);
+      });
+    }
+    function clean(value) { return String(value || "").trim() || "-"; }
+    function filePart(value) {
+      return String(value || "Aufmass_Brandabschottungen").trim().replace(/[\\\\/:*?"<>|]+/g, "_").replace(/\\s+/g, "_").slice(0, 80) || "Aufmass_Brandabschottungen";
+    }
+    function fitBox(width, height, maxWidth, maxHeight) {
+      const ratio = Math.min(maxWidth / width, maxHeight / height);
+      return { width: width * ratio, height: height * ratio };
+    }
+    async function imageSize(src) {
+      const img = await loadImage(src);
+      return { width: img.naturalWidth || img.width, height: img.naturalHeight || img.height };
+    }
+    async function addFittedImage(doc, src, x, y, maxWidth, maxHeight) {
+      const pdfSrc = src.indexOf("data:image/jpeg") === 0 ? src : await normalizeImage(src, 1400, 0.86);
+      const size = await imageSize(pdfSrc);
+      const fitted = fitBox(size.width, size.height, maxWidth, maxHeight);
+      doc.addImage(pdfSrc, "JPEG", x + (maxWidth - fitted.width) / 2, y + (maxHeight - fitted.height) / 2, fitted.width, fitted.height, undefined, "FAST");
+    }
+    function headerPdf(doc, pageWidth, margin, title, top) {
+      top = typeof top === "number" ? top : 30;
+      doc.setFillColor(255, 180, 71);
+      doc.rect(margin, top, pageWidth - margin * 2, 10, "F");
+      doc.setTextColor("#000000");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(title, pageWidth / 2, top + 6.8, { align: "center" });
+      doc.setTextColor("#111827");
+    }
+    function drawMeta(doc, data, pageWidth, margin, y) {
+      const fields = data.fields || {};
+      y = typeof y === "number" ? y : 46;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor("#111827");
+      doc.text("Objekt: " + clean(fields.objekt), margin, y);
+      doc.text("Name: " + clean(fields.name), margin + 100, y);
+      doc.text("Datum: " + formatDisplayDate(fields.datum), pageWidth - margin, y, { align: "right" });
+    }
+    function drawTableHeader(doc, columns, y, margin) {
+      let x = margin;
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.2);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.8);
+      columns.forEach(function(column) {
+        doc.setFillColor(255, 180, 71);
+        doc.setTextColor("#000000");
+        doc.rect(x, y, column.width, 8, "FD");
+        doc.text(doc.splitTextToSize(column.label, column.width - 2), x + 1, y + 3.2);
+        x += column.width;
+      });
+      doc.setTextColor("#111827");
+      return y + 8;
+    }
+    async function exportPdf() {
+      const button = document.getElementById("pdfButton");
+      const oldText = button.textContent;
+      button.disabled = true;
+      button.textContent = "PDF wird erstellt...";
+      document.body.classList.add("generating-pdf");
+      setArchiveStatus("PDF Export wird erstellt...");
+      try {
+        const JsPDF = await ensurePdf();
+        if (!JsPDF) { alert("PDF-Bibliothek konnte nicht geladen werden."); return; }
+        const data = collectData();
+        const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 8;
+        const bottom = pageHeight - margin;
+        const title = "Aufmaß Brandabschottungen";
+        const columns = [
+          { label: "Pos.", width: 10 },
+          { label: "Bild", width: 34 },
+          { label: "Standort", width: 42 },
+          { label: "Art", width: 37 },
+          { label: "Breite mm", width: 22 },
+          { label: "Länge mm", width: 22 },
+          { label: "Ø mm", width: 20 },
+          { label: "Wandstärke und Beschaffenheit", width: 94 }
+        ];
+        function newPage(continued) {
+          if (continued) doc.addPage("a4", "landscape");
+          headerPdf(doc, pageWidth, margin, continued ? title + " (Fortsetzung)" : title, 40);
+          drawMeta(doc, data, pageWidth, margin, 56);
+          return drawTableHeader(doc, columns, 64, margin);
+        }
+        let y = newPage(false);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.7);
+        for (let index = 0; index < data.rows.length; index += 1) {
+          const row = data.rows[index] || {};
+          const values = [String(index + 1), "", clean(row.standort), clean(row.art), clean(row.breite), clean(row.laenge), clean(row.durchschnitt), clean(row.wand)];
+          const wrapped = values.map(function(value, columnIndex) { return doc.splitTextToSize(value, columns[columnIndex].width - 2); });
+          const lineCount = Math.max.apply(null, wrapped.map(function(lines) { return lines.length; }));
+          const rowHeight = Math.max(row.image ? 28 : 10, lineCount * 3.2 + 4);
+          if (y + rowHeight > bottom) y = newPage(true);
+          let x = margin;
+          for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+            const column = columns[columnIndex];
+            doc.setDrawColor(255, 255, 255);
+            doc.setLineWidth(0.2);
+            doc.setFillColor(245, 245, 245);
+            doc.rect(x, y, column.width, rowHeight, "FD");
+            doc.setTextColor("#111827");
+            doc.setFont("helvetica", columnIndex === 0 ? "bold" : "normal");
+            if (columnIndex === 1 && row.image) {
+              try { await addFittedImage(doc, row.image, x + 1.5, y + 1.5, column.width - 3, rowHeight - 3); }
+              catch (error) { doc.text("Bildfehler", x + 1, y + 4); }
+            } else if (columnIndex !== 1) {
+              doc.text(wrapped[columnIndex], x + 1, y + 4);
+            }
+            x += column.width;
+          }
+          y += rowHeight;
+        }
+        if (typeof window.FSMOBILE_STAMP_PDF_LOGO === "function") window.FSMOBILE_STAMP_PDF_LOGO(doc);
+        doc.save(filePart(data.fields.objekt) + "_Aufmass_Brandabschottungen.pdf");
+        setArchiveStatus("PDF Export wurde erstellt.");
+      } catch (error) {
+        console.error("PDF Export fehlgeschlagen", error);
+        alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.");
+        setArchiveStatus("PDF Export konnte nicht erstellt werden.");
+      } finally {
+        document.body.classList.remove("generating-pdf");
+        button.disabled = false;
+        button.textContent = oldText || "PDF";
+      }
+    }
+    function addRow(data) { rows.push(createRow(data)); renderRows(); scheduleSave(); }
+    function duplicateLastRow() {
+      if (!rows.length) { addRow(); return; }
+      const copy = Object.assign({}, rows[rows.length - 1], { id: "" });
+      addRow(copy);
+      setArchiveStatus("Letzte Zeile wurde dupliziert.");
+    }
+    function removeLastRow() {
+      if (rows.length <= 1) { setArchiveStatus("Mindestens eine Position muss erhalten bleiben."); return; }
+      rows.pop();
+      renderRows();
+      scheduleSave();
+      setArchiveStatus("Letzte Zeile wurde gelöscht.");
+    }
+    document.addEventListener("input", function(event) {
+      const target = event.target;
+      if (target.tagName === "TEXTAREA") autoResize(target);
+      if (target.dataset && target.dataset.field) {
+        const row = findRow(target.dataset.rowId || "");
+        if (row) row[target.dataset.field] = target.value || "";
+      }
+      scheduleSave();
+    }, true);
+    document.addEventListener("change", function(event) {
+      const target = event.target;
+      if (target.dataset && target.dataset.action === "image") { handleImageInput(target); return; }
+      if (target.dataset && target.dataset.field) {
+        const row = findRow(target.dataset.rowId || "");
+        if (row) row[target.dataset.field] = target.value || "";
+      }
+      scheduleSave();
+    }, true);
+    document.getElementById("rowsBody").addEventListener("click", function(event) {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const rowId = button.dataset.rowId || "";
+      const index = rows.findIndex(function(row) { return row.id === rowId; });
+      if (button.dataset.action === "insert") {
+        rows.splice(index + 1, 0, createRow());
+        renderRows();
+        scheduleSave();
+        setArchiveStatus("Neue Zeile wurde eingefügt.");
+      } else if (button.dataset.action === "remove") {
+        if (rows.length <= 1) { setArchiveStatus("Mindestens eine Position muss erhalten bleiben."); return; }
+        rows.splice(index, 1);
+        renderRows();
+        scheduleSave();
+        setArchiveStatus("Zeile wurde gelöscht.");
+      } else if (button.dataset.action === "clear-image") {
+        const row = findRow(rowId);
+        if (row) row.image = "";
+        renderRows();
+        scheduleSave();
+        setArchiveStatus("Bild wurde entfernt.");
+      }
+    });
+    document.getElementById("addRowButton").addEventListener("click", function() { addRow(); });
+    document.getElementById("duplicateRowButton").addEventListener("click", duplicateLastRow);
+    document.getElementById("removeRowButton").addEventListener("click", removeLastRow);
+    document.getElementById("archiveSaveBtn").addEventListener("click", saveCurrentReportToArchive);
+    document.getElementById("archiveBtn").addEventListener("click", openArchive);
+    document.getElementById("archiveCloseBtn").addEventListener("click", closeArchive);
+    document.getElementById("archiveOverlay").addEventListener("click", function(event) { if (event.target.id === "archiveOverlay") closeArchive(); });
+    document.getElementById("clearButton").addEventListener("click", clearForm);
+    document.getElementById("pdfButton").addEventListener("click", exportPdf);
+    document.addEventListener("keydown", function(event) { if (event.key === "Escape" && !document.getElementById("archiveOverlay").hidden) closeArchive(); });
+    restoreFromStorage();
+  </script>
 </body>
 </html>`;
   }
@@ -5123,7 +5740,7 @@
           var FSMOBILE_PDF_LOGO_RIGHT_MM = 15;
 
           function shouldStampFsmobilePdfLogo() {
-            return /^pb-/.test(window.FSMOBILE_MODULE_ID || "");
+            return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen";
           }
 
           function getFsmobilePdfPageWidth(doc) {
