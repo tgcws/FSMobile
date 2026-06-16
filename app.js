@@ -4201,6 +4201,24 @@
         window.FSMOBILE_EMBEDDED_MODULE = true;
         window.FSMOBILE_MODULE_ID = ${JSON.stringify(id)};
         (function(){
+          try {
+            document.documentElement.classList.add("fsmobile-embedded-module");
+            if (/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) {
+              document.documentElement.classList.add("fsmobile-pb-module");
+            }
+            if (!document.getElementById("fsmobileEmbeddedActionSourceStyle")) {
+              var actionSourceStyle = document.createElement("style");
+              actionSourceStyle.id = "fsmobileEmbeddedActionSourceStyle";
+              actionSourceStyle.textContent = [
+                "html.fsmobile-pb-module .title-bar > .title-actions,",
+                "html.fsmobile-pb-module header > .toolbar,",
+                "html.fsmobile-embedded-module body.fsmobile-parent-actions-active .fsmobile-parent-action-source,",
+                "html.fsmobile-embedded-module body.fsmobile-parent-actions-active .fsmobile-header-actions,",
+                "html.fsmobile-embedded-module body.fsmobile-parent-actions-active .fsmobile-actions-empty { display: none !important; }"
+              ].join("\\n");
+              (document.head || document.documentElement).appendChild(actionSourceStyle);
+            }
+          } catch (error) {}
           if (window.MutationObserver && window.MutationObserver.prototype && !window.MutationObserver.prototype.__fsmobileSafeObserve) {
             var nativeObserve = window.MutationObserver.prototype.observe;
             Object.defineProperty(window.MutationObserver.prototype, "__fsmobileSafeObserve", { value: true });
@@ -4304,6 +4322,7 @@
               header.appendChild(actions);
             }
             actions.classList.add("fsmobile-header-actions");
+            actions.classList.add("fsmobile-parent-action-source");
             actions.setAttribute("aria-label", "Aktionen");
             return actions;
           }
@@ -7052,6 +7071,7 @@
         }
 
         body.fsmobile-parent-actions-active .fsmobile-header-actions,
+        body.fsmobile-parent-actions-active .fsmobile-parent-action-source,
         body.fsmobile-parent-actions-active .fsmobile-actions-empty {
           display: none !important;
         }
