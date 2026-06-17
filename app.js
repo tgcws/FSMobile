@@ -82,7 +82,8 @@
         "pb-loeschwasser-trocken",
         "pb-loeschwasser-nass",
         "pb-zentralbatterie-anlage",
-        "pb-wandhydranten"
+        "pb-wandhydranten",
+        "pb-hydranten"
       ]
     },
     {
@@ -142,6 +143,7 @@
     "pb-loeschwasser-trocken": "Löschwassereinrichtung Trocken",
     "pb-loeschwasser-nass": "Löschwassereinrichtung Nass",
     "pb-zentralbatterie-anlage": "Zentralbatterie-Anlage",
+    "pb-hydranten": "Hydranten",
     "anleitung-rwa-pyro": "RWA Pyro",
     "anleitung-rwa-elektrisch": "RWA Elektrisch",
     "anleitung-rwa-co2": "RWA CO2",
@@ -696,6 +698,7 @@
     .section{margin-bottom:14px;padding:14px}
     .header-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
     .field-group{display:flex;min-width:0;flex-direction:column;gap:5px}
+    .header-grid .field-group>input{display:block;min-width:0;max-width:100%}
     label{padding-left:2px;color:var(--muted);font-size:12px;line-height:1.15;font-weight:700;letter-spacing:0}
     input,select,textarea,button{font:inherit}
     input:not([type="file"]),select,textarea{width:100%;min-height:38px;padding:8px 11px;border:1px solid rgba(255,255,255,.34);border-radius:var(--radius-sm);color:var(--text);background:var(--field);font-size:14px;line-height:1.2;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
@@ -1297,6 +1300,13 @@
     html: wetDryStationReportHtml()
   };
 
+  registry["pb-hydranten"] = registry["pb-hydranten"] || {
+    title: "Prüfbericht Hydranten",
+    group: "Prüfberichte",
+    description: "Hydranten, Löschwasserbehälter, Brunnen und Saugstellen mit Messwerten dokumentieren.",
+    html: hydrantsReportHtml()
+  };
+
   function wetDryStationReportHtml() {
     return `<!DOCTYPE html>
 <html lang="de">
@@ -1812,6 +1822,7 @@
     .archive-meta { margin-top: 3px; color: var(--muted); font-size: 13px; font-weight: 700; }
     body.generating-pdf .title-actions,
     body.generating-pdf .actions,
+    body.generating-pdf .hydrant-actions,
     body.generating-pdf .signature-actions,
     body.generating-pdf .archive-status { display: none !important; }
     body { padding: 0 !important; background: transparent !important; }
@@ -4033,6 +4044,1262 @@
 </html>`;
   }
 
+  function hydrantsReportHtml() {
+    return `<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Prüfbericht Hydranten</title>
+  <meta name="app-version" content="01" />
+  <meta name="theme-color" content="#d6001c" />
+  <style>
+    :root {
+      --brand: #d6001c;
+      --primary: #007aff;
+      --success: #34c759;
+      --danger: #ff3b30;
+      --neutral: #8e8e93;
+      --warning: #ff9500;
+      --card: rgba(255,255,255,.075);
+      --field: rgba(255,255,255,.055);
+      --text: #1c1c1e;
+      --muted: #6e6e73;
+      --line: rgba(60, 60, 67, .14);
+      --radius: 16px;
+      --shadow: inset 0 1px 0 rgba(255,255,255,.32), 0 12px 34px rgba(0,0,0,.06);
+      --ios-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: transparent; }
+    body {
+      margin: 0;
+      padding: 0 !important;
+      background: transparent !important;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Arial, sans-serif;
+    }
+
+    .container {
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 20px;
+      background: transparent !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+
+    .title-bar,
+    .archive-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title-bar { margin-bottom: 16px; }
+
+    .title-actions,
+    .actions,
+    .signature-actions,
+    .hydrant-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .title-actions {
+      justify-content: flex-end;
+      padding: 0 !important;
+      background: transparent !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+      margin-right: calc(86px + env(safe-area-inset-right, 0px)) !important;
+    }
+
+    body.generating-pdf .title-actions { margin-right: 0 !important; }
+
+    h1 { margin: 0; font-size: 34px; line-height: 1.1; letter-spacing: 0; }
+    h2, h3, label { letter-spacing: 0; }
+
+    .header-row,
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .field-grid.three { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+    .field-grid.two { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+    .field-grid.one { grid-template-columns: 1fr; }
+
+    .field {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    textarea,
+    select {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.30);
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.016));
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+      font-weight: 650;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.13), 0 1px 0 rgba(2,8,23,.035);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    select {
+      min-height: 44px !important;
+      height: 44px !important;
+      padding: 10px 12px !important;
+      line-height: 1.25 !important;
+      display: block !important;
+      align-self: stretch !important;
+    }
+
+    textarea {
+      min-height: 44px;
+      resize: none;
+      overflow: hidden;
+      line-height: 1.35;
+      text-align: left;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      box-shadow: 0 0 0 3px rgba(214,0,28,.18);
+    }
+
+    button {
+      min-height: 46px;
+      padding: 12px 18px;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0;
+      color: #ffffff;
+      background: linear-gradient(180deg, #1688ff 0%, var(--primary) 100%);
+      box-shadow: 0 10px 20px rgba(0,122,255,.24), inset 0 1px 0 rgba(255,255,255,.32);
+      transition: transform .18s var(--ios-ease), box-shadow .18s var(--ios-ease), background .18s var(--ios-ease), filter .18s var(--ios-ease);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover { filter: brightness(1.02); }
+    button:active { transform: scale(.975); }
+    button:disabled { opacity: .55; cursor: default; transform: none; }
+    .success { background: linear-gradient(180deg, #40d96a 0%, var(--success) 100%); box-shadow: 0 10px 20px rgba(52,199,89,.22), inset 0 1px 0 rgba(255,255,255,.28); }
+    .danger { background: linear-gradient(180deg, #ff453a 0%, var(--danger) 100%); box-shadow: 0 10px 20px rgba(255,59,48,.22), inset 0 1px 0 rgba(255,255,255,.28); }
+    .secondary { background: linear-gradient(180deg, #a6a6ad 0%, var(--neutral) 100%); box-shadow: 0 10px 20px rgba(142,142,147,.22), inset 0 1px 0 rgba(255,255,255,.28); }
+    .archive-save { background: linear-gradient(180deg, #ffb340 0%, var(--warning) 100%); box-shadow: 0 10px 20px rgba(255,149,0,.22), inset 0 1px 0 rgba(255,255,255,.28); }
+    .duplicate-btn { background: linear-gradient(180deg, #6e6cff 0%, #5856d6 100%); box-shadow: 0 10px 20px rgba(88,86,214,.24), inset 0 1px 0 rgba(255,255,255,.32); }
+
+    .card,
+    .hydrant-card,
+    .check-item,
+    .signature-block,
+    .archive-item {
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,.42);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.14), rgba(255,255,255,.06) 58%, rgba(235,0,69,.035)),
+        rgba(255,255,255,.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 10px 26px rgba(0,0,0,.05);
+      -webkit-backdrop-filter: blur(18px) saturate(1.08);
+      backdrop-filter: blur(18px) saturate(1.08);
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .hydrant-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .hydrant-card-header h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .hydrant-card-header .hydrant-number {
+      min-width: 0 !important;
+      min-height: 0 !important;
+      display: inline !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+      font-weight: 850;
+    }
+
+    .input-unit {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding-right: 10px;
+      border: 1px solid rgba(255,255,255,.30);
+      border-radius: 12px;
+      background: rgba(255,255,255,.018);
+    }
+
+    .input-unit input {
+      min-height: 42px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .unit {
+      color: var(--muted);
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .check-item {
+      margin-top: 0;
+      min-height: 44px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-weight: 760;
+      line-height: 1.25;
+      user-select: none;
+    }
+
+    .check-item input {
+      width: 22px;
+      min-width: 22px;
+      height: 22px;
+      min-height: 0;
+      margin: 0;
+      accent-color: var(--brand);
+    }
+
+    .yes-no {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .signature-block h3 { margin: 0 0 10px; font-size: 18px; }
+
+    #signaturePad {
+      display: block;
+      width: 100%;
+      height: 180px;
+      border: 2px dashed rgba(255,255,255,.44);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 0 0 1px rgba(235,0,69,.025);
+      touch-action: none;
+    }
+
+    .signature-actions { margin-top: 10px; }
+    .actions { margin-top: 16px; }
+    .hydrant-actions { margin-top: 16px; }
+    .archive-status { min-height: 18px; margin: 12px 0 0; color: var(--muted); font-size: 13px; font-weight: 700; line-height: 1.3; }
+
+    .archive-overlay[hidden] { display: none; }
+    .archive-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0,0,0,.34);
+    }
+
+    .archive-dialog {
+      width: min(760px, 100%);
+      max-height: min(680px, 90vh);
+      overflow: auto;
+      padding: 18px;
+      background: rgba(245,247,251,.94);
+      border-radius: 20px;
+      box-shadow: 0 24px 70px rgba(0,0,0,.25);
+    }
+
+    .archive-header h2 { margin: 0; font-size: 24px; }
+    .archive-list { display: grid; gap: 10px; margin-top: 14px; }
+    .archive-empty { margin: 0; color: var(--muted); font-weight: 700; }
+    .archive-item { margin-top: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; }
+    .archive-title { font-weight: 850; overflow-wrap: anywhere; }
+    .archive-meta { margin-top: 3px; color: var(--muted); font-size: 13px; font-weight: 700; }
+
+    body.generating-pdf .title-actions,
+    body.generating-pdf .actions,
+    body.generating-pdf .signature-actions,
+    body.generating-pdf .archive-status { display: none !important; }
+
+    @media (max-width: 900px) {
+      .header-row,
+      .field-grid,
+      .field-grid.three,
+      .field-grid.two,
+      .check-grid { grid-template-columns: 1fr; }
+      .title-bar,
+      .archive-header,
+      .hydrant-card-header { align-items: stretch; flex-direction: column; }
+      .title-actions,
+      .title-actions button,
+      .archive-header button { width: 100%; }
+    }
+
+    @media (max-width: 720px) {
+      .title-actions { margin-right: 0 !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="reportRoot">
+    <div class="title-bar">
+      <h1>Prüfbericht Hydranten</h1>
+      <div class="title-actions" aria-label="Archivaktionen">
+        <button type="button" onclick="saveCurrentReportToArchive()" class="archive-save">Im Archiv speichern</button>
+        <button type="button" onclick="openArchive()" class="archive-open">Archiv</button>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2 class="section-title">Zuordnung</h2>
+      <div class="header-row">
+        <div class="field">
+          <label for="objectInput">Objekt</label>
+          <input id="objectInput" name="object" type="text" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="anlageInput">Anlagen Nr.</label>
+          <input id="anlageInput" name="anlage" type="text" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="prueferInput">Techniker</label>
+          <input id="prueferInput" name="pruefer" type="text" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="dateInput">Datum</label>
+          <input id="dateInput" name="date" type="date" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Prüfgrundlage</h2>
+      <div class="field-grid three">
+        <div class="field">
+          <label>Entspr. DIN 14462/DIN - EN1988/600</label>
+          <div class="yes-no">
+            <label class="check-item"><input id="dinYesInput" name="dinCompliant" type="checkbox" value="Ja" />Ja</label>
+            <label class="check-item"><input id="dinNoInput" name="dinCompliant" type="checkbox" value="Nein" />Nein</label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="waterLineSelect">Löschwasserleitung</label>
+          <select id="waterLineSelect" name="waterLine">
+            <option value="">Bitte auswählen</option>
+            <option>LWT</option>
+            <option>Brunnen</option>
+            <option>Saugstelle</option>
+            <option>UF/ÜF Hydranten</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="nextDateInput">Nächstes Prüfdatum</label>
+          <input id="nextDateInput" name="nextDate" type="date" />
+        </div>
+      </div>
+    </section>
+
+    <div id="hydrantList"></div>
+
+    <div class="hydrant-actions" aria-label="Hydrantenaktionen">
+      <button type="button" onclick="addHydrant()" class="success">Hinzufügen</button>
+      <button type="button" onclick="duplicateLastHydrant()" class="duplicate-btn">Duplizieren</button>
+      <button type="button" onclick="removeLastHydrant()" class="danger">Letzten löschen</button>
+    </div>
+
+    <section class="card">
+      <h2 class="section-title">Bemerkung</h2>
+      <div class="field-grid one">
+        <div class="field">
+          <label for="bemerkungInput">Bemerkung</label>
+          <textarea id="bemerkungInput" name="bemerkung"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Unterschrift Techniker</h2>
+      <div class="signature-block">
+        <h3>Unterschrift Techniker</h3>
+        <canvas id="signaturePad" aria-label="Unterschrift Techniker"></canvas>
+        <div class="signature-actions">
+          <button type="button" onclick="clearSignature()" class="danger">Unterschrift löschen</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button type="button" onclick="clearForm()" class="secondary clear-btn" id="clearButton">Leeren</button>
+      <button type="button" class="pdf-btn" id="pdfButton" onclick="exportPdf()">PDF</button>
+    </div>
+    <p class="archive-status" id="archiveStatus" role="status" aria-live="polite"></p>
+  </div>
+
+  <div class="archive-overlay" id="archiveOverlay" hidden>
+    <div class="archive-dialog" role="dialog" aria-modal="true" aria-labelledby="archiveTitle">
+      <div class="archive-header">
+        <h2 id="archiveTitle">Archiv</h2>
+        <button type="button" onclick="closeArchive()" class="secondary archive-close-btn" aria-label="Archiv schließen">Schließen</button>
+      </div>
+      <div class="archive-list" id="archiveList" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "fsmobile-pb-hydranten-v1";
+    const ARCHIVE_STORAGE_KEY = "fsmobile-pb-hydranten-archive-v1";
+    const CURRENT_ARCHIVE_ID_KEY = "fsmobile-pb-hydranten-current-v1";
+    const TYPE_OPTIONS = ["", "Löschwassertank", "Löschwasserbrunnen", "Saugstelle", "Überflurhydrant", "Unterflurhydrant", "Einspeisearmatur Trocken", "Sonstige"];
+    const RESULT_OPTIONS = ["funktionsbereit", "nicht funktionsbereit", "vorhandene Mängel"];
+    const WORK_FIELDS = [
+      ["annualInspection", "Prüfung jährlich"],
+      ["levelOk", "Füllstand LWT i.O"],
+      ["repair", "Instandsetzung"],
+      ["pressureTest", "Dichtigkeits-/Druckprüfung"],
+      ["flowMeasurement", "Volumenstrommessung"],
+      ["misc", "Sonstiges"]
+    ];
+    const signaturePadState = { canvas: null, ctx: null, isDrawing: false, lastPoint: null };
+    let storageRestoreInProgress = false;
+    let storageSaveTimer = null;
+    let archiveStatusTimer = null;
+
+    function todayIso() {
+      const now = new Date();
+      return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+    }
+
+    function setTodayIfEmpty() {
+      const input = document.getElementById("dateInput");
+      if (input && !input.value) input.value = todayIso();
+    }
+
+    function createField(labelText, field) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "field";
+      const label = document.createElement("label");
+      label.textContent = labelText;
+      if (field.id) label.htmlFor = field.id;
+      wrapper.append(label, field);
+      return wrapper;
+    }
+
+    function fillSelect(select, options) {
+      select.innerHTML = "";
+      options.forEach(function(optionValue) {
+        const option = document.createElement("option");
+        option.value = optionValue;
+        option.textContent = optionValue || "Bitte auswählen";
+        select.appendChild(option);
+      });
+    }
+
+    function createInput(type, field, value) {
+      const input = document.createElement("input");
+      input.type = type;
+      input.dataset.field = field;
+      if (type === "number") {
+        input.step = "0.01";
+        input.inputMode = "decimal";
+      }
+      input.value = value || "";
+      return input;
+    }
+
+    function createUnitInput(field, value, unit) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "input-unit";
+      const input = createInput("number", field, value);
+      const unitSpan = document.createElement("span");
+      unitSpan.className = "unit";
+      unitSpan.textContent = unit;
+      wrapper.append(input, unitSpan);
+      return wrapper;
+    }
+
+    function autoResizeTextarea(textarea) {
+      if (!textarea) return;
+      textarea.style.height = "auto";
+      textarea.style.height = Math.max(44, textarea.scrollHeight) + "px";
+    }
+
+    function setDinValue(value) {
+      document.getElementById("dinYesInput").checked = value === "Ja";
+      document.getElementById("dinNoInput").checked = value === "Nein";
+    }
+
+    function readDinValue() {
+      if (document.getElementById("dinYesInput").checked) return "Ja";
+      if (document.getElementById("dinNoInput").checked) return "Nein";
+      return "";
+    }
+
+    function enforceDinChoice(event) {
+      if (!event || !event.target || !event.target.checked) return;
+      if (event.target.id === "dinYesInput") document.getElementById("dinNoInput").checked = false;
+      if (event.target.id === "dinNoInput") document.getElementById("dinYesInput").checked = false;
+    }
+
+    function hydrantDataFromCard(card) {
+      const data = {};
+      card.querySelectorAll("[data-field]").forEach(function(field) {
+        if (field.type === "checkbox") data[field.dataset.field] = field.checked;
+        else data[field.dataset.field] = field.value || "";
+      });
+      return data;
+    }
+
+    function createHydrantCard(data) {
+      data = data || {};
+      const card = document.createElement("article");
+      card.className = "hydrant-card";
+
+      const header = document.createElement("div");
+      header.className = "hydrant-card-header";
+      const title = document.createElement("h2");
+      title.innerHTML = 'Pos. <span class="hydrant-number"></span>';
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "danger";
+      removeButton.textContent = "Entfernen";
+      removeButton.addEventListener("click", function() {
+        const cards = Array.from(document.querySelectorAll(".hydrant-card"));
+        if (cards.length <= 1) applyHydrantData(card, {});
+        else card.remove();
+        renumberHydrants();
+        scheduleStorageSave();
+      });
+      header.append(title, removeButton);
+
+      const fields = document.createElement("div");
+      fields.className = "field-grid";
+      const standort = document.createElement("textarea");
+      standort.dataset.field = "standort";
+      standort.value = data.standort || "";
+      const type = document.createElement("select");
+      type.dataset.field = "type";
+      fillSelect(type, TYPE_OPTIONS);
+      type.value = data.type || "";
+      const dn = createInput("text", "dn", data.dn);
+      fields.append(
+        createField("Standort", standort),
+        createField("Type", type),
+        createField("DN", dn),
+        createField("Ruhedruck", createUnitInput("ruhedruck", data.ruhedruck, "bar")),
+        createField("Fließdruck", createUnitInput("fliessdruck", data.fliessdruck, "mpa")),
+        createField("Wassermengen Messung", createUnitInput("wassermenge", data.wassermenge, "l/min"))
+      );
+
+      const workTitle = document.createElement("h3");
+      workTitle.className = "section-title";
+      workTitle.style.marginTop = "14px";
+      workTitle.textContent = "Ausgeführte Arbeiten";
+      const workGrid = document.createElement("div");
+      workGrid.className = "check-grid";
+      WORK_FIELDS.forEach(function(item) {
+        const label = document.createElement("label");
+        label.className = "check-item";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.field = item[0];
+        checkbox.checked = Boolean(data[item[0]]);
+        label.append(checkbox, document.createTextNode(item[1]));
+        workGrid.appendChild(label);
+      });
+
+      const bottom = document.createElement("div");
+      bottom.className = "field-grid two";
+      bottom.style.marginTop = "12px";
+      const remark = document.createElement("textarea");
+      remark.dataset.field = "bemerkung";
+      remark.value = data.bemerkung || "";
+      const result = document.createElement("select");
+      result.dataset.field = "pruefbefund";
+      fillSelect(result, RESULT_OPTIONS);
+      result.value = data.pruefbefund || "funktionsbereit";
+      bottom.append(
+        createField("Bemerkung", remark),
+        createField("Prüfbefund", result)
+      );
+
+      card.append(header, fields, workTitle, workGrid, bottom);
+      card.querySelectorAll("textarea").forEach(autoResizeTextarea);
+      return card;
+    }
+
+    function applyHydrantData(card, data) {
+      data = data || {};
+      card.querySelectorAll("[data-field]").forEach(function(field) {
+        const key = field.dataset.field;
+        if (field.type === "checkbox") field.checked = Boolean(data[key]);
+        else field.value = data[key] || (key === "pruefbefund" ? "funktionsbereit" : "");
+        if (field.tagName === "TEXTAREA") autoResizeTextarea(field);
+      });
+    }
+
+    function renumberHydrants() {
+      document.querySelectorAll(".hydrant-card").forEach(function(card, index) {
+        const number = card.querySelector(".hydrant-number");
+        if (number) number.textContent = String(index + 1);
+      });
+    }
+
+    function addHydrant(data) {
+      document.getElementById("hydrantList").appendChild(createHydrantCard(data || {}));
+      renumberHydrants();
+      scheduleStorageSave();
+    }
+
+    function duplicateLastHydrant() {
+      const cards = Array.from(document.querySelectorAll(".hydrant-card"));
+      const source = cards[cards.length - 1];
+      addHydrant(source ? hydrantDataFromCard(source) : {});
+    }
+
+    function removeLastHydrant() {
+      const cards = Array.from(document.querySelectorAll(".hydrant-card"));
+      if (cards.length <= 1) {
+        if (cards[0]) applyHydrantData(cards[0], {});
+      } else {
+        cards[cards.length - 1].remove();
+      }
+      renumberHydrants();
+      scheduleStorageSave();
+    }
+
+    function textValue(id) {
+      const el = document.getElementById(id);
+      return el && "value" in el ? el.value || "" : "";
+    }
+
+    function collectReportData() {
+      return {
+        fields: {
+          object: textValue("objectInput"),
+          anlage: textValue("anlageInput"),
+          pruefer: textValue("prueferInput"),
+          date: textValue("dateInput"),
+          dinCompliant: readDinValue(),
+          waterLine: textValue("waterLineSelect"),
+          nextDate: textValue("nextDateInput"),
+          bemerkung: textValue("bemerkungInput")
+        },
+        hydrants: Array.from(document.querySelectorAll(".hydrant-card")).map(hydrantDataFromCard),
+        signature: getStorageSignature(),
+        savedAt: new Date().toISOString()
+      };
+    }
+
+    function setValue(id, value) {
+      const el = document.getElementById(id);
+      if (el && "value" in el) el.value = value || "";
+    }
+
+    function applyReportData(data) {
+      storageRestoreInProgress = true;
+      const fields = data && data.fields ? data.fields : {};
+      setValue("objectInput", fields.object);
+      setValue("anlageInput", fields.anlage);
+      setValue("prueferInput", fields.pruefer);
+      setValue("dateInput", fields.date);
+      setDinValue(fields.dinCompliant || "");
+      setValue("waterLineSelect", fields.waterLine);
+      setValue("nextDateInput", fields.nextDate);
+      setValue("bemerkungInput", fields.bemerkung);
+      autoResizeTextarea(document.getElementById("bemerkungInput"));
+      const list = document.getElementById("hydrantList");
+      list.innerHTML = "";
+      const hydrants = Array.isArray(data && data.hydrants) && data.hydrants.length ? data.hydrants : [{}];
+      hydrants.forEach(function(row) { addHydrant(row); });
+      setTodayIfEmpty();
+      clearSignature(true);
+      restoreSignatureFromStorage(data && data.signature);
+      storageRestoreInProgress = false;
+    }
+
+    function saveToStorageNow() {
+      if (storageRestoreInProgress) return;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collectReportData())); }
+      catch (error) { console.warn("Eingaben konnten nicht lokal gespeichert werden:", error); }
+    }
+
+    function scheduleStorageSave() {
+      if (storageRestoreInProgress) return;
+      window.clearTimeout(storageSaveTimer);
+      storageSaveTimer = window.setTimeout(saveToStorageNow, 180);
+    }
+
+    function restoreFromStorage() {
+      let saved = null;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        saved = raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        console.warn("Gespeicherte Eingaben konnten nicht geladen werden:", error);
+      }
+      applyReportData(saved);
+    }
+
+    function clearForm() {
+      if (!confirm("Alle Eingaben wirklich löschen?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      clearCurrentArchiveId();
+      applyReportData(null);
+      setArchiveStatus("Aktueller Prüfbericht wurde geleert. Archivierte Prüfberichte bleiben erhalten.");
+    }
+
+    function readStoredValue(key) { try { return localStorage.getItem(key); } catch { return null; } }
+    function writeStoredValue(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
+    function removeStoredValue(key) { try { localStorage.removeItem(key); } catch {} }
+    function createArchiveId() { return window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : "archive-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10); }
+    function getCurrentArchiveId() { return readStoredValue(CURRENT_ARCHIVE_ID_KEY); }
+    function setCurrentArchiveId(id) { if (id) writeStoredValue(CURRENT_ARCHIVE_ID_KEY, id); else clearCurrentArchiveId(); }
+    function clearCurrentArchiveId() { removeStoredValue(CURRENT_ARCHIVE_ID_KEY); }
+    function loadArchiveEntries() { try { const entries = JSON.parse(readStoredValue(ARCHIVE_STORAGE_KEY) || "[]"); return Array.isArray(entries) ? entries : []; } catch { return []; } }
+    function writeArchiveEntries(entries) { return writeStoredValue(ARCHIVE_STORAGE_KEY, JSON.stringify(entries)); }
+
+    function formatDateForFile(dateValue) {
+      if (!dateValue) return new Date().toLocaleDateString("de-DE").replaceAll(".", "-");
+      const parts = String(dateValue).split("-");
+      if (parts.length !== 3) return dateValue;
+      return parts[2] + "." + parts[1] + "." + parts[0];
+    }
+
+    function getDisplayDate(value) { return value ? formatDateForFile(value) : "Ohne Datum"; }
+
+    function getArchiveTitle(entry) {
+      const report = entry && entry.report ? entry.report : {};
+      const fields = report.fields || {};
+      const object = String(fields.object || "").trim() || "Ohne Objekt";
+      const anlage = String(fields.anlage || "").trim() || "Ohne Anlagen Nr.";
+      const count = Array.isArray(report.hydrants) ? report.hydrants.length : 0;
+      return anlage + " - Hydranten (" + count + ") - " + object + " - " + getDisplayDate(fields.date || "");
+    }
+
+    function archiveAssignmentKey(report) {
+      const fields = report && report.fields ? report.fields : {};
+      const anlage = String(fields.anlage || "").trim().toLowerCase();
+      const object = String(fields.object || "").trim().toLowerCase();
+      const date = String(fields.date || "").trim();
+      return anlage && object && date ? anlage + "||" + object + "||" + date : "";
+    }
+
+    function saveCurrentReportToArchive() {
+      saveToStorageNow();
+      const now = new Date().toISOString();
+      const currentId = getCurrentArchiveId();
+      const entries = loadArchiveEntries();
+      const report = collectReportData();
+      const assignmentKey = archiveAssignmentKey(report);
+      let existingIndex = currentId ? entries.findIndex(function(entry) { return entry.id === currentId; }) : -1;
+      if (existingIndex < 0 && assignmentKey) {
+        existingIndex = entries.findIndex(function(entry) { return archiveAssignmentKey(entry && entry.report) === assignmentKey; });
+      }
+      const entry = {
+        id: existingIndex >= 0 ? entries[existingIndex].id : createArchiveId(),
+        createdAt: existingIndex >= 0 ? entries[existingIndex].createdAt : now,
+        updatedAt: now,
+        report: report
+      };
+      if (existingIndex >= 0) entries[existingIndex] = entry;
+      else entries.push(entry);
+      if (writeArchiveEntries(entries)) {
+        setCurrentArchiveId(entry.id);
+        renderArchiveList();
+        setArchiveStatus("Prüfbericht wurde im Archiv gespeichert.");
+      } else {
+        setArchiveStatus("Prüfbericht konnte nicht im Archiv gespeichert werden.");
+      }
+    }
+
+    function openArchiveEntry(id) {
+      const entry = loadArchiveEntries().find(function(item) { return item.id === id; });
+      if (!entry) return;
+      applyReportData(entry.report);
+      setCurrentArchiveId(entry.id);
+      saveToStorageNow();
+      closeArchive();
+      setArchiveStatus("Prüfbericht aus dem Archiv geöffnet.");
+    }
+
+    function deleteArchiveEntry(id) {
+      const entries = loadArchiveEntries();
+      const entry = entries.find(function(item) { return item.id === id; });
+      if (!entry) return;
+      if (!confirm("Archiv-Eintrag '" + getArchiveTitle(entry) + "' löschen?")) return;
+      writeArchiveEntries(entries.filter(function(item) { return item.id !== id; }));
+      if (getCurrentArchiveId() === id) clearCurrentArchiveId();
+      renderArchiveList();
+      setArchiveStatus("Archiv-Eintrag wurde gelöscht.");
+    }
+
+    function renderArchiveList() {
+      const archiveList = document.getElementById("archiveList");
+      const entries = loadArchiveEntries().slice().sort(function(a, b) { return String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")); });
+      archiveList.innerHTML = "";
+      if (!entries.length) {
+        const empty = document.createElement("p");
+        empty.className = "archive-empty";
+        empty.textContent = "Noch keine gespeicherten Prüfberichte im Archiv.";
+        archiveList.appendChild(empty);
+        return;
+      }
+      entries.forEach(function(entry) {
+        const item = document.createElement("article");
+        item.className = "archive-item";
+        const text = document.createElement("div");
+        const title = document.createElement("div");
+        const meta = document.createElement("div");
+        title.className = "archive-title";
+        meta.className = "archive-meta";
+        title.textContent = getArchiveTitle(entry);
+        meta.textContent = "Geändert: " + getDisplayDate((entry.updatedAt || "").slice(0, 10));
+        text.append(title, meta);
+        const openButton = document.createElement("button");
+        openButton.type = "button";
+        openButton.textContent = "Öffnen";
+        openButton.addEventListener("click", function() { openArchiveEntry(entry.id); });
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "danger";
+        deleteButton.textContent = "Löschen";
+        deleteButton.addEventListener("click", function() { deleteArchiveEntry(entry.id); });
+        item.append(text, openButton, deleteButton);
+        archiveList.appendChild(item);
+      });
+    }
+
+    function openArchive() {
+      renderArchiveList();
+      document.getElementById("archiveOverlay").hidden = false;
+    }
+
+    function closeArchive() {
+      document.getElementById("archiveOverlay").hidden = true;
+    }
+
+    function setArchiveStatus(message) {
+      const status = document.getElementById("archiveStatus");
+      if (!status) return;
+      status.textContent = message || "";
+      window.clearTimeout(archiveStatusTimer);
+      if (message) archiveStatusTimer = window.setTimeout(function() { status.textContent = ""; }, 4000);
+    }
+
+    function sanitizeFileName(value) {
+      return (value || "Pruefbericht-Hydranten").trim().replace(/[\\\\/:*?"<>|]+/g, "-").replace(/\\s+/g, "_").slice(0, 80) || "Pruefbericht-Hydranten";
+    }
+
+    function getPdfFileName() {
+      const anlage = sanitizeFileName(document.getElementById("anlageInput").value || "Ohne Anlagen Nr.");
+      const objectName = sanitizeFileName(document.getElementById("objectInput").value || "Ohne Objekt");
+      const dateName = document.getElementById("dateInput").value || todayIso();
+      return anlage + "_" + objectName + "_" + dateName + ".pdf";
+    }
+
+    function ensureJsPdf() {
+      if (window.jspdf && typeof window.jspdf.jsPDF === "function") return window.jspdf.jsPDF;
+      if (typeof window.jsPDF === "function") return window.jsPDF;
+      return null;
+    }
+
+    async function loadJsPdfIfNeeded() {
+      const existing = ensureJsPdf();
+      if (existing) return existing;
+      return new Promise(function(resolve) {
+        const script = document.createElement("script");
+        script.src = "vendor/jspdf.umd.min.js";
+        script.onload = function() { resolve(ensureJsPdf()); };
+        script.onerror = function() { resolve(null); };
+        document.head.appendChild(script);
+      });
+    }
+
+    function savePdfDocument(doc, fileName) {
+      try { doc.save(fileName); }
+      catch {
+        try {
+          const blob = doc.output("blob");
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+        } catch {
+          alert("PDF konnte nicht gespeichert werden. Bitte im Browser erneut öffnen und noch einmal versuchen.");
+        }
+      }
+    }
+
+    function normalizePdfText(value) {
+      return String(value || "").replace(/[\\u2018\\u2019]/g, "'").replace(/[\\u201C\\u201D]/g, '"').trim();
+    }
+
+    function formatPdfValue(value) {
+      if (value === true) return "Ja";
+      if (value === false) return "Nein";
+      return normalizePdfText(value || "-");
+    }
+
+    function withUnit(value, unit) {
+      const clean = String(value || "").trim();
+      return clean ? clean + " " + unit : "";
+    }
+
+    function addPdfSection(doc, title, rows, x, y, width, ensurePageBreak) {
+      const lineHeight = 4.2;
+      function drawSectionHeader(headerTitle) {
+        doc.setFillColor(255, 180, 71);
+        doc.rect(x, y, width, 6, "F");
+        doc.setTextColor("#111827");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.text(headerTitle, x + 2, y + 4.2);
+        y += 6;
+        doc.setTextColor("#111827");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.6);
+      }
+      if (typeof ensurePageBreak === "function") y = ensurePageBreak(y, 13);
+      drawSectionHeader(title);
+      rows.forEach(function(row) {
+        const label = row[0];
+        const value = row[1];
+        const rowType = row[2];
+        const isCheck = rowType === "check";
+        const isBold = rowType === "bold";
+        if (!isCheck) {
+          const text = normalizePdfText(label) + ": " + formatPdfValue(value);
+          const lines = doc.splitTextToSize(text, width - 4);
+          const height = Math.max(7, lines.length * lineHeight + 2);
+          const previousY = y;
+          if (typeof ensurePageBreak === "function") y = ensurePageBreak(y, height + 8);
+          if (y < previousY) drawSectionHeader(title + " (Fortsetzung)");
+          doc.setDrawColor("#d1d5db");
+          doc.setFillColor("#ffffff");
+          doc.rect(x, y, width, height, "FD");
+          doc.setTextColor("#111827");
+          doc.setFont("helvetica", isBold ? "bold" : "normal");
+          doc.text(lines, x + 2, y + 4.8);
+          doc.setFont("helvetica", "normal");
+          y += height;
+          return;
+        }
+        const valueWidth = 22;
+        const labelWidth = width - valueWidth;
+        const labelLines = doc.splitTextToSize(normalizePdfText(label), labelWidth - 4);
+        const valueText = formatPdfValue(value);
+        const lineCount = Math.max(labelLines.length, 1);
+        const height = Math.max(7, lineCount * lineHeight + 2);
+        const previousY = y;
+        if (typeof ensurePageBreak === "function") y = ensurePageBreak(y, height + 8);
+        if (y < previousY) drawSectionHeader(title + " (Fortsetzung)");
+        doc.setDrawColor("#d1d5db");
+        doc.setFillColor("#ffffff");
+        doc.rect(x, y, labelWidth, height, "FD");
+        doc.rect(x + labelWidth, y, valueWidth, height, "FD");
+        doc.setTextColor("#111827");
+        doc.setFont("helvetica", "normal");
+        doc.text(labelLines, x + 2, y + 4.8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(value === true ? "#15803d" : "#111827");
+        doc.text(valueText, x + labelWidth + valueWidth / 2, y + 4.8, { align: "center" });
+        y += height;
+      });
+      return y + 2;
+    }
+
+    function hydrantPdfRows(hydrant) {
+      const rows = [
+        ["Standort", hydrant.standort],
+        ["Type", hydrant.type],
+        ["DN", hydrant.dn],
+        ["Ruhedruck", withUnit(hydrant.ruhedruck, "bar")],
+        ["Fließdruck", withUnit(hydrant.fliessdruck, "mpa")],
+        ["Wassermengen Messung", withUnit(hydrant.wassermenge, "l/min")]
+      ];
+      WORK_FIELDS.forEach(function(item) {
+        rows.push([item[1], Boolean(hydrant[item[0]]), "check"]);
+      });
+      rows.push(["Bemerkung", hydrant.bemerkung]);
+      rows.push(["Prüfbefund", hydrant.pruefbefund, "bold"]);
+      return rows;
+    }
+
+    async function exportPdf() {
+      if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
+      const pdfButton = Array.from(document.querySelectorAll("button")).find(function(button) { return button.textContent.trim() === "PDF"; });
+      const originalButtonText = pdfButton ? pdfButton.textContent : "";
+      if (pdfButton) {
+        pdfButton.disabled = true;
+        pdfButton.textContent = "PDF wird erstellt...";
+      }
+      try {
+        const JsPDF = await loadJsPdfIfNeeded();
+        if (!JsPDF) {
+          alert("PDF-Bibliothek konnte nicht geladen werden. Bitte Seite neu laden und erneut versuchen.");
+          return;
+        }
+        const data = collectReportData();
+        const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 10;
+        const contentWidth = pageWidth - margin * 2;
+        const bottomLimit = pageHeight - margin - 8;
+
+        function drawHeader() {
+          doc.setFillColor(235, 0, 69);
+          doc.rect(margin, 30, contentWidth, 10, "F");
+          doc.setTextColor("#ffffff");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(13);
+          doc.text("PRÜFBERICHT HYDRANTEN", margin + contentWidth / 2, 36.8, { align: "center" });
+          doc.setTextColor("#111827");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.text("Objekt: " + normalizePdfText(data.fields.object || "-"), margin, 45);
+          doc.text("Anlagen Nr.: " + normalizePdfText(data.fields.anlage || "-"), margin, 49);
+          doc.text("Techniker: " + normalizePdfText(data.fields.pruefer || "-"), pageWidth / 2, 45, { align: "center" });
+          doc.text("Datum: " + normalizePdfText(formatDateForFile(data.fields.date || "")), pageWidth - margin, 45, { align: "right" });
+        }
+
+        function ensureSpace(y, needed) {
+          if (y + needed <= bottomLimit) return y;
+          doc.addPage("a4", "portrait");
+          drawHeader();
+          return 55;
+        }
+
+        drawHeader();
+        let y = 55;
+        y = addPdfSection(doc, "Zuordnung", [
+          ["Objekt", data.fields.object],
+          ["Anlagen Nr.", data.fields.anlage],
+          ["Techniker", data.fields.pruefer],
+          ["Datum", data.fields.date ? formatDateForFile(data.fields.date) : ""]
+        ], margin, y, contentWidth, ensureSpace);
+        y = addPdfSection(doc, "Prüfgrundlage", [
+          ["Entspr. DIN 14462/DIN - EN1988/600", data.fields.dinCompliant],
+          ["Löschwasserleitung", data.fields.waterLine],
+          ["Nächstes Prüfdatum", data.fields.nextDate ? formatDateForFile(data.fields.nextDate) : ""]
+        ], margin, y, contentWidth, ensureSpace);
+        data.hydrants.forEach(function(hydrant, index) {
+          y = ensureSpace(y, 58);
+          y = addPdfSection(doc, "Pos. " + (index + 1), hydrantPdfRows(hydrant), margin, y, contentWidth, ensureSpace);
+        });
+        y = addPdfSection(doc, "Bemerkung", [["Bemerkung", data.fields.bemerkung]], margin, y, contentWidth, ensureSpace);
+        if (y + 35 > bottomLimit) {
+          doc.addPage("a4", "portrait");
+          drawHeader();
+          y = 55;
+        }
+        y = addPdfSection(doc, "Unterschrift Techniker", [], margin, y, contentWidth, ensureSpace);
+        const signature = getStorageSignature();
+        if (signature) {
+          try { doc.addImage(signature, "PNG", margin + 2, y + 2, 68, 20, undefined, "FAST"); }
+          catch { doc.text("Unterschrift konnte nicht eingebettet werden.", margin + 2, y + 8); }
+        }
+        doc.setDrawColor("#9ca3af");
+        doc.line(margin + 2, y + 24, margin + 78, y + 24);
+        doc.setTextColor("#111827");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.text("Unterschrift Techniker", margin + 2, y + 28);
+        if (typeof window.FSMOBILE_STAMP_PDF_LOGO === "function") window.FSMOBILE_STAMP_PDF_LOGO(doc);
+        savePdfDocument(doc, getPdfFileName());
+      } catch (error) {
+        console.error("PDF-Export fehlgeschlagen:", error);
+        alert("PDF konnte nicht erstellt werden. Bitte Seite neu laden und erneut versuchen.");
+      } finally {
+        if (pdfButton) {
+          pdfButton.disabled = false;
+          pdfButton.textContent = originalButtonText;
+        }
+      }
+    }
+
+    function setupSignatureCanvas() {
+      const canvas = document.getElementById("signaturePad");
+      if (!canvas) return;
+      const oldData = signaturePadState.canvas && !isCanvasBlank(signaturePadState.canvas) ? signaturePadState.canvas.toDataURL("image/png") : null;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = "#1c1c1e";
+      signaturePadState.canvas = canvas;
+      signaturePadState.ctx = ctx;
+      if (oldData) restoreSignatureFromStorage(oldData);
+    }
+
+    function getPointerPoint(event) {
+      const rect = signaturePadState.canvas.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function startSignature(event) {
+      event.preventDefault();
+      signaturePadState.isDrawing = true;
+      signaturePadState.lastPoint = getPointerPoint(event);
+    }
+
+    function drawSignature(event) {
+      if (!signaturePadState.isDrawing) return;
+      event.preventDefault();
+      const point = getPointerPoint(event);
+      const ctx = signaturePadState.ctx;
+      ctx.beginPath();
+      ctx.moveTo(signaturePadState.lastPoint.x, signaturePadState.lastPoint.y);
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+      signaturePadState.lastPoint = point;
+    }
+
+    function endSignature() {
+      if (!signaturePadState.isDrawing) return;
+      signaturePadState.isDrawing = false;
+      signaturePadState.lastPoint = null;
+      scheduleStorageSave();
+    }
+
+    function isCanvasBlank(canvas) {
+      if (!canvas || !canvas.width || !canvas.height) return true;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return true;
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      for (let index = 3; index < pixels.length; index += 4) if (pixels[index] !== 0) return false;
+      return true;
+    }
+
+    function getStorageSignature() {
+      const canvas = signaturePadState.canvas;
+      if (!canvas || isCanvasBlank(canvas)) return "";
+      try { return canvas.toDataURL("image/png"); } catch { return ""; }
+    }
+
+    function clearSignature(skipSave) {
+      const canvas = signaturePadState.canvas;
+      const ctx = signaturePadState.ctx;
+      if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!skipSave) scheduleStorageSave();
+    }
+
+    function restoreSignatureFromStorage(signatureData) {
+      if (!signatureData || !signaturePadState.ctx || !signaturePadState.canvas) return;
+      const canvas = signaturePadState.canvas;
+      const ctx = signaturePadState.ctx;
+      const rect = canvas.getBoundingClientRect();
+      const image = new Image();
+      image.onload = function() { ctx.drawImage(image, 0, 0, rect.width, rect.height); };
+      image.src = signatureData;
+    }
+
+    function init() {
+      addHydrant();
+      setupSignatureCanvas();
+      restoreFromStorage();
+      setTodayIfEmpty();
+      document.addEventListener("input", function(event) {
+        if (event.target && event.target.tagName === "TEXTAREA") autoResizeTextarea(event.target);
+        scheduleStorageSave();
+      });
+      document.addEventListener("change", function(event) {
+        enforceDinChoice(event);
+        scheduleStorageSave();
+      });
+      const canvas = document.getElementById("signaturePad");
+      canvas.addEventListener("pointerdown", startSignature, { passive: false });
+      canvas.addEventListener("pointermove", drawSignature, { passive: false });
+      canvas.addEventListener("pointerup", endSignature);
+      canvas.addEventListener("pointercancel", endSignature);
+      canvas.addEventListener("pointerleave", endSignature);
+      window.addEventListener("resize", function() { setupSignatureCanvas(); });
+      document.getElementById("archiveOverlay").addEventListener("click", function(event) {
+        if (event.target.id === "archiveOverlay") closeArchive();
+      });
+      document.addEventListener("keydown", function(event) {
+        if (event.key === "Escape" && !document.getElementById("archiveOverlay").hidden) closeArchive();
+      });
+    }
+
+    init();
+  <\/script>
+</body>
+</html>`;
+  }
+
   function renderMenu() {
     const fragment = document.createDocumentFragment();
     MENU_SECTIONS.forEach(sectionConfig => {
@@ -4984,7 +6251,8 @@
             "pb-loeschwasser-trocken": true,
             "pb-loeschwasser-nass": true,
             "pb-zentralbatterie-anlage": true,
-            "pb-wandhydranten": true
+            "pb-wandhydranten": true,
+            "pb-hydranten": true
           };
 
 	          function isFsmobilePortraitReport() {
