@@ -4155,8 +4155,9 @@
       max-width: 100%;
     }
 
-    .hydrant-foundation-grid {
-      grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .95fr);
+    .field-grid.three.hydrant-foundation-grid {
+      grid-template-columns: minmax(220px, .9fr) minmax(260px, 1fr) minmax(0, 240px);
+      align-items: start;
     }
 
     .hydrant-foundation-grid .field {
@@ -4164,10 +4165,32 @@
       min-width: 0;
     }
 
-    .hydrant-foundation-grid input,
+    .hydrant-foundation-grid input:not([type="checkbox"]),
     .hydrant-foundation-grid select {
       width: 100% !important;
       max-width: 100% !important;
+    }
+
+    .hydrant-foundation-grid .next-date-field {
+      justify-self: end;
+      width: min(100%, 240px);
+      max-width: 240px;
+    }
+
+    .hydrant-foundation-grid .next-date-field input {
+      width: 100% !important;
+      max-width: 240px !important;
+    }
+
+    .hydrant-foundation-grid .yes-no {
+      flex-wrap: nowrap;
+      align-items: stretch;
+    }
+
+    .hydrant-foundation-grid .yes-no .check-item {
+      flex: 0 0 auto;
+      min-width: 78px;
+      white-space: nowrap;
     }
 
     label {
@@ -4423,13 +4446,19 @@
       .archive-header button { width: 100%; }
     }
 
-    @media (max-width: 1260px) {
-      .hydrant-foundation-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    @media (max-width: 760px) {
+      .field-grid.three.hydrant-foundation-grid {
+        grid-template-columns: 1fr;
       }
 
       .hydrant-foundation-grid .next-date-field {
-        grid-column: 1 / -1;
+        justify-self: stretch;
+        width: 100%;
+        max-width: none;
+      }
+
+      .hydrant-foundation-grid .next-date-field input {
+        max-width: 100% !important;
       }
     }
 
