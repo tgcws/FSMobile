@@ -4155,6 +4155,21 @@
       max-width: 100%;
     }
 
+    .hydrant-foundation-grid {
+      grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .95fr);
+    }
+
+    .hydrant-foundation-grid .field {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .hydrant-foundation-grid input,
+    .hydrant-foundation-grid select {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
     label {
       margin: 0 0 6px;
       color: var(--muted);
@@ -4408,6 +4423,16 @@
       .archive-header button { width: 100%; }
     }
 
+    @media (max-width: 1260px) {
+      .hydrant-foundation-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .hydrant-foundation-grid .next-date-field {
+        grid-column: 1 / -1;
+      }
+    }
+
     @media (max-width: 720px) {
       .title-actions { margin-right: 0 !important; }
     }
@@ -4447,7 +4472,7 @@
 
     <section class="card">
       <h2 class="section-title">Prüfgrundlage</h2>
-      <div class="field-grid three">
+      <div class="field-grid three hydrant-foundation-grid">
         <div class="field">
           <label>Entspr. DIN 14462/DIN - EN1988/600</label>
           <div class="yes-no">
@@ -4465,7 +4490,7 @@
             <option>UF/ÜF Hydranten</option>
           </select>
         </div>
-        <div class="field">
+        <div class="field next-date-field">
           <label for="nextDateInput">Nächstes Prüfdatum</label>
           <input id="nextDateInput" name="nextDate" type="date" />
         </div>
