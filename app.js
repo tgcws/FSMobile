@@ -4135,7 +4135,10 @@
       gap: 12px;
     }
 
-    .field-grid.three { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+    .field-grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+    }
     .field-grid.two { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
     .field-grid.one { grid-template-columns: 1fr; }
 
@@ -4143,6 +4146,13 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
+    }
+
+    .field-grid.three > .field,
+    .field-grid.three input,
+    .field-grid.three select {
+      min-width: 0;
+      max-width: 100%;
     }
 
     label {
