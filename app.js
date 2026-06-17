@@ -4175,6 +4175,7 @@
       justify-self: end;
       width: min(100%, 240px);
       max-width: 240px;
+      margin-right: 24px;
     }
 
     .hydrant-foundation-grid .next-date-field input {
@@ -4202,6 +4203,27 @@
       box-shadow: none !important;
       -webkit-backdrop-filter: none !important;
       backdrop-filter: none !important;
+    }
+
+    @media (min-width: 761px) and (max-width: 900px) {
+      .field-grid.three.hydrant-foundation-grid {
+        grid-template-columns: minmax(190px, .85fr) minmax(230px, 1fr) minmax(0, 220px);
+      }
+
+      .hydrant-foundation-grid .next-date-field {
+        width: min(100%, 200px);
+        max-width: 200px;
+        margin-right: 24px;
+      }
+
+      .hydrant-foundation-grid .next-date-field input {
+        max-width: 200px !important;
+      }
+
+      .hydrant-foundation-grid #waterLineSelect {
+        width: min(100%, 240px) !important;
+        max-width: 240px !important;
+      }
     }
 
     label {
@@ -4466,6 +4488,7 @@
         justify-self: stretch;
         width: 100%;
         max-width: none;
+        margin-right: 0;
       }
 
       .hydrant-foundation-grid .next-date-field input {
