@@ -5585,8 +5585,15 @@
     return "";
   }
 
-  function archiveEntryFields(entry) {
-    const report = entry && entry.report && typeof entry.report === "object" ? entry.report : {};
+  function archiveEntryFields(entry, storageKey = "") {
+    const isLegacyFeuerloescher = storageKey === "pb-feuerloescher-report-archive-v1";
+    const report = entry && entry.report && typeof entry.report === "object"
+      ? entry.report
+      : entry && entry.data && typeof entry.data === "object"
+        ? entry.data
+        : isLegacyFeuerloescher && entry && typeof entry === "object"
+          ? entry
+          : {};
     const fields = report.fields && typeof report.fields === "object" && !Array.isArray(report.fields)
       ? { ...report.fields }
       : {};
@@ -5594,11 +5601,14 @@
       ? report.header
       : {};
     const anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
-      || firstArchiveValue(header, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+      || firstArchiveValue(header, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+      || (isLegacyFeuerloescher ? firstArchiveValue(report, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]) : "");
     const object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
-      || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"]);
+      || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"])
+      || (isLegacyFeuerloescher ? firstArchiveValue(report, ["object", "objekt", "objectInput", "objektInput"]) : "");
     const date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
-      || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"]);
+      || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"])
+      || (isLegacyFeuerloescher ? firstArchiveValue(report, ["date", "datum", "dateInput", "datumInput"]) : "");
     if (anlage) {
       fields.anlage = String(anlage).trim();
       if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
@@ -5615,7 +5625,7 @@
   }
 
   function archiveEntryAssignmentKey(storageKey, entry) {
-    const fields = archiveEntryFields(entry);
+    const fields = archiveEntryFields(entry, storageKey);
     const anlage = normalizeArchiveKeyPart(firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]));
     const object = normalizeArchiveKeyPart(firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]), { lower: true });
     const date = normalizeArchiveDate(firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]));
@@ -5642,6 +5652,7 @@
 
   function isArchivePointerStorageKey(key) {
     const value = String(key || "");
+    if (value === "pb-feuerloescher-current-archive-id") return true;
     if (/^pb-.*current-archive-id-v\d+$/i.test(value)) return true;
     if (!/^fsmobile-/i.test(value) || !/current/i.test(value)) return false;
     if (/session|temp|draft|pending|auth|update/i.test(value)) return false;
@@ -8205,8 +8216,140 @@
               return found;
             }
 
-            function archiveFields(entry) {
-              var report = entry && entry.report && typeof entry.report === "object" ? entry.report : {};
+            function isFeuerloescherModule() {
+              return window.FSMOBILE_MODULE_ID === "pb-feuerloescher";
+            }
+
+            function feuerloescherLegacyArchiveKeys() {
+              return [
+                "pb-feuerloescher-report-archive-v1",
+                "pb-feuerloescher-archive-v1",
+                "fsmobile-pb-feuerloescher-archive-v1"
+              ];
+            }
+
+            function isFeuerloescherLegacyArchiveKey(storageKey) {
+              return feuerloescherLegacyArchiveKeys().indexOf(String(storageKey || "")) >= 0;
+            }
+
+            function archiveSourceHasAnyKey(source, keys) {
+              if (!source || typeof source !== "object") return false;
+              var wanted = keys.map(function(key) { return String(key).toLowerCase(); });
+              return Object.keys(source).some(function(key) {
+                return wanted.indexOf(String(key).toLowerCase()) >= 0;
+              });
+            }
+
+            function feuerloescherArchiveRow(row) {
+              if (!Array.isArray(row)) {
+                return row && typeof row === "object" ? Object.assign({}, row) : {};
+              }
+              var values = row.slice();
+              if (values.length === 12) values.splice(3, 0, "");
+              if (values.length >= 14) {
+                return {
+                  btNr: values[1] || "",
+                  standort: values[2] || "",
+                  typ: values[3] || "",
+                  hersteller: values[4] || "",
+                  baujahr: values[5] || "",
+                  ausseninspektion: values[6] || "I.O",
+                  innenkontrolle: values[7] || "I.O",
+                  betrSichV: values[8] || "I.O",
+                  schlauchpruefung: values[9] || "I.O",
+                  reinigung: values[10] || "",
+                  loeschmittelTauschBis: values[11] || "",
+                  pruefplakette: values[12] || "",
+                  bemerkung: values[13] || ""
+                };
+              }
+              var druckDichtheit = values[10] || "";
+              return {
+                btNr: "",
+                standort: values[1] || "",
+                typ: values[2] || "",
+                hersteller: values[3] || "",
+                baujahr: values[4] || "",
+                ausseninspektion: values[5] || "I.O",
+                innenkontrolle: values[6] || "I.O",
+                betrSichV: values[7] || "I.O",
+                schlauchpruefung: values[8] || "I.O",
+                reinigung: values[9] || "",
+                loeschmittelTauschBis: values[11] || "",
+                pruefplakette: values[12] || "",
+                bemerkung: druckDichtheit ? "Druck-/Dichtheit: " + druckDichtheit : ""
+              };
+            }
+
+            function normalizeFeuerloescherArchiveReport(report) {
+              if (!isFeuerloescherModule() || !report || typeof report !== "object" || Array.isArray(report)) return report || {};
+              var fields = report.fields && typeof report.fields === "object" && !Array.isArray(report.fields)
+                ? Object.assign({}, report.fields)
+                : {};
+              var sourceHeader = report.header && typeof report.header === "object" && !Array.isArray(report.header)
+                ? report.header
+                : {};
+              var object = firstArchiveValue(sourceHeader, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(report, ["object", "objekt", "objectInput", "objektInput"]);
+              var anlage = firstArchiveValue(sourceHeader, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(report, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+              var technician = firstArchiveValue(sourceHeader, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])
+                || firstArchiveValue(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])
+                || firstArchiveValue(report, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"]);
+              var date = firstArchiveValue(sourceHeader, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(report, ["date", "datum", "dateInput", "datumInput"]);
+              var header = Object.assign({}, sourceHeader, {
+                objekt: String(object || "").trim(),
+                anlage: String(anlage || "").trim(),
+                name: String(technician || "").trim(),
+                datum: normalizeArchiveDate(date)
+              });
+              fields.object = header.objekt;
+              fields.objekt = header.objekt;
+              fields.anlage = header.anlage;
+              fields.anlagenNr = header.anlage;
+              fields.pruefer = header.name;
+              fields.techniker = header.name;
+              fields.name = header.name;
+              fields.date = header.datum;
+              fields.datum = header.datum;
+              var normalized = Object.assign({}, report, {
+                fields: fields,
+                header: header,
+                rows: Array.isArray(report.rows) && report.rows.length ? report.rows.map(feuerloescherArchiveRow) : [{}]
+              });
+              var remark = firstArchiveValue(report, ["berichtBemerkung", "reportRemark", "reportBemerkung"])
+                || firstArchiveValue(fields, ["berichtBemerkung", "reportRemark", "reportBemerkung", "bemerkung"]);
+              if (remark && !normalized.berichtBemerkung) normalized.berichtBemerkung = remark;
+              try {
+                var signature = fsmobileSignatureDataUrlFromValue(report, 0);
+                if (signature) normalized.signature = signature;
+              } catch (error) {}
+              return normalized;
+            }
+
+            function archiveEntryReport(entry, storageKey) {
+              if (!entry || typeof entry !== "object") return {};
+              var report = entry.report && typeof entry.report === "object"
+                ? entry.report
+                : entry.data && typeof entry.data === "object"
+                  ? entry.data
+                  : isFeuerloescherModule() && (
+                    Array.isArray(entry.rows)
+                    || entry.header
+                    || entry.fields
+                    || archiveSourceHasAnyKey(entry, ["object", "objekt", "anlage", "anlagenNr", "name", "date", "datum"])
+                  )
+                    ? entry
+                    : {};
+              return isFeuerloescherModule() ? normalizeFeuerloescherArchiveReport(report) : report;
+            }
+
+            function archiveFields(entry, storageKey) {
+              var report = archiveEntryReport(entry, storageKey);
               var fields = report.fields && typeof report.fields === "object" && !Array.isArray(report.fields)
                 ? Object.assign({}, report.fields)
                 : {};
@@ -8235,7 +8378,7 @@
             }
 
             function archiveEntryIdentity(storageKey, entry) {
-              var fields = archiveFields(entry);
+              var fields = archiveFields(entry, storageKey);
               var anlage = normalizeArchiveKeyPart(firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]));
               var object = normalizeArchiveKeyPart(firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]), { lower: true });
               var date = normalizeArchiveDate(firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]));
@@ -8377,6 +8520,7 @@
 
             function archiveReportFieldBundle(report) {
               var normalized = report && typeof report === "object" ? report : {};
+              if (isFeuerloescherModule()) normalized = normalizeFeuerloescherArchiveReport(normalized);
               var fields = normalized.fields && typeof normalized.fields === "object" && !Array.isArray(normalized.fields)
                 ? Object.assign({}, normalized.fields)
                 : {};
@@ -8649,6 +8793,39 @@
               }
             }
 
+            function addUniqueArchiveStorageKey(keys, storageKey) {
+              if (!storageKey || keys.indexOf(storageKey) >= 0) return;
+              keys.push(storageKey);
+            }
+
+            function archiveStorageKeysForDisplay(primaryKey) {
+              var keys = [];
+              addUniqueArchiveStorageKey(keys, primaryKey);
+              if (isFeuerloescherModule()) {
+                feuerloescherLegacyArchiveKeys().forEach(function(key) {
+                  addUniqueArchiveStorageKey(keys, key);
+                });
+              }
+              archiveStorageKeys({ currentOnly: true }).forEach(function(key) {
+                addUniqueArchiveStorageKey(keys, key);
+              });
+              return keys;
+            }
+
+            function archiveEntryRecordsForDisplay(primaryKey) {
+              var records = [];
+              archiveStorageKeysForDisplay(primaryKey).forEach(function(storageKey) {
+                readArchiveEntriesForKey(storageKey).forEach(function(entry, index) {
+                  records.push({
+                    storageKey: storageKey,
+                    entry: entry,
+                    index: index
+                  });
+                });
+              });
+              return records;
+            }
+
             function moduleDraftStorageKeys() {
               var keys = [];
               var pattern = /\\b(?:STORAGE_KEY|CURRENT_STORAGE_KEY|FORM_STORAGE_KEY|REPORT_STORAGE_KEY)\\s*=\\s*["']([^"']+)["']/g;
@@ -8671,16 +8848,18 @@
               if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
               var archiveKey = resolveArchiveStorageKey();
               if (!archiveKey) return;
-              var entries = readArchiveEntriesForKey(archiveKey);
-              if (!entries.length) return;
+              var records = archiveEntryRecordsForDisplay(archiveKey);
+              if (!records.length) return;
               moduleDraftStorageKeys().forEach(function(draftKey) {
                 var raw = "";
                 try { raw = localStorage.getItem(draftKey) || ""; } catch (error) { return; }
                 var pointer = String(raw || "").trim();
                 if (!pointer || /^[{\[]/.test(pointer)) return;
-                var entry = entries.find(function(item) { return item && item.id === pointer && item.report; });
-                if (!entry) return;
-                try { localStorage.setItem(draftKey, JSON.stringify(entry.report)); } catch (error) {}
+                var record = records.find(function(item) {
+                  return item && item.entry && item.entry.id === pointer && archiveEntryReport(item.entry, item.storageKey);
+                });
+                if (!record) return;
+                try { localStorage.setItem(draftKey, JSON.stringify(archiveEntryReport(record.entry, record.storageKey))); } catch (error) {}
               });
             }
 
@@ -8697,30 +8876,31 @@
               return parts ? parts[3] + "." + parts[2] + "." + parts[1] : (String(value || "").trim() || "Ohne Datum");
             }
 
-            function archiveDisplayTitle(entry) {
-              var fields = archiveFields(entry);
+            function archiveDisplayTitle(entry, storageKey) {
+              var fields = archiveFields(entry, storageKey);
               var anlage = String(firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]) || "").trim() || "Ohne Anlagen Nr.";
               var object = String(firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]) || "").trim() || "Ohne Objekt";
               var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]);
-              var report = entry && entry.report && typeof entry.report === "object" ? entry.report : {};
+              var report = archiveEntryReport(entry, storageKey);
               var count = Array.isArray(report.rows) ? " (" + report.rows.length + ")" : "";
               return anlage + " - " + object + count + " - " + archiveDisplayDate(date);
             }
 
             function applyArchiveEntryReport(entry, storageKey) {
-              if (!entry || !entry.report) return;
               entry = latestArchiveEntryForOpen(storageKey, entry);
+              var report = archiveEntryReport(entry, storageKey);
+              if (!entry || !report || typeof report !== "object") return;
               var applied = false;
               ["applyReport", "applyData", "applyReportData", "restoreReportData", "applyStoragePayload"].some(function(name) {
                 var fn = window[name];
                 if (typeof fn !== "function") return false;
                 try {
-                  fn(entry.report);
+                  fn(report);
                   applied = true;
                 } catch (error) {}
                 return applied;
               });
-              if (!applied || !archiveReportMatchesDom(entry.report)) applyArchiveReportDomFallback(entry.report);
+              if (!applied || !archiveReportMatchesDom(report)) applyArchiveReportDomFallback(report);
               if (entry.id) writeCurrentArchiveIdForKey(storageKey, entry.id);
               persistCurrentDraftBeforeArchive();
               var overlay = document.getElementById("archiveOverlay");
@@ -8728,11 +8908,12 @@
               setUnifiedActionStatus("Prüfbericht wurde aus dem Archiv geöffnet.");
             }
 
-            function deleteArchiveEntryFromDisplay(entry, storageKey) {
-              if (!entry || !entry.id || !storageKey) return;
-              if (!confirm("Archiv-Eintrag '" + archiveDisplayTitle(entry) + "' löschen?")) return;
-              var entries = readArchiveEntriesForKey(storageKey).filter(function(item) {
-                return item && item.id !== entry.id;
+            function deleteArchiveEntryFromDisplay(entry, storageKey, entryIndex) {
+              if (!entry || !storageKey) return;
+              if (!confirm("Archiv-Eintrag '" + archiveDisplayTitle(entry, storageKey) + "' löschen?")) return;
+              var entries = readArchiveEntriesForKey(storageKey).filter(function(item, index) {
+                if (entry.id) return item && item.id !== entry.id;
+                return index !== entryIndex;
               });
               if (writeArchiveEntriesForKey(storageKey, entries)) {
                 candidateCurrentArchiveIdKeys(storageKey).forEach(function(key) {
@@ -8748,18 +8929,20 @@
             function refreshArchiveListDisplay(storageKey) {
               var archiveList = document.getElementById("archiveList");
               if (!archiveList || !storageKey) return;
-              var entries = readArchiveEntriesForKey(storageKey).slice().sort(function(a, b) {
-                return String((b && b.updatedAt) || "").localeCompare(String((a && a.updatedAt) || ""));
+              var records = archiveEntryRecordsForDisplay(storageKey).sort(function(a, b) {
+                return archiveTimestamp(b.entry, b.index) - archiveTimestamp(a.entry, a.index);
               });
               archiveList.innerHTML = "";
-              if (!entries.length) {
+              if (!records.length) {
                 var empty = document.createElement("p");
                 empty.className = "archive-empty";
                 empty.textContent = "Noch keine gespeicherten Prüfberichte im Archiv.";
                 archiveList.appendChild(empty);
                 return;
               }
-              entries.forEach(function(entry) {
+              records.forEach(function(record) {
+                var entry = record.entry;
+                var entryStorageKey = record.storageKey;
                 var item = document.createElement("article");
                 item.className = "archive-item";
                 var text = document.createElement("div");
@@ -8767,18 +8950,18 @@
                 var meta = document.createElement("div");
                 title.className = "archive-title";
                 meta.className = "archive-meta";
-                title.textContent = archiveDisplayTitle(entry);
-                meta.textContent = "Geändert: " + archiveDisplayDate(String((entry && entry.updatedAt) || "").slice(0, 10));
+                title.textContent = archiveDisplayTitle(entry, entryStorageKey);
+                meta.textContent = "Geändert: " + archiveDisplayDate(String((entry && (entry.updatedAt || entry.savedAt || entry.createdAt)) || "").slice(0, 10));
                 text.append(title, meta);
                 var openButton = document.createElement("button");
                 openButton.type = "button";
                 openButton.textContent = "Öffnen";
-                openButton.addEventListener("click", function() { applyArchiveEntryReport(latestArchiveEntryForOpen(storageKey, entry), storageKey); });
+                openButton.addEventListener("click", function() { applyArchiveEntryReport(latestArchiveEntryForOpen(entryStorageKey, entry), entryStorageKey); });
                 var deleteButton = document.createElement("button");
                 deleteButton.type = "button";
                 deleteButton.className = "danger";
                 deleteButton.textContent = "Löschen";
-                deleteButton.addEventListener("click", function() { deleteArchiveEntryFromDisplay(entry, storageKey); });
+                deleteButton.addEventListener("click", function() { deleteArchiveEntryFromDisplay(entry, entryStorageKey, record.index); });
                 item.append(text, openButton, deleteButton);
                 archiveList.appendChild(item);
               });
@@ -8796,13 +8979,17 @@
             function saveReportArchiveByIdentity() {
               if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return false;
               persistCurrentDraftBeforeArchive();
-              var storageKey = resolveArchiveStorageKey();
+              var primaryStorageKey = resolveArchiveStorageKey();
               var report = currentArchiveReport();
+              var existingAcrossKeys = isFeuerloescherModule() ? findArchiveEntryByIdentity(report) : null;
+              var storageKey = existingAcrossKeys && existingAcrossKeys.storageKey ? existingAcrossKeys.storageKey : primaryStorageKey;
               var entries = readArchiveEntriesForKey(storageKey);
               var identity = archiveEntryIdentity(storageKey, { report: report });
-              var existingIndex = identity ? entries.findIndex(function(entry) {
-                return archiveEntryIdentity(storageKey, entry) === identity;
-              }) : -1;
+              var existingIndex = existingAcrossKeys && existingAcrossKeys.storageKey === storageKey
+                ? existingAcrossKeys.index
+                : identity ? entries.findIndex(function(entry) {
+                  return archiveEntryIdentity(storageKey, entry) === identity;
+                }) : -1;
               var now = new Date().toISOString();
               var wasUpdate = existingIndex >= 0;
               var previous = wasUpdate ? entries[existingIndex] : null;
@@ -8831,8 +9018,12 @@
 
             function candidateCurrentArchiveIdKeys(storageKey) {
               var keys = [];
+              if (isFeuerloescherModule() && isFeuerloescherLegacyArchiveKey(storageKey)) {
+                keys.push("pb-feuerloescher-current-archive-id");
+                keys.push("pb-feuerloescher-current-archive-id-v2");
+              }
               var match = String(storageKey || "").match(/^(.*)-archive-v(\\d+)$/i);
-              if (match) {
+              if (match && !(isFeuerloescherModule() && isFeuerloescherLegacyArchiveKey(storageKey))) {
                 var legacyCurrentKey = match[1] + "-current-v" + match[2];
                 if (!isModuleDraftStorageKey(legacyCurrentKey)) keys.push(legacyCurrentKey);
                 keys.push(match[1] + "-current-archive-id-v" + match[2]);
@@ -8856,7 +9047,10 @@
             }
 
             function clearCurrentArchiveIdsForCurrentModule() {
-              archiveStorageKeys({ currentOnly: true }).forEach(function(storageKey) {
+              var keys = isFeuerloescherModule()
+                ? archiveStorageKeysForDisplay(resolveArchiveStorageKey())
+                : archiveStorageKeys({ currentOnly: true });
+              keys.forEach(function(storageKey) {
                 candidateCurrentArchiveIdKeys(storageKey).forEach(function(key) {
                   try { localStorage.removeItem(key); } catch (error) {}
                 });
@@ -8865,15 +9059,14 @@
 
             function findArchiveEntryByIdentity(report) {
               var match = null;
-              archiveStorageKeys({ currentOnly: true }).some(function(storageKey) {
+              var storageKeys = isFeuerloescherModule()
+                ? archiveStorageKeysForDisplay(resolveArchiveStorageKey())
+                : archiveStorageKeys({ currentOnly: true });
+              storageKeys.some(function(storageKey) {
                 var wanted = archiveEntryIdentity(storageKey, { report: report });
                 if (!wanted) return false;
-                var raw = null;
-                try { raw = localStorage.getItem(storageKey); } catch (error) { return false; }
-                if (!raw) return false;
-                var entries = null;
-                try { entries = JSON.parse(raw); } catch (error) { return false; }
-                if (!Array.isArray(entries)) return false;
+                var entries = readArchiveEntriesForKey(storageKey);
+                if (!Array.isArray(entries) || !entries.length) return false;
                 return entries.some(function(entry, index) {
                   if (archiveEntryIdentity(storageKey, entry) !== wanted) return false;
                   match = { storageKey: storageKey, entry: entry, index: index };
