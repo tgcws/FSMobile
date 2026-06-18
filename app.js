@@ -44,6 +44,7 @@
   let titleStartAnimationTimer = 0;
   let optionsCloseTimer = 0;
   let viewTransitionTimers = [];
+  const signatureClearUntilByModule = new Map();
 
   const MENU_SECTIONS = [
     {
@@ -1549,9 +1550,9 @@
     function sanitizeFileName(value){return(value||"Pruefbericht-Nass-Trocken-Station").trim().replace(/[\\\\/:*?"<>|]+/g,"-").replace(/\\s+/g,"_").slice(0,80)||"Pruefbericht-Nass-Trocken-Station"} function getPdfFileName(){const anlage=sanitizeFileName(document.getElementById("anlageInput").value||"Ohne Anlagen Nr.");const objectName=sanitizeFileName(document.getElementById("objectInput").value||"Ohne Objekt");const date=document.getElementById("dateInput").value||todayIso();return anlage+"_"+objectName+"_"+date+".pdf"}
     function ensureJsPdf(){if(window.jspdf&&typeof window.jspdf.jsPDF==="function")return window.jspdf.jsPDF;if(typeof window.jsPDF==="function")return window.jsPDF;return null} async function loadJsPdfIfNeeded(){const existing=ensureJsPdf();if(existing)return existing;return new Promise(resolve=>{const script=document.createElement("script");script.src="vendor/jspdf.umd.min.js";script.onload=()=>resolve(ensureJsPdf());script.onerror=()=>resolve(null);document.head.appendChild(script)})}
     function savePdfDocument(doc,fileName){try{doc["save"](fileName)}catch{try{const blob=doc["output"]("blob");const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=fileName;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}catch{alert("PDF konnte nicht gespeichert werden. Bitte im Browser erneut öffnen und noch einmal versuchen.")}}}
-    async function exportPdf(){const JsPdf=await loadJsPdfIfNeeded();if(!JsPdf){alert("PDF-Bibliothek konnte nicht geladen werden.");return}const pdfButton=document.getElementById("pdfButton");const oldText=pdfButton.textContent;pdfButton.disabled=true;pdfButton.textContent="PDF wird erstellt...";try{const pdf=new JsPdf({orientation:"portrait",unit:"mm",format:"a4",compress:true});const margin=12;const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const bottom=pageHeight-margin;let y=30;function clean(value){return String(value||"-").trim()||"-"}function ensure(space){if(y+space<=bottom)return;pdf.addPage();y=30;header(true)}function header(continued){pdf.setFillColor(235,0,69);pdf.rect(margin,y,pageWidth-margin*2,10,"F");pdf.setTextColor("#ffffff");pdf.setFont("helvetica","bold");pdf.setFontSize(13);pdf.text(continued?"Prüfbericht Nass/Trocken-Station (Fortsetzung)":"Prüfbericht Nass/Trocken-Station",pageWidth/2,y+6.8,{align:"center"});y+=14}function section(title){ensure(10);pdf.setDrawColor(255,255,255);pdf.setLineWidth(0.2);pdf.setFillColor(255,180,71);pdf.rect(margin,y,pageWidth-margin*2,7,"FD");pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","bold");pdf.setFontSize(8.5);pdf.text(title,margin+2,y+4.8);pdf.setTextColor("#1c1c1e");y+=8}function kv(title,rows,columns){section(title);const colWidth=(pageWidth-margin*2)/columns;rows.forEach((row,index)=>{const col=index%columns;if(col===0)ensure(13);const x=margin+col*colWidth;pdf.setDrawColor(255,255,255);pdf.setLineWidth(0.2);pdf.setFillColor("#f5f5f5");pdf.rect(x,y,colWidth,13,"FD");pdf.setFont("helvetica","bold");pdf.setFontSize(6.5);pdf.setTextColor("#6b7280");pdf.text(pdf.splitTextToSize(clean(row[0]),colWidth-4),x+2,y+3.8);pdf.setFont("helvetica","normal");pdf.setFontSize(8.2);pdf.setTextColor("#1c1c1e");pdf.text(pdf.splitTextToSize(clean(row[1]),colWidth-4),x+2,y+8.5);if(col===columns-1||index===rows.length-1)y+=13});y+=4}header(false);kv("Zuordnung",[["Anlagen Nr.",textValue("anlageInput")],["Objekt",textValue("objectInput")],["Anlagenstandort",textValue("anlagenstandortInput")],["Datum",formatDateForFile(textValue("dateInput"))]],4);kv("Anlagentyp",[["Anlagentyp",textValue("anlagentypSelect")]],1);kv("Prüfung",CHECK_FIELDS.map(item=>[item[1],document.querySelector("[data-field='"+item[0]+"']").value]),3);kv("Messwerte",[["Einschaltdruck",withUnit(textValue("einschaltdruckInput"),"bar")],["Ausschaltdruck",withUnit(textValue("ausschaltdruckInput"),"bar")],["Vordruck",withUnit(textValue("vordruckInput"),"bar")],["Vorspannung Ausdehnungsgefäß",withUnit(textValue("vorspannungInput"),"bar")]],2);kv("Anlagendaten",[["Hersteller",textValue("herstellerInput")],["Steuerungstyp",textValue("steuerungstypInput")],["Pumpentyp",textValue("pumpentypInput")],["Baujahr",textValue("baujahrInput")],["Leistung",withUnit(textValue("leistungKwInput"),"KW")],["Leistung",withUnit(textValue("leistungHInput"),"H")]],2);kv("Wasseranschluss",[["Anschluss",textValue("anschlussSelect")]],1);kv("Prüfergebnis",[["Prüfergebnis",textValue("pruefergebnisSelect")],["Bemerkung",textValue("bemerkungInput")]],1);ensure(32);section("Unterschrift Techniker");pdf.setFillColor("#f5f5f5");pdf.rect(margin,y,pageWidth-margin*2,24,"F");const signature=getStorageSignature();if(signature){try{pdf.addImage(signature,"PNG",margin+2,y+2,68,20,undefined,"FAST")}catch{pdf.text("Unterschrift konnte nicht eingebettet werden.",margin+2,y+8)}}pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.",margin,pageHeight-9);if(typeof window.FSMOBILE_STAMP_PDF_LOGO==="function")window.FSMOBILE_STAMP_PDF_LOGO(pdf);savePdfDocument(pdf,getPdfFileName())}catch(error){console.error("PDF Export fehlgeschlagen",error);alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.")}finally{pdfButton.disabled=false;pdfButton.textContent=oldText||"PDF"}}
+    async function exportPdf(){const JsPdf=await loadJsPdfIfNeeded();if(!JsPdf){alert("PDF-Bibliothek konnte nicht geladen werden.");return}const pdfButton=document.getElementById("pdfButton");const oldText=pdfButton.textContent;pdfButton.disabled=true;pdfButton.textContent="PDF wird erstellt...";try{const pdf=new JsPdf({orientation:"portrait",unit:"mm",format:"a4",compress:true});const margin=12;const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const bottom=pageHeight-margin;let y=30;function clean(value){return String(value||"-").trim()||"-"}function ensure(space){if(y+space<=bottom)return;pdf.addPage();y=30;header(true)}function header(continued){pdf.setFillColor(235,0,69);pdf.rect(margin,y,pageWidth-margin*2,10,"F");pdf.setTextColor("#ffffff");pdf.setFont("helvetica","bold");pdf.setFontSize(13);pdf.text(continued?"Prüfbericht Nass/Trocken-Station (Fortsetzung)":"Prüfbericht Nass/Trocken-Station",pageWidth/2,y+6.8,{align:"center"});y+=14}function section(title){ensure(10);pdf.setDrawColor(255,255,255);pdf.setLineWidth(0.2);pdf.setFillColor(255,180,71);pdf.rect(margin,y,pageWidth-margin*2,7,"FD");pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","bold");pdf.setFontSize(8.5);pdf.text(title,margin+2,y+4.8);pdf.setTextColor("#1c1c1e");y+=8}function kv(title,rows,columns){section(title);const colWidth=(pageWidth-margin*2)/columns;rows.forEach((row,index)=>{const col=index%columns;if(col===0)ensure(13);const x=margin+col*colWidth;pdf.setDrawColor(255,255,255);pdf.setLineWidth(0.2);pdf.setFillColor("#f5f5f5");pdf.rect(x,y,colWidth,13,"FD");pdf.setFont("helvetica","bold");pdf.setFontSize(6.5);pdf.setTextColor("#6b7280");pdf.text(pdf.splitTextToSize(clean(row[0]),colWidth-4),x+2,y+3.8);pdf.setFont("helvetica","normal");pdf.setFontSize(8.2);pdf.setTextColor("#1c1c1e");pdf.text(pdf.splitTextToSize(clean(row[1]),colWidth-4),x+2,y+8.5);if(col===columns-1||index===rows.length-1)y+=13});y+=4}header(false);kv("Zuordnung",[["Anlagen Nr.",textValue("anlageInput")],["Objekt",textValue("objectInput")],["Anlagenstandort",textValue("anlagenstandortInput")],["Datum",formatDateForFile(textValue("dateInput"))]],4);kv("Anlagentyp",[["Anlagentyp",textValue("anlagentypSelect")]],1);kv("Prüfung",CHECK_FIELDS.map(item=>[item[1],document.querySelector("[data-field='"+item[0]+"']").value]),3);kv("Messwerte",[["Einschaltdruck",withUnit(textValue("einschaltdruckInput"),"bar")],["Ausschaltdruck",withUnit(textValue("ausschaltdruckInput"),"bar")],["Vordruck",withUnit(textValue("vordruckInput"),"bar")],["Vorspannung Ausdehnungsgefäß",withUnit(textValue("vorspannungInput"),"bar")]],2);kv("Anlagendaten",[["Hersteller",textValue("herstellerInput")],["Steuerungstyp",textValue("steuerungstypInput")],["Pumpentyp",textValue("pumpentypInput")],["Baujahr",textValue("baujahrInput")],["Leistung",withUnit(textValue("leistungKwInput"),"KW")],["Leistung",withUnit(textValue("leistungHInput"),"H")]],2);kv("Wasseranschluss",[["Anschluss",textValue("anschlussSelect")]],1);kv("Prüfergebnis",[["Prüfergebnis",textValue("pruefergebnisSelect")],["Bemerkung",textValue("bemerkungInput")]],1);ensure(32);section("Unterschrift Techniker");pdf.setFillColor("#f5f5f5");pdf.rect(margin,y,pageWidth-margin*2,24,"F");const signature=getStorageSignature();if(signature){try{pdf.addImage(signature,"PNG",margin+2,y+2,68,20,undefined,"SLOW")}catch{pdf.text("Unterschrift konnte nicht eingebettet werden.",margin+2,y+8)}}pdf.setTextColor("#1c1c1e");pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.text("Wir weisen auf die 3-jährliche Sachverständigenprüfpflicht nach TPrüfVO Hessen hin.",margin,pageHeight-9);if(typeof window.FSMOBILE_STAMP_PDF_LOGO==="function")window.FSMOBILE_STAMP_PDF_LOGO(pdf);savePdfDocument(pdf,getPdfFileName())}catch(error){console.error("PDF Export fehlgeschlagen",error);alert("PDF konnte nicht erstellt werden. Bitte erneut versuchen.")}finally{pdfButton.disabled=false;pdfButton.textContent=oldText||"PDF"}}
     function getStorageSignature(){const canvas=document.getElementById("signaturePad");if(!canvas)return"";try{const context=canvas.getContext("2d", { willReadFrequently: true });const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;for(let index=3;index<pixels.length;index+=4)if(pixels[index]!==0)return canvas.toDataURL("image/png")}catch{}return""}
-    function restoreSignatureFromStorage(dataUrl){if(!dataUrl)return;const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });const rect=canvas.getBoundingClientRect();const img=new Image();img.onload=()=>context.drawImage(img,0,0,rect.width,rect.height);img.src=dataUrl}
+    function restoreSignatureFromStorage(dataUrl){if(!dataUrl)return;const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });const img=new Image();img.onload=()=>{const draw=()=>{const ratio=window.devicePixelRatio||1;context.save();context.setTransform(1,0,0,1,0,0);context.clearRect(0,0,canvas.width,canvas.height);context.imageSmoothingEnabled=true;context.imageSmoothingQuality="high";context.drawImage(img,0,0,canvas.width,canvas.height);context.restore();context.setTransform(ratio,0,0,ratio,0,0);context.lineWidth=2.4;context.lineCap="round";context.lineJoin="round";context.strokeStyle="#1c1c1e"};draw();setTimeout(draw,80);setTimeout(draw,260)};img.src=dataUrl}
     function setupSignaturePad(){const canvas=document.getElementById("signaturePad");const context=canvas.getContext("2d", { willReadFrequently: true });signaturePadState.canvas=canvas;signaturePadState.ctx=context;function resize(keep){const dataUrl=keep?getStorageSignature():"";const rect=canvas.getBoundingClientRect();const ratio=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(rect.width*ratio));canvas.height=Math.max(1,Math.round(rect.height*ratio));context.setTransform(ratio,0,0,ratio,0,0);context.lineWidth=2.4;context.lineCap="round";context.lineJoin="round";context.strokeStyle="#1c1c1e";restoreSignatureFromStorage(dataUrl)}function point(event){const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top}}function start(event){event.preventDefault();signaturePadState.isDrawing=true;signaturePadState.lastPoint=point(event)}function move(event){if(!signaturePadState.isDrawing)return;event.preventDefault();const current=point(event);context.beginPath();context.moveTo(signaturePadState.lastPoint.x,signaturePadState.lastPoint.y);context.lineTo(current.x,current.y);context.stroke();signaturePadState.lastPoint=current}function end(){if(!signaturePadState.isDrawing)return;signaturePadState.isDrawing=false;signaturePadState.lastPoint=null;scheduleStorageSave()}canvas.addEventListener("pointerdown",start);canvas.addEventListener("pointermove",move);canvas.addEventListener("pointerup",end);canvas.addEventListener("pointercancel",end);canvas.addEventListener("pointerleave",end);window.addEventListener("resize",()=>resize(true));resize(false)}
     function clearSignature(skipSave=false){const canvas=document.getElementById("signaturePad");const context=canvas&&canvas.getContext("2d", { willReadFrequently: true });if(canvas&&context)context.clearRect(0,0,canvas.width,canvas.height);if(!skipSave)scheduleStorageSave()}
     renderChecks();setupSignaturePad();restoreFromStorage();setTodayIfEmpty();document.addEventListener("input",scheduleStorageSave);document.addEventListener("change",scheduleStorageSave);document.getElementById("archiveOverlay").addEventListener("click",event=>{if(event.target.id==="archiveOverlay")closeArchive()});document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!document.getElementById("archiveOverlay").hidden)closeArchive()});
@@ -2641,7 +2642,7 @@
         pdf.rect(margin, y, pageWidth - margin * 2, 24, "F");
         const signature = getStorageSignature();
         if (signature) {
-          try { pdf.addImage(signature, "PNG", margin + 2, y + 2, 68, 20, undefined, "FAST"); }
+          try { pdf.addImage(signature, "PNG", margin + 2, y + 2, 68, 20, undefined, "SLOW"); }
           catch { pdf.text("Unterschrift konnte nicht eingebettet werden.", margin + 2, y + 8); }
         }
         pdf.setTextColor("#1c1c1e");
@@ -2674,9 +2675,27 @@
       if (!dataUrl) return;
       const canvas = document.getElementById("signaturePad");
       const context = canvas.getContext("2d", { willReadFrequently: true });
-      const rect = canvas.getBoundingClientRect();
       const img = new Image();
-      img.onload = () => context.drawImage(img, 0, 0, rect.width, rect.height);
+      img.onload = () => {
+        const draw = () => {
+          const ratio = window.devicePixelRatio || 1;
+          context.save();
+          context.setTransform(1, 0, 0, 1, 0, 0);
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = "high";
+          context.drawImage(img, 0, 0, canvas.width, canvas.height);
+          context.restore();
+          context.setTransform(ratio, 0, 0, ratio, 0, 0);
+          context.lineWidth = 2.4;
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.strokeStyle = "#1c1c1e";
+        };
+        draw();
+        setTimeout(draw, 80);
+        setTimeout(draw, 260);
+      };
       img.src = dataUrl;
     }
 
@@ -3903,7 +3922,7 @@
         }
         const signatureHasContent = signaturePadState.canvas && !isCanvasBlank(signaturePadState.canvas);
         if (signatureHasContent) {
-          try { doc.addImage(signaturePadState.canvas.toDataURL("image/png"), "PNG", margin, y, 62, 18, undefined, "FAST"); }
+          try { doc.addImage(getStorageSignature(), "PNG", margin, y, 62, 18, undefined, "SLOW"); }
           catch { doc.text("Unterschrift konnte nicht eingebettet werden.", margin, y + 8); }
         }
         doc.setDrawColor("#9ca3af");
@@ -4003,16 +4022,36 @@
       if (!signatureData || !signaturePadState.ctx || !signaturePadState.canvas) return;
       const canvas = signaturePadState.canvas;
       const ctx = signaturePadState.ctx;
-      const rect = canvas.getBoundingClientRect();
       const image = new Image();
-      image.onload = () => ctx.drawImage(image, 0, 0, rect.width, rect.height);
+      image.onload = () => {
+        const draw = () => {
+          const dpr = window.devicePixelRatio || 1;
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = 2.4;
+          ctx.strokeStyle = "#1c1c1e";
+        };
+        draw();
+        setTimeout(draw, 80);
+        setTimeout(draw, 260);
+      };
       image.src = signatureData;
     }
 
     function init() {
       renderInspection();
       renderMeasurements();
+      storageRestoreInProgress = true;
       addCell();
+      storageRestoreInProgress = false;
       setupSignatureCanvas();
       restoreFromStorage();
       document.addEventListener("input", scheduleStorageSave);
@@ -5266,7 +5305,7 @@
         y = addPdfSection(doc, "Unterschrift Techniker", [], margin, y, contentWidth, ensureSpace);
         const signature = getStorageSignature();
         if (signature) {
-          try { doc.addImage(signature, "PNG", margin + 2, y + 2, 68, 20, undefined, "FAST"); }
+          try { doc.addImage(signature, "PNG", margin + 2, y + 2, 68, 20, undefined, "SLOW"); }
           catch { doc.text("Unterschrift konnte nicht eingebettet werden.", margin + 2, y + 8); }
         }
         doc.setDrawColor("#9ca3af");
@@ -5363,14 +5402,34 @@
       if (!signatureData || !signaturePadState.ctx || !signaturePadState.canvas) return;
       const canvas = signaturePadState.canvas;
       const ctx = signaturePadState.ctx;
-      const rect = canvas.getBoundingClientRect();
       const image = new Image();
-      image.onload = function() { ctx.drawImage(image, 0, 0, rect.width, rect.height); };
+      image.onload = function() {
+        const draw = function() {
+          const dpr = window.devicePixelRatio || 1;
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = 2.4;
+          ctx.strokeStyle = "#1c1c1e";
+        };
+        draw();
+        setTimeout(draw, 80);
+        setTimeout(draw, 260);
+      };
       image.src = signatureData;
     }
 
     function init() {
+      storageRestoreInProgress = true;
       addHydrant();
+      storageRestoreInProgress = false;
       setupSignatureCanvas();
       restoreFromStorage();
       setTodayIfEmpty();
@@ -5528,7 +5587,31 @@
 
   function archiveEntryFields(entry) {
     const report = entry && entry.report && typeof entry.report === "object" ? entry.report : {};
-    return report.fields && typeof report.fields === "object" ? report.fields : report;
+    const fields = report.fields && typeof report.fields === "object" && !Array.isArray(report.fields)
+      ? { ...report.fields }
+      : {};
+    const header = report.header && typeof report.header === "object" && !Array.isArray(report.header)
+      ? report.header
+      : {};
+    const anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+      || firstArchiveValue(header, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+    const object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
+      || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"]);
+    const date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
+      || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"]);
+    if (anlage) {
+      fields.anlage = String(anlage).trim();
+      if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
+    }
+    if (object) {
+      fields.object = String(object).trim();
+      if (!fields.objekt) fields.objekt = fields.object;
+    }
+    if (date) {
+      fields.date = normalizeArchiveDate(date);
+      if (!fields.datum) fields.datum = fields.date;
+    }
+    return Object.keys(fields).length ? fields : report;
   }
 
   function archiveEntryAssignmentKey(storageKey, entry) {
@@ -5552,13 +5635,14 @@
 
   function isArchiveStorageKey(key) {
     const value = String(key || "");
-    if (!/^fsmobile-.*archive.*v\d+$/i.test(value)) return false;
+    if (!/^(?:fsmobile-.*archive.*v\d+|pb-.*archive.*v\d+)$/i.test(value)) return false;
     if (/current|session|temp|draft|pending/i.test(value)) return false;
     return true;
   }
 
   function isArchivePointerStorageKey(key) {
     const value = String(key || "");
+    if (/^pb-.*current-archive-id-v\d+$/i.test(value)) return true;
     if (!/^fsmobile-/i.test(value) || !/current/i.test(value)) return false;
     if (/session|temp|draft|pending|auth|update/i.test(value)) return false;
     if (/archive/i.test(value)) return true;
@@ -5927,6 +6011,174 @@
     }, 300);
   }
 
+  function reportSignatureStorageKeys(moduleId) {
+    const keys = {
+      "pb-feuerloescher": ["pb-feuerloescher-current-v2"],
+      "pb-brandschutztueren": ["pb-brandschutztueren-current-v2"],
+      "pb-rwa": ["rwa_pruefbericht_formular_v1"],
+      "pb-not-sicherheitsbeleuchtung": ["pb-not-sicherheitsbeleuchtung-current-v1"],
+      "pb-brandschutzklappen": ["pb-brandschutzklappen-current-v1"],
+      "pb-brandschutzschiebetor": ["pb-brandschutzschiebetor-current-v1"],
+      "pb-brandschutzrolltore": ["pb-brandschutzrolltore-current-v1"],
+      "pb-rolltoranlagen": ["pb-rolltoranlagen-current-v1"],
+      "pb-schiebetuerantrieb": ["pb-schiebetuerantrieb-current-v1"],
+      "pb-drehfluegelantrieb": ["pb-drehfluegelantrieb-current-v1"],
+      "pb-rauchschutzvorhaenge": ["pb-rauchschutzvorhaenge-current-v1"],
+      "pb-feststellanlagen": ["pb-feststellanlagen-current-v1"],
+      "pb-druckerhoehungsanlage": ["pb-druckerhoehungsanlage-report-v1"],
+      "pb-nass-trocken-station": ["fsmobile-pb-nass-trocken-station-v1"],
+      "pb-loeschwasser-trocken": ["pb-loeschwasser-trocken-report-v1"],
+      "pb-loeschwasser-nass": ["fsmobile-pb-loeschwasser-nass-v1"],
+      "pb-zentralbatterie-anlage": ["fsmobile-pb-zentralbatterie-v1"],
+      "pb-wandhydranten": ["pb-wandhydranten-report-v1"],
+      "pb-hydranten": ["fsmobile-pb-hydranten-v1"],
+      "pb-rauchwarnmelder": ["pb-rauchwarnmelder-current-v1"]
+    }[moduleId] || [];
+    return [`fsmobile-generated-techniker-signature:${moduleId}`, ...keys];
+  }
+
+  function reportSignatureDataUrlFromValue(value, depth = 0) {
+    if (!value || depth > 5) return "";
+    if (typeof value === "string") {
+      return /^data:image\/png;base64,/i.test(value) && value.length > 18000 ? value : "";
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = reportSignatureDataUrlFromValue(item, depth + 1);
+        if (found) return found;
+      }
+      return "";
+    }
+    if (typeof value !== "object") return "";
+    const preferredKeys = [
+      "signature",
+      "signatureData",
+      "signaturePad",
+      "technikerSignature",
+      "technicianSignature",
+      "unterschrift",
+      "digitaleUnterschrift",
+      "signatur",
+      "fsmobileSignature",
+      "fsmobileTechnikerSignature"
+    ];
+    for (const key of preferredKeys) {
+      const found = reportSignatureDataUrlFromValue(value[key], depth + 1);
+      if (found) return found;
+    }
+    for (const key of Object.keys(value)) {
+      if (!/signature|signatur|unterschrift/i.test(key)) continue;
+      const found = reportSignatureDataUrlFromValue(value[key], depth + 1);
+      if (found) return found;
+    }
+    return "";
+  }
+
+  function stripReportSignatureFields(value, depth = 0) {
+    if (!value || depth > 6 || typeof value !== "object") return value;
+    if (Array.isArray(value)) {
+      value.forEach(item => stripReportSignatureFields(item, depth + 1));
+      return value;
+    }
+    [
+      "signature",
+      "signatureData",
+      "signaturePad",
+      "technikerSignature",
+      "technicianSignature",
+      "unterschrift",
+      "digitaleUnterschrift",
+      "signatur",
+      "fsmobileSignature",
+      "fsmobileTechnikerSignature"
+    ].forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(value, key)) delete value[key];
+    });
+    Object.keys(value).forEach(key => {
+      if (/signature|signatur|unterschrift/i.test(key)) {
+        delete value[key];
+      } else {
+        stripReportSignatureFields(value[key], depth + 1);
+      }
+    });
+    return value;
+  }
+
+  function removeStoredModuleSignature(moduleId) {
+    reportSignatureStorageKeys(moduleId).forEach(storageKey => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        if (/^data:image\/png;base64,/i.test(raw)) {
+          localStorage.removeItem(storageKey);
+          return;
+        }
+        const payload = JSON.parse(raw);
+        stripReportSignatureFields(payload);
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+      } catch {}
+    });
+  }
+
+  function readStoredModuleSignature(moduleId) {
+    if ((signatureClearUntilByModule.get(moduleId) || 0) > Date.now()) return "";
+    for (const storageKey of reportSignatureStorageKeys(moduleId)) {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) continue;
+        if (/^data:image\/png;base64,/i.test(raw)) return raw;
+        const signature = reportSignatureDataUrlFromValue(JSON.parse(raw));
+        if (signature) return signature;
+      } catch {}
+    }
+    return "";
+  }
+
+  function drawSignatureDataUrlToCanvas(canvas, dataUrl) {
+    if (!canvas || !dataUrl) return;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const image = new Image();
+    image.onload = () => {
+      const ratio = window.devicePixelRatio || 1;
+      context.save();
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      context.restore();
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.lineWidth = 2.4;
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.strokeStyle = "#1c1c1e";
+    };
+    image.src = dataUrl;
+  }
+
+  function rehydrateModuleSignature(moduleId) {
+    if (moduleId !== activeModuleId) return;
+    if ((signatureClearUntilByModule.get(moduleId) || 0) > Date.now()) return;
+    const doc = frameDocument();
+    if (!doc) return;
+    const signature = readStoredModuleSignature(moduleId);
+    const reportCanvas = doc.querySelector("#signaturePad");
+    if (signature && reportCanvas) drawSignatureDataUrlToCanvas(reportCanvas, signature);
+    const generatedCanvas = doc.querySelector("#fsmobileTechnikerSignaturePad");
+    if (generatedCanvas) {
+      try {
+        const generated = localStorage.getItem(`fsmobile-generated-techniker-signature:${moduleId}`) || "";
+        if (generated) drawSignatureDataUrlToCanvas(generatedCanvas, generated);
+      } catch {}
+    }
+  }
+
+  function scheduleModuleSignatureRehydration(moduleId) {
+    [120, 360, 900].forEach(delay => {
+      window.setTimeout(() => rehydrateModuleSignature(moduleId), delay);
+    });
+  }
+
   function openModule(id, replaceHistory) {
     if (!isUnlocked) {
       showAuth();
@@ -5942,6 +6194,7 @@
     applyModuleHeadingAccent(id);
     clearModuleActionBar();
     updateMenuOptionsVisibility();
+    frame.addEventListener("load", () => scheduleModuleSignatureRehydration(id), { once: true });
     frame.srcdoc = html;
     frame.title = module.title;
     backButton.hidden = false;
@@ -5953,6 +6206,7 @@
     }
     window.setTimeout(syncModuleActionBar, 180);
     window.setTimeout(syncModuleActionBar, 520);
+    scheduleModuleSignatureRehydration(id);
   }
 
   function showMenu(replaceHistory) {
@@ -6089,7 +6343,16 @@
 
 	  window.addEventListener("message", event => {
 	    const data = event.data || {};
-	    if (!data || data.type !== "fsmobile-action-status") return;
+	    if (!data) return;
+	    if (data.type === "fsmobile-signature-clear") {
+	      if (data.moduleId && data.moduleId !== activeModuleId) return;
+	      const moduleId = data.moduleId || activeModuleId;
+	      if (!moduleId) return;
+	      signatureClearUntilByModule.set(moduleId, Date.now() + 4200);
+	      removeStoredModuleSignature(moduleId);
+	      return;
+	    }
+	    if (data.type !== "fsmobile-action-status") return;
 	    if (data.moduleId && data.moduleId !== activeModuleId) return;
 	    updateModuleActionStatus(String(data.message || ""));
 	  });
@@ -6638,12 +6901,12 @@
           }
 
           function canvasLooksLikeSignature(canvas) {
-            if (!canvas) return false;
+            if (!canvas || typeof canvas.getAttribute !== "function") return false;
             var haystack = normalizeFsmobileKey([
               canvas.id || "",
               canvas.className || "",
               canvas.getAttribute("aria-label") || "",
-              canvas.closest(".signature-block, .signature, .signatur") ? "signature" : ""
+              canvas.closest && canvas.closest(".signature-block, .signature, .signatur") ? "signature" : ""
             ].join(" "));
             return haystack.indexOf("signature") >= 0 || haystack.indexOf("signatur") >= 0 || haystack.indexOf("unterschrift") >= 0;
           }
@@ -6694,15 +6957,32 @@
 	            context.setTransform(ratio, 0, 0, ratio, 0, 0);
 	            context.lineWidth = 2.4;
 	            context.lineCap = "round";
+		            context.lineJoin = "round";
+		            context.strokeStyle = "#1c1c1e";
+		            if (oldData) {
+		              var image = new Image();
+		              image.onload = function() {
+		                try { drawSignatureImageToCanvas(canvas, context, image); } catch (error) {}
+		              };
+		              image.src = oldData;
+		            }
+		          }
+
+	          function drawSignatureImageToCanvas(canvas, context, image) {
+	            if (!canvas || !context || !image) return;
+	            var ratio = window.devicePixelRatio || 1;
+	            context.save();
+	            context.setTransform(1, 0, 0, 1, 0, 0);
+	            context.clearRect(0, 0, canvas.width, canvas.height);
+	            context.imageSmoothingEnabled = true;
+	            context.imageSmoothingQuality = "high";
+	            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+	            context.restore();
+	            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+	            context.lineWidth = 2.4;
+	            context.lineCap = "round";
 	            context.lineJoin = "round";
 	            context.strokeStyle = "#1c1c1e";
-	            if (oldData) {
-	              var image = new Image();
-	              image.onload = function() {
-	                try { context.drawImage(image, 0, 0, rect.width, rect.height); } catch (error) {}
-	              };
-	              image.src = oldData;
-	            }
 	          }
 
 	          function refreshSignatureCanvasesForReadyLayout() {
@@ -6733,24 +7013,440 @@
             return "fsmobile-generated-techniker-signature:" + (window.FSMOBILE_MODULE_ID || "module");
           }
 
+          function fsmobileSignatureStorageKeyCandidates() {
+            var moduleId = window.FSMOBILE_MODULE_ID || "";
+            var known = {
+              "pb-feuerloescher": ["pb-feuerloescher-current-v2"],
+              "pb-brandschutztueren": ["pb-brandschutztueren-current-v2"],
+              "pb-rwa": ["rwa_pruefbericht_formular_v1"],
+              "pb-not-sicherheitsbeleuchtung": ["pb-not-sicherheitsbeleuchtung-current-v1"],
+              "pb-brandschutzklappen": ["pb-brandschutzklappen-current-v1"],
+              "pb-brandschutzschiebetor": ["pb-brandschutzschiebetor-current-v1"],
+              "pb-brandschutzrolltore": ["pb-brandschutzrolltore-current-v1"],
+              "pb-rolltoranlagen": ["pb-rolltoranlagen-current-v1"],
+              "pb-schiebetuerantrieb": ["pb-schiebetuerantrieb-current-v1"],
+              "pb-drehfluegelantrieb": ["pb-drehfluegelantrieb-current-v1"],
+              "pb-rauchschutzvorhaenge": ["pb-rauchschutzvorhaenge-current-v1"],
+              "pb-feststellanlagen": ["pb-feststellanlagen-current-v1"],
+              "pb-druckerhoehungsanlage": ["pb-druckerhoehungsanlage-report-v1"],
+              "pb-nass-trocken-station": ["fsmobile-pb-nass-trocken-station-v1"],
+              "pb-loeschwasser-trocken": ["pb-loeschwasser-trocken-report-v1"],
+              "pb-loeschwasser-nass": ["fsmobile-pb-loeschwasser-nass-v1"],
+              "pb-zentralbatterie-anlage": ["fsmobile-pb-zentralbatterie-v1"],
+              "pb-wandhydranten": ["pb-wandhydranten-report-v1"],
+              "pb-hydranten": ["fsmobile-pb-hydranten-v1"],
+              "pb-rauchwarnmelder": ["pb-rauchwarnmelder-current-v1"]
+            }[moduleId] || [];
+            var keys = known.slice();
+            var moduleToken = normalizeFsmobileKey(moduleId);
+            try {
+              for (var index = 0; index < localStorage.length; index += 1) {
+                var key = localStorage.key(index) || "";
+                var keyToken = normalizeFsmobileKey(key);
+                if (!moduleToken || keyToken.indexOf(moduleToken) < 0) continue;
+                if (/archive|current.*archive/i.test(key)) continue;
+                if (keys.indexOf(key) < 0) keys.push(key);
+              }
+            } catch (error) {}
+            keys.push(generatedSignatureStorageKey());
+            return keys;
+          }
+
+          function fsmobileSignatureDataUrlFromValue(value, depth) {
+            depth = depth || 0;
+            if (!value || depth > 5) return "";
+            if (typeof value === "string") {
+              return /^data:image\\/png;base64,/i.test(value) && value.length > 18000 ? value : "";
+            }
+            if (Array.isArray(value)) {
+              for (var index = 0; index < value.length; index += 1) {
+                var arrayResult = fsmobileSignatureDataUrlFromValue(value[index], depth + 1);
+                if (arrayResult) return arrayResult;
+              }
+              return "";
+            }
+            if (typeof value !== "object") return "";
+            var preferredKeys = [
+              "signature",
+              "signatureData",
+              "signaturePad",
+              "technikerSignature",
+              "technicianSignature",
+              "unterschrift",
+              "digitaleUnterschrift",
+              "signatur",
+              "fsmobileSignature",
+              "fsmobileTechnikerSignature"
+            ];
+            for (var preferredIndex = 0; preferredIndex < preferredKeys.length; preferredIndex += 1) {
+              var preferredResult = fsmobileSignatureDataUrlFromValue(value[preferredKeys[preferredIndex]], depth + 1);
+              if (preferredResult) return preferredResult;
+            }
+            var keys = Object.keys(value);
+            for (var keyIndex = 0; keyIndex < keys.length; keyIndex += 1) {
+              var key = keys[keyIndex];
+              if (!/signature|signatur|unterschrift/i.test(key)) continue;
+              var keyResult = fsmobileSignatureDataUrlFromValue(value[key], depth + 1);
+              if (keyResult) return keyResult;
+            }
+            return "";
+          }
+
+          function fsmobileSignatureCanvases() {
+            return Array.from(document.querySelectorAll("canvas")).filter(canvasLooksLikeSignature);
+          }
+
+          function primaryFsmobileSignatureCanvas() {
+            return document.getElementById("signaturePad") ||
+              document.getElementById("fsmobileTechnikerSignaturePad") ||
+              fsmobileSignatureCanvases()[0] ||
+              null;
+          }
+
+          function canvasHasUsableFsmobileSignature(canvas) {
+            if (!canvas || canvas.width < 80 || canvas.height < 30) return false;
+            try {
+              var context = canvas.getContext("2d", { willReadFrequently: true });
+              var data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+              var dark = 0;
+              var edge = 0;
+              for (var index = 0; index < data.length; index += 4) {
+                var alpha = data[index + 3];
+                if (alpha <= 15) continue;
+                var luminance = data[index] * 0.2126 + data[index + 1] * 0.7152 + data[index + 2] * 0.0722;
+                if (luminance < 160) dark += 1;
+                if (index >= 4 && Math.abs(alpha - data[index - 1]) > 80) edge += 1;
+                if (index >= canvas.width * 4 && Math.abs(alpha - data[index - canvas.width * 4 + 3]) > 80) edge += 1;
+                if (dark >= 30 && edge >= 12) return true;
+              }
+              return dark >= 45;
+            } catch (error) {
+              return false;
+            }
+          }
+
+          function currentFsmobileSignatureDataUrl() {
+            var canvas = primaryFsmobileSignatureCanvas();
+            if (!canvas || canvasIsBlank(canvas) || !canvasHasUsableFsmobileSignature(canvas)) return "";
+            try { return canvas.toDataURL("image/png"); } catch (error) { return ""; }
+          }
+
+          function mergeFsmobileSignatureIntoReportData(data, signature) {
+            if (!data || typeof data !== "object" || Array.isArray(data) || !signature) return data;
+            [
+              "signatureData",
+              "signaturePad",
+              "technikerSignature",
+              "technicianSignature",
+              "unterschrift",
+              "digitaleUnterschrift",
+              "signatur",
+              "fsmobileSignature",
+              "fsmobileTechnikerSignature"
+            ].forEach(function(key) {
+              if (Object.prototype.hasOwnProperty.call(data, key)) delete data[key];
+            });
+            if (data.fields && typeof data.fields === "object" && !Array.isArray(data.fields)) {
+              [
+                "signature",
+                "signatureData",
+                "signaturePad",
+                "technikerSignature",
+                "technicianSignature",
+                "unterschrift",
+                "digitaleUnterschrift",
+                "signatur",
+                "fsmobileSignature",
+                "fsmobileTechnikerSignature"
+              ].forEach(function(key) {
+                if (Object.prototype.hasOwnProperty.call(data.fields, key)) delete data.fields[key];
+              });
+            }
+            data.signature = signature;
+            return data;
+          }
+
+          function stripFsmobileSignatureFromReportData(value, depth) {
+            depth = depth || 0;
+            if (!value || depth > 6 || typeof value !== "object") return value;
+            if (Array.isArray(value)) {
+              value.forEach(function(item) { stripFsmobileSignatureFromReportData(item, depth + 1); });
+              return value;
+            }
+            [
+              "signature",
+              "signatureData",
+              "signaturePad",
+              "technikerSignature",
+              "technicianSignature",
+              "unterschrift",
+              "digitaleUnterschrift",
+              "signatur",
+              "fsmobileSignature",
+              "fsmobileTechnikerSignature"
+            ].forEach(function(key) {
+              if (Object.prototype.hasOwnProperty.call(value, key)) delete value[key];
+            });
+            Object.keys(value).forEach(function(key) {
+              if (/signature|signatur|unterschrift/i.test(key)) {
+                delete value[key];
+              } else {
+                stripFsmobileSignatureFromReportData(value[key], depth + 1);
+              }
+            });
+            return value;
+          }
+
+          function readStoredFsmobileSignature() {
+            if (window.__fsmobileSignatureClearInProgress) return "";
+            var keys = fsmobileSignatureStorageKeyCandidates();
+            for (var index = 0; index < keys.length; index += 1) {
+              try {
+                var raw = localStorage.getItem(keys[index]);
+                if (!raw) continue;
+                var rawSignature = fsmobileSignatureDataUrlFromValue(raw);
+                if (rawSignature) return rawSignature;
+                var signature = fsmobileSignatureDataUrlFromValue(JSON.parse(raw));
+                if (signature) return signature;
+              } catch (error) {}
+            }
+            return "";
+          }
+
+          function storageKeyCanCarryFsmobileSignature(key) {
+            return fsmobileSignatureStorageKeyCandidates().indexOf(String(key || "")) >= 0;
+          }
+
+          function installFsmobileSignatureStorageGuard() {
+            if (window.__fsmobileSignatureStorageGuardInstalled || !window.Storage || !window.Storage.prototype) return;
+            var nativeSetItem = window.Storage.prototype.setItem;
+            if (typeof nativeSetItem !== "function") return;
+            Object.defineProperty(window, "__fsmobileSignatureStorageGuardInstalled", { value: true });
+            window.Storage.prototype.setItem = function(key, value) {
+              if (this === localStorage && storageKeyCanCarryFsmobileSignature(key) && !window.__fsmobileReportImportInProgress) {
+                try {
+                  if (window.__fsmobileSignatureClearInProgress && String(key || "") === generatedSignatureStorageKey()) {
+                    localStorage.removeItem(key);
+                    return undefined;
+                  }
+                  var nextPayload = JSON.parse(String(value || "null"));
+                  if (nextPayload && typeof nextPayload === "object") {
+                    if (window.__fsmobileSignatureClearInProgress) {
+                      stripFsmobileSignatureFromReportData(nextPayload);
+                      value = JSON.stringify(nextPayload);
+                    } else {
+                      var nextSignature = fsmobileSignatureDataUrlFromValue(nextPayload);
+                      var previousSignature = fsmobileSignatureDataUrlFromValue(JSON.parse(localStorage.getItem(key) || "null"));
+                      var currentSignature = currentFsmobileSignatureDataUrl();
+                      var preservedSignature = currentSignature || previousSignature || window.__fsmobileLastUsableSignature || "";
+                      if (preservedSignature && !nextSignature) {
+                        mergeFsmobileSignatureIntoReportData(nextPayload, preservedSignature);
+                        value = JSON.stringify(nextPayload);
+                      }
+                    }
+                  }
+                } catch (error) {}
+              }
+              return nativeSetItem.call(this, key, value);
+            };
+          }
+          installFsmobileSignatureStorageGuard();
+
+          function restoreFsmobileSignatureDataUrl(signature, options) {
+            if (window.__fsmobileSignatureClearInProgress) return false;
+            if (!signature) return false;
+            window.__fsmobileLastUsableSignature = signature;
+            var canvases = fsmobileSignatureCanvases();
+            if (!canvases.length) return false;
+            canvases.forEach(function(canvas) {
+              resizeSignatureCanvasForCurrentLayout(canvas);
+              var context = canvas.getContext("2d", { willReadFrequently: true });
+              var image = new Image();
+              image.onload = function() {
+                var draw = function() {
+                  drawSignatureImageToCanvas(canvas, context, image);
+                  try { canvas.dispatchEvent(new Event("change", { bubbles: true })); } catch (error) {}
+                };
+                draw();
+                setTimeout(draw, 80);
+                setTimeout(draw, 260);
+              };
+              image.src = signature;
+            });
+            if (document.getElementById("fsmobileTechnikerSignaturePad") && (!options || options.persist !== false)) {
+              try { localStorage.setItem(generatedSignatureStorageKey(), signature); } catch (error) {}
+            }
+            return true;
+          }
+
+          function restoreFsmobileSignatureFromStorage() {
+            if (window.__fsmobileSignatureClearInProgress) return;
+            var signature = readStoredFsmobileSignature();
+            if (signature) restoreFsmobileSignatureDataUrl(signature, { persist: false });
+          }
+
+          function clearFsmobileSignatureCanvasesNow() {
+            fsmobileSignatureCanvases().forEach(function(canvas) {
+              try {
+                var context = canvas.getContext("2d", { willReadFrequently: true });
+                context.save();
+                context.setTransform(1, 0, 0, 1, 0, 0);
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.restore();
+              } catch (error) {}
+            });
+          }
+
+          function scheduleFsmobileSignatureRestore() {
+            [0, 80, 220, 500, 900, 1400].forEach(function(delay) {
+              window.setTimeout(restoreFsmobileSignatureFromStorage, delay);
+            });
+          }
+
+          function persistFsmobileSignatureAfterInput() {
+            var signature = currentFsmobileSignatureDataUrl();
+            if (!signature) return;
+            window.__fsmobileLastUsableSignature = signature;
+            if (document.getElementById("fsmobileTechnikerSignaturePad")) {
+              try { localStorage.setItem(generatedSignatureStorageKey(), signature); } catch (error) {}
+            }
+            ["saveToStorageNow", "saveFormToStorage", "saveCurrentDraft", "saveForm", "saveToStorage"].some(function(name) {
+              var fn = window[name];
+              if (typeof fn !== "function") return false;
+              try { fn(); } catch (error) {}
+              return true;
+            });
+          }
+
+          function installFsmobileSignatureDataBridge() {
+            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.__fsmobileSignatureDataBridgeInstalled) return;
+            window.__fsmobileSignatureDataBridgeInstalled = true;
+            ["getSignatureData", "getStorageSignature"].forEach(function(name) {
+              var original = window[name];
+              if (typeof original !== "function" || original.__fsmobileSignatureWrapped) return;
+              window[name] = function() {
+                if (window.__fsmobileSignatureClearInProgress) return "";
+                return original.apply(this, arguments);
+              };
+              window[name].__fsmobileSignatureWrapped = true;
+            });
+            ["getCurrentReport", "collectData", "collectReportData", "buildStoragePayload"].forEach(function(name) {
+              var original = window[name];
+              if (typeof original !== "function" || original.__fsmobileSignatureWrapped) return;
+              window[name] = function() {
+                var data = original.apply(this, arguments);
+                if (window.__fsmobileSignatureClearInProgress) {
+                  return stripFsmobileSignatureFromReportData(data);
+                }
+                var signature = currentFsmobileSignatureDataUrl() || fsmobileSignatureDataUrlFromValue(data) || readStoredFsmobileSignature();
+                return mergeFsmobileSignatureIntoReportData(data, signature);
+              };
+              window[name].__fsmobileSignatureWrapped = true;
+            });
+            ["applyReport", "applyData", "applyReportData", "applyStoragePayload", "restoreReportData"].forEach(function(name) {
+              var original = window[name];
+              if (typeof original !== "function" || original.__fsmobileSignatureWrapped) return;
+              window[name] = function(data) {
+                if (window.__fsmobileReportImportInProgress) {
+                  return original.apply(this, arguments);
+                }
+                if (window.__fsmobileSignatureClearInProgress) {
+                  return original.apply(this, arguments);
+                }
+                var signature = fsmobileSignatureDataUrlFromValue(data);
+                var result = original.apply(this, arguments);
+                if (signature) {
+                  [0, 80, 260, 700].forEach(function(delay) {
+                    window.setTimeout(function() {
+                      restoreFsmobileSignatureDataUrl(signature, { persist: true });
+                    }, delay);
+                  });
+                } else {
+                  scheduleFsmobileSignatureRestore();
+                }
+                return result;
+              };
+              window[name].__fsmobileSignatureWrapped = true;
+            });
+            document.addEventListener("pointerdown", function(event) {
+              if (event.target && canvasLooksLikeSignature(event.target)) {
+                window.__fsmobileSignatureClearToken = (window.__fsmobileSignatureClearToken || 0) + 1;
+                window.__fsmobileSignatureClearInProgress = false;
+              }
+            }, true);
+            document.addEventListener("pointerup", function(event) {
+              if (event.target && canvasLooksLikeSignature(event.target)) {
+                window.setTimeout(persistFsmobileSignatureAfterInput, 0);
+                window.setTimeout(persistFsmobileSignatureAfterInput, 120);
+              }
+            }, true);
+            document.addEventListener("change", function(event) {
+              if (event.target && canvasLooksLikeSignature(event.target)) {
+                window.setTimeout(persistFsmobileSignatureAfterInput, 0);
+              }
+            }, true);
+            document.addEventListener("click", function(event) {
+              var button = event.target && event.target.closest ? event.target.closest("button") : null;
+              if (!button || !button.closest(".signature-actions")) return;
+              if (!/unterschrift.*löschen|signatur.*löschen|signature.*clear/i.test(button.textContent || button.className || "")) return;
+              window.__fsmobileSignatureClearInProgress = true;
+              window.__fsmobileLastUsableSignature = "";
+              var clearToken = (window.__fsmobileSignatureClearToken || 0) + 1;
+              window.__fsmobileSignatureClearToken = clearToken;
+              try {
+                window.parent.postMessage({ type: "fsmobile-signature-clear", moduleId: window.FSMOBILE_MODULE_ID }, "*");
+              } catch (error) {}
+              try {
+                fsmobileSignatureStorageKeyCandidates().forEach(function(key) {
+                  if (key === generatedSignatureStorageKey()) {
+                    localStorage.removeItem(key);
+                    return;
+                  }
+                  var raw = localStorage.getItem(key);
+                  if (!raw) return;
+                  if (/^data:image\\/png;base64,/i.test(raw)) {
+                    localStorage.removeItem(key);
+                    return;
+                  }
+                  var payload = JSON.parse(raw);
+                  stripFsmobileSignatureFromReportData(payload);
+                  localStorage.setItem(key, JSON.stringify(payload));
+                });
+              } catch (error) {}
+              [0, 40, 120, 260, 520, 900, 1300, 1550, 2100, 2800].forEach(function(delay) {
+                window.setTimeout(function() {
+                  if (window.__fsmobileSignatureClearToken !== clearToken) return;
+                  clearFsmobileSignatureCanvasesNow();
+                }, delay);
+              });
+              window.setTimeout(function() {
+                if (window.__fsmobileSignatureClearToken === clearToken) window.__fsmobileSignatureClearInProgress = false;
+              }, 3600);
+            }, true);
+            installFsmobileSignatureStorageGuard();
+            scheduleFsmobileSignatureRestore();
+          }
+
           function generatedSignatureDataUrl() {
             var canvas = document.getElementById("fsmobileTechnikerSignaturePad");
             if (!canvas || canvasIsBlank(canvas)) return "";
             try { return canvas.toDataURL("image/png"); } catch (error) { return ""; }
           }
 
-          function restoreGeneratedSignature(canvas) {
-            var saved = "";
-            try { saved = localStorage.getItem(generatedSignatureStorageKey()) || ""; } catch (error) {}
-            if (!saved) return;
-            var context = canvas.getContext("2d", { willReadFrequently: true });
-            var image = new Image();
-            image.onload = function() {
-              context.clearRect(0, 0, canvas.width, canvas.height);
-              context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            };
-            image.src = saved;
-          }
+	          function restoreGeneratedSignature(canvas) {
+	            var saved = "";
+	            try { saved = localStorage.getItem(generatedSignatureStorageKey()) || ""; } catch (error) {}
+	            if (!saved) return;
+	            var context = canvas.getContext("2d", { willReadFrequently: true });
+	            var image = new Image();
+	            image.onload = function() {
+	              var draw = function() { drawSignatureImageToCanvas(canvas, context, image); };
+	              draw();
+	              setTimeout(draw, 80);
+	              setTimeout(draw, 260);
+	            };
+	            image.src = saved;
+	          }
 
           function saveGeneratedSignature(canvas) {
             try {
@@ -6777,12 +7473,12 @@
               context.lineCap = "round";
               context.lineJoin = "round";
               context.strokeStyle = "#1c1c1e";
-              if (oldData) {
-                var image = new Image();
-                image.onload = function() { context.drawImage(image, 0, 0, rect.width, rect.height); };
-                image.src = oldData;
-              }
-            }
+	              if (oldData) {
+	                var image = new Image();
+	                image.onload = function() { drawSignatureImageToCanvas(canvas, context, image); };
+	                image.src = oldData;
+	              }
+	            }
 
             function point(event) {
               var rect = canvas.getBoundingClientRect();
@@ -7076,7 +7772,9 @@
 	          window.FSMOBILE_APPEND_REPORT_REMARK_TO_PDF = appendLandscapeReportRemarkToPdf;
 
 	          function appendGeneratedSignatureToPdf(doc) {
-	            if (!doc || doc.__fsmobileGeneratedSignatureAppended || !document.getElementById("fsmobileTechnikerSignaturePad")) return;
+	            if (!doc || doc.__fsmobileGeneratedSignatureAppended || doc.__fsmobileSignaturePdfTextSeen) return;
+	            var signature = currentFsmobileSignatureDataUrl() || generatedSignatureDataUrl();
+	            if (!signature) return;
 	            Object.defineProperty(doc, "__fsmobileGeneratedSignatureAppended", { value: true });
 	            try {
 	              var pageWidth = doc.internal.pageSize.getWidth();
@@ -7091,10 +7789,7 @@
 	              doc.setFont("helvetica", "bold");
 	              doc.setFontSize(12);
               doc.text(FSMOBILE_SIGNATURE_LABEL, margin, y);
-              var signature = generatedSignatureDataUrl();
-              if (signature) {
-                try { doc.addImage(signature, "PNG", margin, y + 8, 74, 24, undefined, "FAST"); } catch (error) {}
-              }
+              try { doc.addImage(signature, "PNG", margin, y + 8, 74, 24, undefined, "SLOW"); } catch (error) {}
               doc.setDrawColor(155, 155, 160);
               doc.setLineWidth(0.3);
               doc.line(margin, y + 38, Math.min(pageWidth - margin, margin + 86), y + 38);
@@ -7241,6 +7936,9 @@
               var args = Array.prototype.slice.call(arguments);
               var originalPdfText = args[0];
               args[0] = normalizeSignaturePdfArgument(args[0]);
+              if (/unterschrift\s+techniker/i.test(pdfArgumentPlainText(originalPdfText)) || /unterschrift\s+techniker/i.test(pdfArgumentPlainText(args[0]))) {
+                this.__fsmobileSignaturePdfTextSeen = true;
+              }
               var framedReportTitle = false;
               if (typeof args[1] === "number" && typeof args[2] === "number") {
                 applyInlinePdfLabelSpacing(this, args, args[0]);
@@ -7344,6 +8042,14 @@
               };
               Object.defineProperty(window.loadJsPdfIfNeeded, "__fsmobilePatched", { value: true });
             }
+            if (typeof window.ensurePdf === "function" && !window.ensurePdf.__fsmobilePatched) {
+              var originalEnsurePdf = window.ensurePdf;
+              window.ensurePdf = function() {
+                return Promise.resolve(originalEnsurePdf.apply(this, arguments))
+                  .then(function(JsPDF) { return currentPatchedJsPdf(JsPDF); });
+              };
+              Object.defineProperty(window.ensurePdf, "__fsmobilePatched", { value: true });
+            }
           }
 
 	          function installPdfFileNamePatch() {
@@ -7351,6 +8057,7 @@
 	              Object.defineProperty(document, "__fsmobileScriptLoadPdfPatchInstalled", { value: true });
 	              document.addEventListener("load", function(event) {
 	                if (!event.target || String(event.target.tagName || "").toUpperCase() !== "SCRIPT") return;
+	                patchAvailableJsPdf();
 	                window.setTimeout(patchAvailableJsPdf, 0);
 	              }, true);
 	            }
@@ -7500,7 +8207,31 @@
 
             function archiveFields(entry) {
               var report = entry && entry.report && typeof entry.report === "object" ? entry.report : {};
-              return report.fields && typeof report.fields === "object" ? report.fields : report;
+              var fields = report.fields && typeof report.fields === "object" && !Array.isArray(report.fields)
+                ? Object.assign({}, report.fields)
+                : {};
+              var header = report.header && typeof report.header === "object" && !Array.isArray(report.header)
+                ? report.header
+                : {};
+              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(header, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"]);
+              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"]);
+              if (anlage) {
+                fields.anlage = String(anlage).trim();
+                if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
+              }
+              if (object) {
+                fields.object = String(object).trim();
+                if (!fields.objekt) fields.objekt = fields.object;
+              }
+              if (date) {
+                fields.date = normalizeArchiveDate(date);
+                if (!fields.datum) fields.datum = fields.date;
+              }
+              return Object.keys(fields).length ? fields : report;
             }
 
             function archiveEntryIdentity(storageKey, entry) {
@@ -7531,10 +8262,19 @@
               if (!report || typeof report !== "object" || Array.isArray(report)) report = {};
               if (!report.fields || typeof report.fields !== "object" || Array.isArray(report.fields)) report.fields = {};
               var fields = report.fields;
+              var header = report.header && typeof report.header === "object" && !Array.isArray(report.header) ? report.header : {};
               var domFields = currentArchiveDomFields();
-              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]) || domFields.anlage;
-              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]) || domFields.object;
-              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]) || domFields.date;
+              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(header, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || domFields.anlage;
+              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"])
+                || domFields.object;
+              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"])
+                || domFields.date;
+              var technician = firstArchiveValue(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])
+                || firstArchiveValue(header, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"]);
               if (anlage) {
                 fields.anlage = String(anlage).trim();
                 if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
@@ -7546,6 +8286,11 @@
               if (date) {
                 fields.date = normalizeArchiveDate(date);
                 if (!fields.datum) fields.datum = fields.date;
+              }
+              if (technician) {
+                fields.pruefer = String(technician).trim();
+                if (!fields.techniker) fields.techniker = fields.pruefer;
+                if (!fields.name) fields.name = fields.pruefer;
               }
               return report;
             }
@@ -7632,7 +8377,38 @@
 
             function archiveReportFieldBundle(report) {
               var normalized = report && typeof report === "object" ? report : {};
-              return normalized.fields && typeof normalized.fields === "object" ? normalized.fields : normalized;
+              var fields = normalized.fields && typeof normalized.fields === "object" && !Array.isArray(normalized.fields)
+                ? Object.assign({}, normalized.fields)
+                : {};
+              var header = normalized.header && typeof normalized.header === "object" && !Array.isArray(normalized.header)
+                ? normalized.header
+                : {};
+              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(header, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"]);
+              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"]);
+              var technician = firstArchiveValue(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])
+                || firstArchiveValue(header, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"]);
+              if (anlage) {
+                fields.anlage = String(anlage).trim();
+                if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
+              }
+              if (object) {
+                fields.object = String(object).trim();
+                if (!fields.objekt) fields.objekt = fields.object;
+              }
+              if (date) {
+                fields.date = normalizeArchiveDate(date);
+                if (!fields.datum) fields.datum = fields.date;
+              }
+              if (technician) {
+                fields.pruefer = String(technician).trim();
+                if (!fields.techniker) fields.techniker = fields.pruefer;
+                if (!fields.name) fields.name = fields.pruefer;
+              }
+              return Object.keys(fields).length ? fields : normalized;
             }
 
             function archiveHasAnyKey(source, keys) {
@@ -7789,6 +8565,7 @@
               try {
                 for (var index = 0; index < localStorage.length; index += 1) {
                   var key = localStorage.key(index);
+                  if (isModuleDraftStorageKey(key)) continue;
                   var value = localStorage.getItem(key);
                   if (idReplacements[value]) localStorage.setItem(key, idReplacements[value]);
                 }
@@ -7815,7 +8592,7 @@
               try {
                 for (var index = 0; index < localStorage.length; index += 1) {
                   var key = localStorage.key(index);
-                  if (!/^fsmobile-.*pb.*archive.*v\\d+$/i.test(key) || /current/i.test(key)) continue;
+                  if (!/^(?:fsmobile-.*pb.*archive.*v\\d+|pb-.*archive.*v\\d+)$/i.test(key) || /current/i.test(key)) continue;
                   if (options && options.currentOnly && !archiveKeyMatchesCurrentModule(key)) continue;
                   keys.push(key);
                 }
@@ -7827,7 +8604,7 @@
               var scripts = document.querySelectorAll("script");
               for (var index = 0; index < scripts.length; index += 1) {
                 var text = scripts[index].textContent || "";
-                var match = text.match(/\bARCHIVE_STORAGE_KEY\s*=\s*["']([^"']+)["']/);
+                var match = text.match(/\\b(?:ARCHIVE_STORAGE_KEY|ARCHIVE_KEY)\\s*=\\s*["']([^"']+)["']/);
                 if (match && match[1]) return match[1];
               }
               return "";
@@ -7871,6 +8648,43 @@
                 return false;
               }
             }
+
+            function moduleDraftStorageKeys() {
+              var keys = [];
+              var pattern = /\\b(?:STORAGE_KEY|CURRENT_STORAGE_KEY|FORM_STORAGE_KEY|REPORT_STORAGE_KEY)\\s*=\\s*["']([^"']+)["']/g;
+              document.querySelectorAll("script").forEach(function(script) {
+                var text = script.textContent || "";
+                var match = null;
+                pattern.lastIndex = 0;
+                while ((match = pattern.exec(text))) {
+                  if (match[1] && keys.indexOf(match[1]) < 0) keys.push(match[1]);
+                }
+              });
+              return keys;
+            }
+
+            function isModuleDraftStorageKey(storageKey) {
+              return moduleDraftStorageKeys().indexOf(storageKey) >= 0;
+            }
+
+            function recoverDraftStorageOverwrittenByArchiveId() {
+              if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return;
+              var archiveKey = resolveArchiveStorageKey();
+              if (!archiveKey) return;
+              var entries = readArchiveEntriesForKey(archiveKey);
+              if (!entries.length) return;
+              moduleDraftStorageKeys().forEach(function(draftKey) {
+                var raw = "";
+                try { raw = localStorage.getItem(draftKey) || ""; } catch (error) { return; }
+                var pointer = String(raw || "").trim();
+                if (!pointer || /^[{\[]/.test(pointer)) return;
+                var entry = entries.find(function(item) { return item && item.id === pointer && item.report; });
+                if (!entry) return;
+                try { localStorage.setItem(draftKey, JSON.stringify(entry.report)); } catch (error) {}
+              });
+            }
+
+            document.addEventListener("DOMContentLoaded", recoverDraftStorageOverwrittenByArchiveId, { once: true });
 
             function createBridgeArchiveId() {
               if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
@@ -7971,7 +8785,7 @@
             }
 
             function persistCurrentDraftBeforeArchive() {
-              ["saveToStorageNow", "saveFormToStorage", "saveCurrentDraft"].some(function(name) {
+              ["saveToStorageNow", "saveFormToStorage", "saveCurrentDraft", "saveCurrentReport", "saveForm", "saveToStorage"].some(function(name) {
                 var fn = window[name];
                 if (typeof fn !== "function") return false;
                 try { fn(); } catch (error) {}
@@ -8019,13 +8833,15 @@
               var keys = [];
               var match = String(storageKey || "").match(/^(.*)-archive-v(\\d+)$/i);
               if (match) {
-                keys.push(match[1] + "-current-v" + match[2]);
+                var legacyCurrentKey = match[1] + "-current-v" + match[2];
+                if (!isModuleDraftStorageKey(legacyCurrentKey)) keys.push(legacyCurrentKey);
                 keys.push(match[1] + "-current-archive-id-v" + match[2]);
               }
               try {
                 for (var index = 0; index < localStorage.length; index += 1) {
                   var key = localStorage.key(index);
                   if (!/current/i.test(key) || !archiveKeyMatchesCurrentModule(key)) continue;
+                  if (isModuleDraftStorageKey(key)) continue;
                   if (keys.indexOf(key) < 0) keys.push(key);
                 }
               } catch (error) {}
@@ -8456,6 +9272,23 @@
               };
             }
 
+            function drawStoredImageToCanvas(canvas, dataUrl, onDone) {
+              if (!canvas || !dataUrl) return;
+              var context = canvas.getContext("2d", { willReadFrequently: true });
+              var image = new Image();
+              image.onload = function() {
+                context.save();
+                context.setTransform(1, 0, 0, 1, 0, 0);
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = "high";
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                context.restore();
+                if (typeof onDone === "function") onDone();
+              };
+              image.src = dataUrl;
+            }
+
             function restoreExcludedValues(snapshot) {
               if (!snapshot) return;
               snapshot.fields.forEach(function(item) {
@@ -8469,14 +9302,9 @@
               });
               snapshot.canvases.forEach(function(item) {
                 if (!item.canvas || !document.contains(item.canvas) || !item.dataUrl) return;
-                var context = item.canvas.getContext("2d", { willReadFrequently: true });
-                var image = new Image();
-                image.onload = function() {
-                  context.clearRect(0, 0, item.canvas.width, item.canvas.height);
-                  context.drawImage(image, 0, 0, item.canvas.width, item.canvas.height);
+                drawStoredImageToCanvas(item.canvas, item.dataUrl, function() {
                   item.canvas.dispatchEvent(new Event("change", { bubbles: true }));
-                };
-                image.src = item.dataUrl;
+                });
               });
             }
 
@@ -8522,14 +9350,9 @@
                 if (!item || !item.dataUrl || !item.selector) return;
                 var canvas = document.querySelector(item.selector);
                 if (!canvas || isExcludedCanvas(canvas)) return;
-                var context = canvas.getContext("2d", { willReadFrequently: true });
-                var image = new Image();
-                image.onload = function() {
-                  context.clearRect(0, 0, canvas.width, canvas.height);
-                  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                drawStoredImageToCanvas(canvas, item.dataUrl, function() {
                   canvas.dispatchEvent(new Event("change", { bubbles: true }));
-                };
-                image.src = item.dataUrl;
+                });
               });
             }
 
@@ -8738,15 +9561,21 @@
 	              }
               var importFields = payload.fields.filter(function(fieldData) { return !isExcludedFieldData(fieldData); });
               var excludedSnapshot = rememberExcludedValues();
-              var usedStructuredImport = applyStructuredData(sanitizeStructuredData(payload.structured));
-              await ensureEnoughControls(importFields.length);
-              var controls = reportControls();
-              if (!usedStructuredImport) {
-                importFields.forEach(function(fieldData, index) {
-                  applyField(controls[index], fieldData);
-                });
+              var usedStructuredImport = false;
+              window.__fsmobileReportImportInProgress = true;
+              try {
+                usedStructuredImport = applyStructuredData(sanitizeStructuredData(payload.structured));
+                await ensureEnoughControls(importFields.length);
+                var controls = reportControls();
+                if (!usedStructuredImport) {
+                  importFields.forEach(function(fieldData, index) {
+                    applyField(controls[index], fieldData);
+                  });
+                }
+                applyCanvases(payload.canvases);
+              } finally {
+                window.__fsmobileReportImportInProgress = false;
               }
-              applyCanvases(payload.canvases);
               restoreExcludedValues(excludedSnapshot);
 	              window.setTimeout(function() {
 	                document.dispatchEvent(new Event("input", { bubbles: true }));
@@ -8797,6 +9626,7 @@
 			            ensureLandscapeReportRemarkField();
 			            installRwaChoicePillTapFix();
 			            ensureGeneratedTechnikerSignatureField();
+			            installFsmobileSignatureDataBridge();
 		            normalizeSignatureLabels();
 		            refreshSignatureCanvasesForReadyLayout();
 		            installUnifiedActionStatus();
@@ -8813,6 +9643,7 @@
 		                installRwaChoicePillTapFix();
 	                markPositionCells();
 	                ensureGeneratedTechnikerSignatureField();
+	                installFsmobileSignatureDataBridge();
 	                normalizeSignatureLabels();
 	                refreshSignatureCanvasesForReadyLayout();
 	                installJsPdfLoaderPatch();
