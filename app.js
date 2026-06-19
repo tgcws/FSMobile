@@ -2094,7 +2094,7 @@
       ["anschlussventil", "Anschlussventil leichtgängig", "anlageChecks"],
       ["entlueftung", "Entlüftung vorhanden", "anlageChecks"],
       ["entleerungNassTrocken", "Entleerung vorhanden bei nass/trocken", "anlageChecks"],
-      ["fliessdruckKleiner85", "Fließdruck an den Ventilen kleiner 8,5 bar", "anlageChecks"],
+      ["fliessdruckKleiner85", "Fließdruck an den Ventilen kleiner 8 bar", "anlageChecks"],
       ["standdruckKleiner12", "Standdruck an den Ventilen kleiner 12 bar", "anlageChecks"],
       ["schlaeucheGeprueft", "Schläuche geprüft", "hoseChecks"],
       ["strahlrohrGeprueft", "Strahlrohr / Eurodüse geprüft", "hoseChecks"],
@@ -5587,11 +5587,17 @@
 
   function archiveEntryFields(entry, storageKey = "") {
     const isLegacyFeuerloescher = storageKey === "pb-feuerloescher-report-archive-v1";
+    const isLegacyBrandschutztueren = [
+      "pb-brandschutztueren-report-archive-v1",
+      "pb-brandschutztueren-archive-v1",
+      "fsmobile-pb-brandschutztueren-archive-v1"
+    ].includes(storageKey);
+    const isLegacyFlatArchive = isLegacyFeuerloescher || isLegacyBrandschutztueren;
     const report = entry && entry.report && typeof entry.report === "object"
       ? entry.report
       : entry && entry.data && typeof entry.data === "object"
         ? entry.data
-        : isLegacyFeuerloescher && entry && typeof entry === "object"
+        : isLegacyFlatArchive && entry && typeof entry === "object"
           ? entry
           : {};
     const fields = report.fields && typeof report.fields === "object" && !Array.isArray(report.fields)
@@ -5602,13 +5608,13 @@
       : {};
     const anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
       || firstArchiveValue(header, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
-      || (isLegacyFeuerloescher ? firstArchiveValue(report, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]) : "");
+      || (isLegacyFlatArchive ? firstArchiveValue(report, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]) : "");
     const object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
       || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"])
-      || (isLegacyFeuerloescher ? firstArchiveValue(report, ["object", "objekt", "objectInput", "objektInput"]) : "");
+      || (isLegacyFlatArchive ? firstArchiveValue(report, ["object", "objekt", "objectInput", "objektInput"]) : "");
     const date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
       || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"])
-      || (isLegacyFeuerloescher ? firstArchiveValue(report, ["date", "datum", "dateInput", "datumInput"]) : "");
+      || (isLegacyFlatArchive ? firstArchiveValue(report, ["date", "datum", "dateInput", "datumInput"]) : "");
     if (anlage) {
       fields.anlage = String(anlage).trim();
       if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
@@ -5653,6 +5659,7 @@
   function isArchivePointerStorageKey(key) {
     const value = String(key || "");
     if (value === "pb-feuerloescher-current-archive-id") return true;
+    if (value === "pb-brandschutztueren-current-archive-id") return true;
     if (/^pb-.*current-archive-id-v\d+$/i.test(value)) return true;
     if (!/^fsmobile-/i.test(value) || !/current/i.test(value)) return false;
     if (/session|temp|draft|pending|auth|update/i.test(value)) return false;
@@ -8232,6 +8239,45 @@
               return feuerloescherLegacyArchiveKeys().indexOf(String(storageKey || "")) >= 0;
             }
 
+            function isBrandschutztuerenModule() {
+              return window.FSMOBILE_MODULE_ID === "pb-brandschutztueren";
+            }
+
+            function brandschutztuerenLegacyArchiveKeys() {
+              return [
+                "pb-brandschutztueren-report-archive-v1",
+                "pb-brandschutztueren-archive-v1",
+                "fsmobile-pb-brandschutztueren-archive-v1"
+              ];
+            }
+
+            function isBrandschutztuerenLegacyArchiveKey(storageKey) {
+              return brandschutztuerenLegacyArchiveKeys().indexOf(String(storageKey || "")) >= 0;
+            }
+
+            function isRwaModule() {
+              return window.FSMOBILE_MODULE_ID === "pb-rwa";
+            }
+
+            function isRwaArchiveKey(storageKey) {
+              return String(storageKey || "") === "rwa_pruefbericht_archiv_v1";
+            }
+
+            function legacyArchiveCompatModule() {
+              return isFeuerloescherModule() || isBrandschutztuerenModule();
+            }
+
+            function legacyArchiveCompatKeys() {
+              if (isFeuerloescherModule()) return feuerloescherLegacyArchiveKeys();
+              if (isBrandschutztuerenModule()) return brandschutztuerenLegacyArchiveKeys();
+              return [];
+            }
+
+            function isLegacyArchiveCompatKey(storageKey) {
+              return (isFeuerloescherModule() && isFeuerloescherLegacyArchiveKey(storageKey))
+                || (isBrandschutztuerenModule() && isBrandschutztuerenLegacyArchiveKey(storageKey));
+            }
+
             function archiveSourceHasAnyKey(source, keys) {
               if (!source || typeof source !== "object") return false;
               var wanted = keys.map(function(key) { return String(key).toLowerCase(); });
@@ -8331,13 +8377,102 @@
               return normalized;
             }
 
+            function brandschutztuerenArchiveRow(row) {
+              if (!Array.isArray(row)) {
+                return row && typeof row === "object" ? Object.assign({}, row) : {};
+              }
+              var values = row.slice();
+              if (values.length >= 14) {
+                return {
+                  btNr: values[1] || "",
+                  standort: values[2] || "",
+                  art: values[3] || "",
+                  schliesseinrichtung: values[4] || "i.O",
+                  schloss: values[5] || "i.O",
+                  dichtung: values[6] || "i.O",
+                  tuerfluegelAnzahl: values[7] || "1",
+                  tuerfluegel: values[8] || "i.O",
+                  gangfluegel: values[9] || "i.O",
+                  standfluegel: values[10] || "i.O",
+                  schliessfolge: values[11] || "i.O",
+                  pruefergebnis: values[12] || "i.O",
+                  bemerkung: values[13] || ""
+                };
+              }
+              return {
+                btNr: "",
+                standort: values[1] || "",
+                art: values[2] || "",
+                schliesseinrichtung: values[3] || "i.O",
+                schloss: values[4] || "i.O",
+                dichtung: values[5] || "i.O",
+                tuerfluegelAnzahl: values[6] || "1",
+                tuerfluegel: values[7] || "i.O",
+                gangfluegel: values[8] || "i.O",
+                standfluegel: values[9] || "i.O",
+                schliessfolge: values[10] || "i.O",
+                pruefergebnis: values[11] || "i.O",
+                bemerkung: values[12] || ""
+              };
+            }
+
+            function normalizeBrandschutztuerenArchiveReport(report) {
+              if (!isBrandschutztuerenModule() || !report || typeof report !== "object" || Array.isArray(report)) return report || {};
+              var fields = report.fields && typeof report.fields === "object" && !Array.isArray(report.fields)
+                ? Object.assign({}, report.fields)
+                : {};
+              var sourceHeader = report.header && typeof report.header === "object" && !Array.isArray(report.header)
+                ? report.header
+                : {};
+              var object = firstArchiveValue(sourceHeader, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(report, ["object", "objekt", "objectInput", "objektInput"]);
+              var anlage = firstArchiveValue(sourceHeader, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(report, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+              var technician = firstArchiveValue(sourceHeader, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])
+                || firstArchiveValue(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])
+                || firstArchiveValue(report, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"]);
+              var date = firstArchiveValue(sourceHeader, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(report, ["date", "datum", "dateInput", "datumInput"]);
+              var header = Object.assign({}, sourceHeader, {
+                objekt: String(object || "").trim(),
+                anlage: String(anlage || "").trim(),
+                name: String(technician || "").trim(),
+                datum: normalizeArchiveDate(date)
+              });
+              fields.object = header.objekt;
+              fields.objekt = header.objekt;
+              fields.anlage = header.anlage;
+              fields.anlagenNr = header.anlage;
+              fields.pruefer = header.name;
+              fields.techniker = header.name;
+              fields.name = header.name;
+              fields.date = header.datum;
+              fields.datum = header.datum;
+              var normalized = Object.assign({}, report, {
+                fields: fields,
+                header: header,
+                rows: Array.isArray(report.rows) && report.rows.length ? report.rows.map(brandschutztuerenArchiveRow) : [{}]
+              });
+              var remark = firstArchiveValue(report, ["berichtBemerkung", "reportRemark", "reportBemerkung"])
+                || firstArchiveValue(fields, ["berichtBemerkung", "reportRemark", "reportBemerkung", "bemerkung"]);
+              if (remark && !normalized.berichtBemerkung) normalized.berichtBemerkung = remark;
+              try {
+                var signature = fsmobileSignatureDataUrlFromValue(report, 0);
+                if (signature) normalized.signature = signature;
+              } catch (error) {}
+              return normalized;
+            }
+
             function archiveEntryReport(entry, storageKey) {
               if (!entry || typeof entry !== "object") return {};
               var report = entry.report && typeof entry.report === "object"
                 ? entry.report
                 : entry.data && typeof entry.data === "object"
                   ? entry.data
-                  : isFeuerloescherModule() && (
+                  : legacyArchiveCompatModule() && (
                     Array.isArray(entry.rows)
                     || entry.header
                     || entry.fields
@@ -8345,7 +8480,9 @@
                   )
                     ? entry
                     : {};
-              return isFeuerloescherModule() ? normalizeFeuerloescherArchiveReport(report) : report;
+              if (isFeuerloescherModule()) return normalizeFeuerloescherArchiveReport(report);
+              if (isBrandschutztuerenModule()) return normalizeBrandschutztuerenArchiveReport(report);
+              return report;
             }
 
             function archiveFields(entry, storageKey) {
@@ -8521,6 +8658,7 @@
             function archiveReportFieldBundle(report) {
               var normalized = report && typeof report === "object" ? report : {};
               if (isFeuerloescherModule()) normalized = normalizeFeuerloescherArchiveReport(normalized);
+              if (isBrandschutztuerenModule()) normalized = normalizeBrandschutztuerenArchiveReport(normalized);
               var fields = normalized.fields && typeof normalized.fields === "object" && !Array.isArray(normalized.fields)
                 ? Object.assign({}, normalized.fields)
                 : {};
@@ -8726,6 +8864,7 @@
               var moduleToken = normalizedArchiveToken(window.FSMOBILE_MODULE_ID || "");
               var keyToken = normalizedArchiveToken(key);
               if (!moduleToken) return true;
+              if (moduleToken === "pbrwa" && isRwaArchiveKey(key)) return true;
               if (keyToken.indexOf(moduleToken) >= 0) return true;
               if (moduleToken === "pbzentralbatterieanlage" && keyToken.indexOf("pbzentralbatterie") >= 0) return true;
               return false;
@@ -8736,6 +8875,10 @@
               try {
                 for (var index = 0; index < localStorage.length; index += 1) {
                   var key = localStorage.key(index);
+                  if (isRwaModule() && isRwaArchiveKey(key)) {
+                    keys.push(key);
+                    continue;
+                  }
                   if (!/^(?:fsmobile-.*pb.*archive.*v\\d+|pb-.*archive.*v\\d+)$/i.test(key) || /current/i.test(key)) continue;
                   if (options && options.currentOnly && !archiveKeyMatchesCurrentModule(key)) continue;
                   keys.push(key);
@@ -8801,8 +8944,8 @@
             function archiveStorageKeysForDisplay(primaryKey) {
               var keys = [];
               addUniqueArchiveStorageKey(keys, primaryKey);
-              if (isFeuerloescherModule()) {
-                feuerloescherLegacyArchiveKeys().forEach(function(key) {
+              if (legacyArchiveCompatModule()) {
+                legacyArchiveCompatKeys().forEach(function(key) {
                   addUniqueArchiveStorageKey(keys, key);
                 });
               }
@@ -8976,18 +9119,30 @@
               });
             }
 
+            function readCurrentArchiveIdForKey(storageKey) {
+              var currentId = "";
+              candidateCurrentArchiveIdKeys(storageKey).some(function(key) {
+                try { currentId = localStorage.getItem(key) || ""; } catch (error) { currentId = ""; }
+                return Boolean(currentId);
+              });
+              return currentId;
+            }
+
             function saveReportArchiveByIdentity() {
               if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return false;
               persistCurrentDraftBeforeArchive();
               var primaryStorageKey = resolveArchiveStorageKey();
               var report = currentArchiveReport();
-              var existingAcrossKeys = isFeuerloescherModule() ? findArchiveEntryByIdentity(report) : null;
+              var existingAcrossKeys = legacyArchiveCompatModule() ? findArchiveEntryByIdentity(report) : null;
               var storageKey = existingAcrossKeys && existingAcrossKeys.storageKey ? existingAcrossKeys.storageKey : primaryStorageKey;
               var entries = readArchiveEntriesForKey(storageKey);
+              var currentId = isRwaModule() ? readCurrentArchiveIdForKey(storageKey) : "";
               var identity = archiveEntryIdentity(storageKey, { report: report });
               var existingIndex = existingAcrossKeys && existingAcrossKeys.storageKey === storageKey
                 ? existingAcrossKeys.index
-                : identity ? entries.findIndex(function(entry) {
+                : currentId ? entries.findIndex(function(entry) {
+                  return entry && entry.id === currentId;
+                }) : identity ? entries.findIndex(function(entry) {
                   return archiveEntryIdentity(storageKey, entry) === identity;
                 }) : -1;
               var now = new Date().toISOString();
@@ -8996,9 +9151,10 @@
               var entry = {
                 id: previous && previous.id ? previous.id : createBridgeArchiveId(),
                 createdAt: previous && previous.createdAt ? previous.createdAt : now,
-                updatedAt: now,
-                report: report
+                updatedAt: now
               };
+              if (isRwaModule() && isRwaArchiveKey(storageKey)) entry.data = report;
+              else entry.report = report;
               if (wasUpdate) entries[existingIndex] = entry;
               else entries.push(entry);
               if (!writeArchiveEntriesForKey(storageKey, entries)) {
@@ -9022,8 +9178,15 @@
                 keys.push("pb-feuerloescher-current-archive-id");
                 keys.push("pb-feuerloescher-current-archive-id-v2");
               }
+              if (isBrandschutztuerenModule() && isBrandschutztuerenLegacyArchiveKey(storageKey)) {
+                keys.push("pb-brandschutztueren-current-archive-id");
+                keys.push("pb-brandschutztueren-current-archive-id-v2");
+              }
+              if (isRwaModule() && isRwaArchiveKey(storageKey)) {
+                keys.push("rwa_pruefbericht_current_archive_id");
+              }
               var match = String(storageKey || "").match(/^(.*)-archive-v(\\d+)$/i);
-              if (match && !(isFeuerloescherModule() && isFeuerloescherLegacyArchiveKey(storageKey))) {
+              if (match && !isLegacyArchiveCompatKey(storageKey)) {
                 var legacyCurrentKey = match[1] + "-current-v" + match[2];
                 if (!isModuleDraftStorageKey(legacyCurrentKey)) keys.push(legacyCurrentKey);
                 keys.push(match[1] + "-current-archive-id-v" + match[2]);
@@ -9047,7 +9210,7 @@
             }
 
             function clearCurrentArchiveIdsForCurrentModule() {
-              var keys = isFeuerloescherModule()
+              var keys = legacyArchiveCompatModule()
                 ? archiveStorageKeysForDisplay(resolveArchiveStorageKey())
                 : archiveStorageKeys({ currentOnly: true });
               keys.forEach(function(storageKey) {
@@ -9059,7 +9222,7 @@
 
             function findArchiveEntryByIdentity(report) {
               var match = null;
-              var storageKeys = isFeuerloescherModule()
+              var storageKeys = legacyArchiveCompatModule()
                 ? archiveStorageKeysForDisplay(resolveArchiveStorageKey())
                 : archiveStorageKeys({ currentOnly: true });
               storageKeys.some(function(storageKey) {
