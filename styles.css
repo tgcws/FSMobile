@@ -510,6 +510,13 @@ body.app-starting .brand h1 {
   animation: menuEnter 0.72s var(--menu-ease) both;
 }
 
+.menu-view::after {
+  display: block;
+  min-height: clamp(220px, 28vh, 340px);
+  content: "";
+  pointer-events: none;
+}
+
 .menu-view::-webkit-scrollbar {
   display: none;
   width: 0;
@@ -1711,8 +1718,11 @@ body.app-starting .brand h1 {
 
 .options-dialog {
   width: min(460px, calc(100vw - 36px));
+  max-height: calc(100dvh - 40px);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: grid;
   gap: 22px;
   padding: 24px;
@@ -1733,7 +1743,15 @@ body.app-starting .brand h1 {
   transition:
     opacity 390ms var(--menu-ease),
     transform 390ms var(--menu-ease);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
   will-change: opacity, transform;
+}
+
+.options-dialog::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .options-overlay[hidden] .options-dialog,

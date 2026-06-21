@@ -6822,11 +6822,21 @@
     }, 260);
   }
 
+  function menuFavoritesDockScrollTop() {
+    if (!menuView || !moduleGrid) return 0;
+    const favoritesSection = moduleGrid.querySelector(".menu-section.accent-favorites");
+    if (!favoritesSection) return 0;
+    const menuRect = menuView.getBoundingClientRect();
+    const favoritesRect = favoritesSection.getBoundingClientRect();
+    return Math.max(0, Math.round(menuView.scrollTop + favoritesRect.top - menuRect.top));
+  }
+
   function resetMenuScrollPosition() {
+    const targetTop = menuFavoritesDockScrollTop();
     try {
-      menuView.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      menuView.scrollTo({ top: targetTop, left: 0, behavior: "auto" });
     } catch (error) {
-      menuView.scrollTop = 0;
+      menuView.scrollTop = targetTop;
       menuView.scrollLeft = 0;
     }
   }
@@ -6838,6 +6848,14 @@
       window.requestAnimationFrame(resetMenuScrollPosition);
     });
     window.setTimeout(resetMenuScrollPosition, 360);
+    window.setTimeout(resetMenuScrollPosition, 760);
+  }
+
+  function resetMenuSearchForFavoriteDock() {
+    if (!menuSearchQuery && (!menuSearchInput || !menuSearchInput.value)) return;
+    menuSearchQuery = "";
+    if (menuSearchInput) menuSearchInput.value = "";
+    renderMenu();
   }
 
   function reportSignatureStorageKeys(moduleId) {
@@ -7129,6 +7147,7 @@
 
     flushActiveModuleState();
     rememberPreviousModule(null);
+    resetMenuSearchForFavoriteDock();
     activeModuleId = null;
     if (topbar) topbar.classList.remove("is-module-active");
     clearModuleHeadingAccent();
