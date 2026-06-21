@@ -3,10 +3,15 @@
 
   const registry = window.FSMOBILE_MODULES || {};
   const moduleGrid = document.getElementById("moduleGrid");
+  const menuSearchShell = document.getElementById("menuSearchShell");
+  const menuSearchInput = document.getElementById("menuSearchInput");
+  const menuSearchClear = document.getElementById("menuSearchClear");
+  const menuSearchResult = document.getElementById("menuSearchResult");
   const moduleView = document.getElementById("moduleView");
   const menuView = document.getElementById("menuView");
   const frame = document.getElementById("moduleFrame");
   const backButton = document.getElementById("backButton");
+  const quickSwitchButton = document.getElementById("quickSwitchButton");
   const subtitle = document.getElementById("viewSubtitle");
   const topbar = document.querySelector(".topbar");
   const authOverlay = document.getElementById("authOverlay");
@@ -17,11 +22,20 @@
   const authHint = document.getElementById("authHint");
   const authSubmit = document.getElementById("authSubmit");
   const authError = document.getElementById("authError");
+  const appToast = document.getElementById("appToast");
+  const appToastText = document.getElementById("appToastText");
+  const appConnectionStatus = document.getElementById("appConnectionStatus");
+  const appConnectionStatusText = document.getElementById("appConnectionStatusText");
   const updateToast = document.getElementById("updateToast");
   const updateButton = document.getElementById("updateButton");
+  const updateTitle = updateToast ? updateToast.querySelector(".update-title") : null;
+  const updateText = updateToast ? updateToast.querySelector(".update-text") : null;
   const menuOptionsButton = document.getElementById("menuOptionsButton");
   const optionsOverlay = document.getElementById("optionsOverlay");
   const optionsCloseButton = document.getElementById("optionsCloseButton");
+  const optionsOfflineReady = document.getElementById("optionsOfflineReady");
+  const optionsCacheVersion = document.getElementById("optionsCacheVersion");
+  const optionsLastBackup = document.getElementById("optionsLastBackup");
   const archiveBackupExportButton = document.getElementById("archiveBackupExportButton");
   const archiveBackupImportButton = document.getElementById("archiveBackupImportButton");
   const archiveDeleteButton = document.getElementById("archiveDeleteButton");
@@ -30,21 +44,48 @@
   const archiveDeleteConfirmButton = document.getElementById("archiveDeleteConfirmButton");
   const archiveBackupFile = document.getElementById("archiveBackupFile");
   const archiveBackupStatus = document.getElementById("archiveBackupStatus");
+  const archiveBackupSummary = document.getElementById("archiveBackupSummary");
+  const archiveBackupSummaryTitle = document.getElementById("archiveBackupSummaryTitle");
+  const archiveBackupSummaryText = document.getElementById("archiveBackupSummaryText");
+  const archiveBackupSummaryList = document.getElementById("archiveBackupSummaryList");
+  const archiveBackupSummaryNote = document.getElementById("archiveBackupSummaryNote");
+  const archiveBackupImportActions = document.getElementById("archiveBackupImportActions");
+  const archiveBackupImportCancelButton = document.getElementById("archiveBackupImportCancelButton");
+  const archiveBackupImportConfirmButton = document.getElementById("archiveBackupImportConfirmButton");
   const OLD_PASS_HASH_KEY = "fsmobile-unified-passhash-v1";
   const AUTH_UNLOCK_KEY = "fsmobile-auth-unlocked-v2";
   const AUTH_UNLOCK_VALUE = "confirmed";
   const UPDATE_RELOAD_KEY = "fsmobile-update-reload-v1";
+  const LAST_BACKUP_KEY = "fsmobile-last-backup-created-at-v1";
   const REQUIRED_PASS_HASH = "745731644d9e569b873095e3a2a5a3fae47202b83d2d5879397ea14415edee95";
   let isUnlocked = false;
   let activeModuleId = null;
+  let previousModuleId = null;
+  let quickSwitchTransitionPending = false;
   let actionSyncTimer = 0;
   let actionStatusTimer = 0;
+  let appToastTimer = 0;
+  let appConnectionStatusTimer = 0;
   let brandTransitionTimer = 0;
   let titleStartAnimationPending = document.body.classList.contains("app-start-pending");
   let titleStartAnimationTimer = 0;
   let optionsCloseTimer = 0;
   let viewTransitionTimers = [];
+  let favoritesSortMode = false;
+  let menuSearchQuery = "";
+  let pendingBackupImportPayload = null;
+  let pendingBackupImportSummary = null;
   const signatureClearUntilByModule = new Map();
+  const FAVORITES_SECTION_ID = "favoriten";
+  const FAVORITES_STORAGE_KEY = "fsmobile-menu-favorites-v1";
+  const MENU_SECTION_GLYPHS = {
+    favoriten: "★",
+    kalkulation: "∑",
+    pruefberichte: "✓",
+    wartungsanleitungen: "▤",
+    maengelbeschreibungen: "!"
+  };
+  const expandedMenuSections = new Set();
 
   const MENU_SECTIONS = [
     {
@@ -78,6 +119,7 @@
         "pb-drehfluegelantrieb",
         "pb-rauchschutzvorhaenge",
         "pb-feststellanlagen",
+        "pb-fluchttuer-steuerungen",
         "pb-druckerhoehungsanlage",
         "pb-nass-trocken-station",
         "pb-loeschwasser-trocken",
@@ -139,6 +181,7 @@
     "pb-drehfluegelantrieb": "Drehflügelantriebe",
     "pb-rauchschutzvorhaenge": "Rauchschutzvorhänge",
     "pb-feststellanlagen": "Feststellanlagen",
+    "pb-fluchttuer-steuerungen": "Fluchttür-Steuerungen",
     "pb-druckerhoehungsanlage": "Druckerhöhungsanlagen",
     "pb-nass-trocken-station": "Nass/Trocken-Station",
     "pb-loeschwasser-trocken": "Löschwassereinrichtung Trocken",
@@ -976,7 +1019,7 @@
       if (!entries.length) {
         const empty = document.createElement("p");
         empty.className = "archive-empty";
-        empty.textContent = "Noch keine gespeicherten Aufmaße im Archiv.";
+        empty.textContent = "Archiv leer - zuerst im Archiv speichern legt den ersten Eintrag an.";
         list.appendChild(empty);
         return;
       }
@@ -1545,7 +1588,7 @@
     function saveCurrentReportToArchive(){saveToStorageNow();const now=new Date().toISOString();const currentId=getCurrentArchiveId();const entries=loadArchiveEntries();const existingIndex=currentId?entries.findIndex(entry=>entry.id===currentId):-1;const entry={id:existingIndex>=0?entries[existingIndex].id:createArchiveId(),createdAt:existingIndex>=0?entries[existingIndex].createdAt:now,updatedAt:now,report:collectData()};if(existingIndex>=0)entries[existingIndex]=entry;else entries.push(entry);if(writeArchiveEntries(entries)){setCurrentArchiveId(entry.id);renderArchiveList();setArchiveStatus("Prüfbericht wurde im Archiv gespeichert.")}else setArchiveStatus("Prüfbericht konnte nicht im Archiv gespeichert werden.")}
     function openArchiveEntry(id){const entry=loadArchiveEntries().find(item=>item.id===id);if(!entry)return;applyData(entry.report);setCurrentArchiveId(entry.id);saveToStorageNow();closeArchive();setArchiveStatus("Prüfbericht aus dem Archiv geöffnet.")}
     function deleteArchiveEntry(id){const entries=loadArchiveEntries();const entry=entries.find(item=>item.id===id);if(!entry)return;if(!confirm("Archiv-Eintrag '"+getArchiveTitle(entry)+"' löschen?"))return;writeArchiveEntries(entries.filter(item=>item.id!==id));if(getCurrentArchiveId()===id)clearCurrentArchiveId();renderArchiveList();setArchiveStatus("Archiv-Eintrag wurde gelöscht.")}
-    function renderArchiveList(){const archiveList=document.getElementById("archiveList");const entries=loadArchiveEntries().slice().sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")));archiveList.innerHTML="";if(!entries.length){const empty=document.createElement("p");empty.className="archive-empty";empty.textContent="Noch keine gespeicherten Prüfberichte im Archiv.";archiveList.appendChild(empty);return}entries.forEach(entry=>{const item=document.createElement("article");item.className="archive-item";const text=document.createElement("div");const title=document.createElement("div");const meta=document.createElement("div");title.className="archive-title";meta.className="archive-meta";title.textContent=getArchiveTitle(entry);meta.textContent="Geändert: "+getDisplayDate((entry.updatedAt||"").slice(0,10));text.append(title,meta);const openButton=document.createElement("button");openButton.type="button";openButton.textContent="Öffnen";openButton.addEventListener("click",()=>openArchiveEntry(entry.id));const deleteButton=document.createElement("button");deleteButton.type="button";deleteButton.className="danger";deleteButton.textContent="Löschen";deleteButton.addEventListener("click",()=>deleteArchiveEntry(entry.id));item.append(text,openButton,deleteButton);archiveList.appendChild(item)})}
+    function renderArchiveList(){const archiveList=document.getElementById("archiveList");const entries=loadArchiveEntries().slice().sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")));archiveList.innerHTML="";if(!entries.length){const empty=document.createElement("p");empty.className="archive-empty";empty.textContent="Archiv leer - zuerst im Archiv speichern legt den ersten Eintrag an.";archiveList.appendChild(empty);return}entries.forEach(entry=>{const item=document.createElement("article");item.className="archive-item";const text=document.createElement("div");const title=document.createElement("div");const meta=document.createElement("div");title.className="archive-title";meta.className="archive-meta";title.textContent=getArchiveTitle(entry);meta.textContent="Geändert: "+getDisplayDate((entry.updatedAt||"").slice(0,10));text.append(title,meta);const openButton=document.createElement("button");openButton.type="button";openButton.textContent="Öffnen";openButton.addEventListener("click",()=>openArchiveEntry(entry.id));const deleteButton=document.createElement("button");deleteButton.type="button";deleteButton.className="danger";deleteButton.textContent="Löschen";deleteButton.addEventListener("click",()=>deleteArchiveEntry(entry.id));item.append(text,openButton,deleteButton);archiveList.appendChild(item)})}
     function openArchive(){renderArchiveList();document.getElementById("archiveOverlay").hidden=false} function closeArchive(){document.getElementById("archiveOverlay").hidden=true} function setArchiveStatus(message){const status=document.getElementById("archiveStatus");if(!status)return;status.textContent=message||"";window.clearTimeout(archiveStatusTimer);if(message)archiveStatusTimer=window.setTimeout(()=>{status.textContent=""},4000)}
     function sanitizeFileName(value){return(value||"Pruefbericht-Nass-Trocken-Station").trim().replace(/[\\\\/:*?"<>|]+/g,"-").replace(/\\s+/g,"_").slice(0,80)||"Pruefbericht-Nass-Trocken-Station"} function getPdfFileName(){const anlage=sanitizeFileName(document.getElementById("anlageInput").value||"Ohne Anlagen Nr.");const objectName=sanitizeFileName(document.getElementById("objectInput").value||"Ohne Objekt");const date=document.getElementById("dateInput").value||todayIso();return anlage+"_"+objectName+"_"+date+".pdf"}
     function ensureJsPdf(){if(window.jspdf&&typeof window.jspdf.jsPDF==="function")return window.jspdf.jsPDF;if(typeof window.jsPDF==="function")return window.jsPDF;return null} async function loadJsPdfIfNeeded(){const existing=ensureJsPdf();if(existing)return existing;return new Promise(resolve=>{const script=document.createElement("script");script.src="vendor/jspdf.umd.min.js";script.onload=()=>resolve(ensureJsPdf());script.onerror=()=>resolve(null);document.head.appendChild(script)})}
@@ -2374,7 +2417,7 @@
       if (!entries.length) {
         const empty = document.createElement("p");
         empty.className = "archive-empty";
-        empty.textContent = "Noch keine gespeicherten Prüfberichte im Archiv.";
+        empty.textContent = "Archiv leer - zuerst im Archiv speichern legt den ersten Eintrag an.";
         archiveList.appendChild(empty);
         return;
       }
@@ -3655,7 +3698,7 @@
       if (!entries.length) {
         const empty = document.createElement("p");
         empty.className = "archive-empty";
-        empty.textContent = "Noch keine gespeicherten Prüfberichte im Archiv.";
+        empty.textContent = "Archiv leer - zuerst im Archiv speichern legt den ersten Eintrag an.";
         archiveList.appendChild(empty);
         return;
       }
@@ -5045,7 +5088,7 @@
       if (!entries.length) {
         const empty = document.createElement("p");
         empty.className = "archive-empty";
-        empty.textContent = "Noch keine gespeicherten Prüfberichte im Archiv.";
+        empty.textContent = "Archiv leer - zuerst im Archiv speichern legt den ersten Eintrag an.";
         archiveList.appendChild(empty);
         return;
       }
@@ -5462,58 +5505,433 @@
 </html>`;
   }
 
-  function renderMenu() {
-    const fragment = document.createDocumentFragment();
-    MENU_SECTIONS.forEach(sectionConfig => {
+  function normalizeFavoriteIds(value) {
+    const source = Array.isArray(value) ? value : [];
+    const seen = new Set();
+    const result = [];
+    source.forEach(id => {
+      const moduleId = String(id || "").trim();
+      if (!moduleId || seen.has(moduleId) || !registry[moduleId]) return;
+      seen.add(moduleId);
+      result.push(moduleId);
+    });
+    return result;
+  }
+
+  function loadFavoriteIds() {
+    let parsed = [];
+    try {
+      parsed = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || "[]");
+    } catch {
+      parsed = [];
+    }
+    const normalized = normalizeFavoriteIds(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) saveFavoriteIds(normalized);
+    return normalized;
+  }
+
+  function saveFavoriteIds(ids) {
+    try {
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(normalizeFavoriteIds(ids)));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function setFavorite(moduleId, enabled) {
+    const ids = loadFavoriteIds();
+    const exists = ids.includes(moduleId);
+    if (enabled && !exists) ids.push(moduleId);
+    if (!enabled && exists) ids.splice(ids.indexOf(moduleId), 1);
+    saveFavoriteIds(ids);
+    expandedMenuSections.add(FAVORITES_SECTION_ID);
+    renderMenu();
+  }
+
+  function moveFavorite(moduleId, direction) {
+    const ids = loadFavoriteIds();
+    const index = ids.indexOf(moduleId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= ids.length) return;
+    const next = ids[nextIndex];
+    ids[nextIndex] = moduleId;
+    ids[index] = next;
+    saveFavoriteIds(ids);
+    expandedMenuSections.add(FAVORITES_SECTION_ID);
+    renderMenu();
+  }
+
+  function normalizeMenuSearchText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/ß/g, "ss")
+      .replace(/²/g, "2")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function moduleMatchesSearch(moduleId, sectionId, query) {
+    const normalizedQuery = normalizeMenuSearchText(query);
+    if (!normalizedQuery) return true;
+    const module = registry[moduleId];
+    if (!module) return false;
+    const section = sectionId
+      ? MENU_SECTIONS.find(sectionConfig => sectionConfig.id === sectionId)
+      : MENU_SECTIONS.find(sectionConfig => sectionConfig.modules.includes(moduleId));
+    const haystack = normalizeMenuSearchText([
+      moduleId,
+      CARD_TITLES[moduleId],
+      module.title,
+      module.description,
+      module.group,
+      KICKERS[section && section.id],
+      section && section.title
+    ].filter(Boolean).join(" "));
+    return normalizedQuery.split(" ").every(part => haystack.includes(part));
+  }
+
+  function updateMenuSearchUi(matchCount, isSearching) {
+    if (menuSearchShell) menuSearchShell.classList.toggle("is-active", Boolean(isSearching));
+    if (menuSearchClear) menuSearchClear.hidden = !isSearching;
+    if (!menuSearchResult) return;
+    if (!isSearching) {
+      menuSearchResult.textContent = "";
+      return;
+    }
+    menuSearchResult.textContent = matchCount === 1
+      ? "1 Treffer"
+      : (matchCount > 1 ? `${matchCount} Treffer` : "Keine Treffer gefunden");
+  }
+
+  function renderMenuSection(sectionConfig, options = {}) {
       const section = document.createElement("section");
-      section.className = `menu-section ${sectionConfig.accent} is-collapsed`;
+      const isFavoriteSection = Boolean(options.isFavoriteSection);
+      const isExpanded = isFavoriteSection || Boolean(options.forceExpanded) || expandedMenuSections.has(sectionConfig.id);
+      section.className = `menu-section ${sectionConfig.accent}${isExpanded ? "" : " is-collapsed"}${isFavoriteSection && favoritesSortMode ? " is-favorite-sort-mode" : ""}`;
       section.setAttribute("aria-labelledby", `${sectionConfig.id}Title`);
 
-      const toggle = document.createElement("button");
+      const header = document.createElement("div");
+      header.className = `menu-section-header${isFavoriteSection ? " favorites-section-header" : ""}`;
+      const toggle = document.createElement(isFavoriteSection ? "div" : "button");
       toggle.className = "menu-section-toggle";
-      toggle.type = "button";
-      toggle.setAttribute("aria-expanded", "false");
-      toggle.setAttribute("aria-controls", `${sectionConfig.id}Grid`);
+      if (isFavoriteSection) {
+        toggle.setAttribute("role", "heading");
+        toggle.setAttribute("aria-level", "2");
+      } else {
+        toggle.type = "button";
+        toggle.setAttribute("aria-expanded", String(isExpanded));
+        toggle.setAttribute("aria-controls", `${sectionConfig.id}Grid`);
+      }
 
       const title = document.createElement("span");
       title.className = "menu-section-title";
       title.id = `${sectionConfig.id}Title`;
       title.textContent = sectionConfig.title;
+      const titleGroup = document.createElement("span");
+      titleGroup.className = "menu-section-title-group";
+      const glyph = document.createElement("span");
+      glyph.className = "menu-section-glyph";
+      glyph.textContent = MENU_SECTION_GLYPHS[sectionConfig.id] || "";
+      glyph.setAttribute("aria-hidden", "true");
+      titleGroup.append(glyph, title);
       const icon = document.createElement("span");
       icon.className = "menu-section-icon";
       icon.setAttribute("aria-hidden", "true");
-      toggle.append(title, icon);
+      let collapseButton = null;
+      let sortButton = null;
+      let carouselControls = null;
+      let carouselPrevButton = null;
+      let carouselNextButton = null;
+
+      if (isFavoriteSection) {
+        toggle.classList.add("favorites-title-toggle");
+        toggle.append(titleGroup);
+
+        sortButton = document.createElement("button");
+        sortButton.className = `favorites-sort-toggle${favoritesSortMode ? " is-active" : ""}`;
+        sortButton.type = "button";
+        sortButton.textContent = "…";
+        sortButton.setAttribute("aria-label", favoritesSortMode ? "Favoriten-Sortiermodus deaktivieren" : "Favoriten sortieren");
+        sortButton.setAttribute("aria-pressed", String(favoritesSortMode));
+        sortButton.title = favoritesSortMode ? "Sortieren beenden" : "Favoriten sortieren";
+
+        header.append(toggle, sortButton);
+      } else {
+        toggle.append(titleGroup, icon);
+        header.append(toggle);
+      }
 
       const grid = document.createElement("div");
       grid.className = "menu-grid";
       grid.id = `${sectionConfig.id}Grid`;
-      grid.setAttribute("aria-hidden", "true");
+      grid.setAttribute("aria-hidden", String(!isExpanded));
       const gridInner = document.createElement("div");
       gridInner.className = "menu-grid-inner";
 
+      const favoriteIds = loadFavoriteIds();
       sectionConfig.modules.forEach(id => {
         const module = registry[id];
         if (!module) return;
-        gridInner.append(createModuleCard(id, module, sectionConfig.id));
+        gridInner.append(createModuleCard(id, module, sectionConfig.id, {
+          favoriteIds,
+          isFavoriteSection,
+          favoriteIndex: favoriteIds.indexOf(id),
+          favoriteCount: favoriteIds.length,
+          sourceSectionId: isFavoriteSection ? getModuleSectionId(id) : sectionConfig.id
+        }));
       });
+      if (isFavoriteSection && !gridInner.children.length) {
+        const empty = document.createElement("p");
+        empty.className = "favorites-empty";
+        empty.textContent = "Noch keine Favoriten - Stern in einer Modulkarte antippen.";
+        gridInner.append(empty);
+      }
       grid.append(gridInner);
 
-      toggle.addEventListener("click", () => {
-        const expanded = toggle.getAttribute("aria-expanded") !== "true";
+      if (isFavoriteSection && gridInner.querySelector(".module-card")) {
+        let currentCarouselIndex = 0;
+        const getCarouselMetrics = () => {
+          const cards = Array.from(gridInner.querySelectorAll(".module-card"));
+          if (!cards.length) return { cards, cardWidth: 0, gap: 0, step: 0, visibleCount: 0, maxIndex: 0, hasOverflow: false };
+          const firstRect = cards[0].getBoundingClientRect();
+          const secondRect = cards[1] ? cards[1].getBoundingClientRect() : null;
+          const computed = window.getComputedStyle(gridInner);
+          const columnGap = Number.parseFloat(computed.columnGap || "");
+          const gridGap = Number.parseFloat(computed.gap || "");
+          const gap = Number.isFinite(columnGap) ? columnGap : (Number.isFinite(gridGap) ? gridGap : 0);
+          const cardWidth = firstRect.width;
+          const step = secondRect ? Math.max(cardWidth + gap, secondRect.left - firstRect.left) : cardWidth + gap;
+          const available = Math.max(0, section.clientWidth);
+          const visibleCount = Math.max(1, Math.min(cards.length, Math.floor((available + gap) / step)));
+          const maxIndex = Math.max(0, cards.length - visibleCount);
+          return { cards, cardWidth, gap, step, visibleCount, maxIndex, hasOverflow: cards.length > visibleCount };
+        };
+        const fitCarouselToWholeCards = metrics => {
+          if (!metrics.cards.length) return;
+          const width = Math.ceil(metrics.cardWidth + (Math.max(0, metrics.visibleCount - 1) * metrics.step) + 2);
+          grid.style.setProperty("--favorites-carousel-width", `${width}px`);
+        };
+        const updateCarouselButtons = () => {
+          if (!carouselControls || !carouselPrevButton || !carouselNextButton) return;
+          const metrics = getCarouselMetrics();
+          fitCarouselToWholeCards(metrics);
+          currentCarouselIndex = metrics.step ? Math.min(metrics.maxIndex, Math.max(0, Math.round(gridInner.scrollLeft / metrics.step))) : 0;
+          carouselControls.hidden = !metrics.hasOverflow;
+          carouselPrevButton.disabled = !metrics.hasOverflow || currentCarouselIndex <= 0;
+          carouselNextButton.disabled = !metrics.hasOverflow || currentCarouselIndex >= metrics.maxIndex;
+        };
+        const scrollFavorites = direction => {
+          const metrics = getCarouselMetrics();
+          fitCarouselToWholeCards(metrics);
+          const nextIndex = Math.min(metrics.maxIndex, Math.max(0, currentCarouselIndex + direction));
+          currentCarouselIndex = nextIndex;
+          gridInner.scrollTo({
+            left: metrics.step * nextIndex,
+            behavior: prefersReducedMotion() ? "auto" : "smooth"
+          });
+          window.setTimeout(updateCarouselButtons, prefersReducedMotion() ? 0 : 320);
+        };
+        const createCarouselButton = direction => {
+          const button = document.createElement("button");
+          button.className = `favorites-carousel-button favorites-carousel-${direction < 0 ? "prev" : "next"}`;
+          button.type = "button";
+          button.textContent = direction < 0 ? "←" : "→";
+          button.setAttribute("aria-label", direction < 0 ? "Favoriten nach links scrollen" : "Favoriten nach rechts scrollen");
+          button.title = direction < 0 ? "Nach links scrollen" : "Nach rechts scrollen";
+          button.addEventListener("click", event => {
+            event.stopPropagation();
+            scrollFavorites(direction);
+          });
+          return button;
+        };
+        carouselControls = document.createElement("div");
+        carouselControls.className = "favorites-carousel-controls";
+        carouselControls.setAttribute("aria-label", "Favoriten-Carousel Navigation");
+        carouselPrevButton = createCarouselButton(-1);
+        carouselNextButton = createCarouselButton(1);
+        carouselControls.append(carouselPrevButton, carouselNextButton);
+        gridInner.addEventListener("scroll", () => window.requestAnimationFrame(updateCarouselButtons), { passive: true });
+        window.addEventListener("resize", () => window.requestAnimationFrame(updateCarouselButtons), { passive: true });
+        window.requestAnimationFrame(() => {
+          updateCarouselButtons();
+          window.requestAnimationFrame(updateCarouselButtons);
+        });
+        [120, 360, 720].forEach(delay => window.setTimeout(updateCarouselButtons, delay));
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(updateCarouselButtons).catch(() => {});
+        }
+      }
+
+      const setExpanded = expanded => {
         toggle.setAttribute("aria-expanded", String(expanded));
+        if (collapseButton) collapseButton.setAttribute("aria-expanded", String(expanded));
         section.classList.toggle("is-collapsed", !expanded);
         grid.setAttribute("aria-hidden", String(!expanded));
-      });
+        if (expanded) expandedMenuSections.add(sectionConfig.id);
+        else expandedMenuSections.delete(sectionConfig.id);
+      };
 
-      section.append(toggle, grid);
-      fragment.append(section);
+      if (!isFavoriteSection) {
+        toggle.addEventListener("click", () => setExpanded(toggle.getAttribute("aria-expanded") !== "true"));
+      }
+      if (collapseButton) {
+        collapseButton.addEventListener("click", () => setExpanded(collapseButton.getAttribute("aria-expanded") !== "true"));
+      }
+      if (sortButton) {
+        sortButton.addEventListener("click", () => {
+          favoritesSortMode = !favoritesSortMode;
+          expandedMenuSections.add(FAVORITES_SECTION_ID);
+          renderMenu();
+        });
+      }
+
+      section.append(header, grid);
+      if (carouselControls) section.append(carouselControls);
+      return section;
+  }
+
+  function renderMenu() {
+    const fragment = document.createDocumentFragment();
+    const query = String(menuSearchQuery || "").trim();
+    const isSearching = Boolean(query);
+    const matchedModuleIds = new Set();
+    const favoriteModules = loadFavoriteIds();
+    if (!isSearching) {
+      fragment.append(renderMenuSection({
+        id: FAVORITES_SECTION_ID,
+        title: "Favoriten",
+        accent: "accent-favorites",
+        modules: favoriteModules
+      }, { isFavoriteSection: true }));
+    }
+    MENU_SECTIONS.forEach(sectionConfig => {
+      const modules = isSearching
+        ? sectionConfig.modules.filter(id => moduleMatchesSearch(id, sectionConfig.id, query))
+        : sectionConfig.modules;
+      if (isSearching && !modules.length) return;
+      modules.forEach(id => matchedModuleIds.add(id));
+      fragment.append(renderMenuSection(
+        Object.assign({}, sectionConfig, { modules }),
+        { forceExpanded: isSearching }
+      ));
     });
+    if (isSearching && !matchedModuleIds.size) {
+      const empty = document.createElement("section");
+      empty.className = "menu-search-empty";
+      empty.setAttribute("role", "status");
+      empty.innerHTML = "<span>Keine Treffer - Suchbegriff prüfen oder kürzer suchen.</span>";
+      fragment.append(empty);
+    }
     moduleGrid.replaceChildren(fragment);
+    updateMenuSearchUi(matchedModuleIds.size, isSearching);
+  }
+
+  function normalizeShellStatusMessage(message) {
+    const text = String(message || "").replace(/\s+/g, " ").trim();
+    if (!text) return "";
+    if (/lokale berichte, archive und favoriten/i.test(text)) return text;
+    if (/offline.*verfügbar/i.test(text)) return "Offline verfügbar.";
+    if (/offline/i.test(text)) return "Offline - lokal gespeicherte Inhalte bleiben verfügbar.";
+    if (/^online\.?$/i.test(text)) return "Online.";
+    if (/backup-datei ungültig/i.test(text)) return "Backup-Datei konnte nicht gelesen werden.";
+    if (/import fehlgeschlagen/i.test(text)) return "Backup konnte nicht importiert werden.";
+    if (/export erfolgreich/i.test(text)) return `${text} Lokale Berichte, Archive und Favoriten sind enthalten.`;
+    if (/import erfolgreich/i.test(text)) return `${text} Lokale Berichte, Archive und Favoriten wurden wiederhergestellt.`;
+    if (/keine archivdaten gefunden/i.test(text)) return "Backup enthält keine wiederherstellbaren Archivdaten.";
+    if (/konnte nicht.*archiv/i.test(text)) return "Prüfbericht konnte nicht im Archiv gespeichert werden.";
+    if (/vorhandener archiv-eintrag aktualisiert/i.test(text)) return "Vorhandener Archiv-Eintrag aktualisiert.";
+    if (/bericht im archiv gespeichert|archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Bericht im Archiv gespeichert.";
+    if (/aus dem archiv geöffnet/i.test(text)) return "Prüfbericht wurde aus dem Archiv geöffnet.";
+    if (/archiv.*geöffnet/i.test(text)) return "Archiv wurde geöffnet.";
+    if (/archiv.*gelöscht/i.test(text)) return "Archiv-Eintrag wurde gelöscht.";
+    if (/pdf export.*wird erstellt|pdf.*wird erstellt/i.test(text)) return "PDF-Export wird erstellt...";
+    if (/pdf export.*nicht|pdf.*nicht|kombinierter.*nicht/i.test(text)) return "PDF-Export konnte nicht erstellt werden.";
+    if (/pdf export.*erstellt|zip.*erstellt|pdf.*erstellt/i.test(text)) return "PDF-Export wurde erstellt.";
+    if (/backup-datei ungültig|fehlgeschlagen|fehler|konnte nicht|ungültig|passt nicht/i.test(text)) return text;
+    if (/export erfolgreich|import erfolgreich|importiert|gespeichert|aktualisiert|erstellt|geöffnet|gelöscht|geleert/i.test(text)) return text;
+    return text;
+  }
+
+  function shellStatusTone(message) {
+    const text = String(message || "");
+    if (/fehlgeschlagen|fehler|konnte nicht|ungültig|passt nicht|nicht erstellt|nicht gespeichert/i.test(text)) return "error";
+    if (/erstellt|gespeichert|aktualisiert|erfolgreich|importiert|gelöscht/i.test(text)) return "success";
+    return "info";
+  }
+
+  function showAppToast(message) {
+    const normalized = normalizeShellStatusMessage(message);
+    if (!appToast || !appToastText || !normalized) return;
+    const tone = shellStatusTone(normalized);
+    appToastText.textContent = normalized;
+    appToast.classList.remove("is-success", "is-error", "is-info");
+    appToast.classList.add(`is-${tone}`);
+    appToast.hidden = false;
+    window.clearTimeout(appToastTimer);
+    appToastTimer = window.setTimeout(() => {
+      appToast.hidden = true;
+    }, tone === "error" ? 7600 : 5800);
+  }
+
+  function showConnectionStatus(message, tone = "ready", options = {}) {
+    if (!appConnectionStatus || !appConnectionStatusText || !message) return;
+    appConnectionStatusText.textContent = message;
+    appConnectionStatus.classList.remove("is-online", "is-offline", "is-ready");
+    appConnectionStatus.classList.add(`is-${tone}`);
+    appConnectionStatus.hidden = false;
+    window.clearTimeout(appConnectionStatusTimer);
+    if (options.persist) return;
+    appConnectionStatusTimer = window.setTimeout(() => {
+      appConnectionStatus.hidden = true;
+    }, Number(options.duration) || 4400);
+  }
+
+  function hideConnectionStatus() {
+    if (!appConnectionStatus) return;
+    window.clearTimeout(appConnectionStatusTimer);
+    appConnectionStatus.hidden = true;
+  }
+
+  function updateConnectionStatus(options = {}) {
+    if (!("onLine" in navigator)) return;
+    if (navigator.onLine === false) {
+      showConnectionStatus("Offline", "offline", { persist: true });
+      return;
+    }
+    if (options.showReady) {
+      showConnectionStatus("Offline verfügbar", "ready", { duration: 4400 });
+      return;
+    }
+    hideConnectionStatus();
+  }
+
+  function initializeConnectionStatus() {
+    updateConnectionStatus();
+    window.addEventListener("offline", () => {
+      showConnectionStatus("Offline", "offline", { persist: true });
+      showAppToast("Offline");
+    });
+    window.addEventListener("online", () => {
+      showConnectionStatus("Online", "online", { duration: 3400 });
+      showAppToast("Online");
+    });
   }
 
   function setOptionsStatus(message) {
     if (!archiveBackupStatus) return;
     archiveBackupStatus.textContent = message || "";
+    if (message) showAppToast(message);
+  }
+
+  function hideBackupSummary() {
+    if (!archiveBackupSummary) return;
+    archiveBackupSummary.hidden = true;
+    if (archiveBackupImportActions) archiveBackupImportActions.hidden = true;
+    pendingBackupImportPayload = null;
+    pendingBackupImportSummary = null;
   }
 
   function hideArchiveDeleteConfirm() {
@@ -5524,6 +5942,7 @@
   function showArchiveDeleteConfirm() {
     if (!archiveDeleteConfirm) return;
     setOptionsStatus("");
+    hideBackupSummary();
     archiveDeleteConfirm.hidden = false;
     window.setTimeout(() => archiveDeleteCancelButton && archiveDeleteCancelButton.focus(), 40);
   }
@@ -5533,6 +5952,8 @@
     window.clearTimeout(optionsCloseTimer);
     setOptionsStatus("");
     hideArchiveDeleteConfirm();
+    hideBackupSummary();
+    refreshOptionsSecuritySummary();
     optionsOverlay.classList.remove("is-closing");
     optionsOverlay.hidden = false;
     optionsOverlay.setAttribute("aria-hidden", "false");
@@ -5544,6 +5965,7 @@
     window.clearTimeout(optionsCloseTimer);
     if (optionsOverlay.hidden) return;
     hideArchiveDeleteConfirm();
+    hideBackupSummary();
     optionsOverlay.classList.add("is-closing");
     optionsOverlay.setAttribute("aria-hidden", "true");
     optionsCloseTimer = window.setTimeout(() => {
@@ -5680,6 +6102,24 @@
     localStorage.setItem(key, JSON.stringify(entries));
   }
 
+  function isBackupExcludedStorageKey(key) {
+    return [AUTH_UNLOCK_KEY, OLD_PASS_HASH_KEY, UPDATE_RELOAD_KEY, LAST_BACKUP_KEY].includes(String(key || ""));
+  }
+
+  function collectLocalStorageBackupData() {
+    const storage = {};
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key || isBackupExcludedStorageKey(key)) continue;
+      const value = localStorage.getItem(key);
+      if (value != null) storage[key] = value;
+    }
+    return Object.keys(storage).sort().reduce((result, key) => {
+      result[key] = storage[key];
+      return result;
+    }, {});
+  }
+
   function collectArchiveBackupData() {
     const archives = {};
     for (let index = 0; index < localStorage.length; index += 1) {
@@ -5689,6 +6129,23 @@
       if (entries.length) archives[key] = entries;
     }
     return archives;
+  }
+
+  function backupLocalStoragePayload(payload) {
+    const storage = payload && payload.storage && payload.storage.localStorage;
+    if (storage && typeof storage === "object" && !Array.isArray(storage)) return storage;
+    const legacy = payload && payload.localStorage;
+    if (legacy && typeof legacy === "object" && !Array.isArray(legacy)) return legacy;
+    return null;
+  }
+
+  function parseArchiveEntriesFromBackupValue(value) {
+    try {
+      const entries = JSON.parse(String(value || "[]"));
+      return Array.isArray(entries) ? entries.filter(entry => entry && typeof entry === "object") : null;
+    } catch {
+      return null;
+    }
   }
 
   function collectArchiveStorageKeys() {
@@ -5725,34 +6182,230 @@
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function isBackupArchiveDataKey(key) {
+    const value = String(key || "");
+    if (isArchiveStorageKey(value)) return true;
+    if (isArchivePointerStorageKey(value)) return false;
+    if (/current|session|temp|draft|pending|auth|update/i.test(value)) return false;
+    return /archive|archiv/i.test(value);
+  }
+
+  function parseBackupJsonValue(value) {
+    try {
+      return JSON.parse(String(value || ""));
+    } catch {
+      return null;
+    }
+  }
+
+  function backupArrayEntryCount(value) {
+    const parsed = Array.isArray(value) ? value : parseBackupJsonValue(value);
+    return Array.isArray(parsed) ? parsed.filter(entry => entry && typeof entry === "object").length : 0;
+  }
+
+  function backupFavoriteCount(storage) {
+    const parsed = parseBackupJsonValue(storage && storage[FAVORITES_STORAGE_KEY]);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  }
+
+  function backupLocalReportKeyCount(storage) {
+    if (!storage || typeof storage !== "object") return 0;
+    return Object.keys(storage).filter(key => (
+      key !== FAVORITES_STORAGE_KEY &&
+      !isBackupExcludedStorageKey(key) &&
+      !isBackupArchiveDataKey(key) &&
+      !isArchivePointerStorageKey(key)
+    )).length;
+  }
+
+  function summarizeArchiveContent(storage, archives) {
+    const archiveCounts = new Map();
+    if (storage && typeof storage === "object") {
+      Object.entries(storage).forEach(([key, value]) => {
+        if (!isBackupArchiveDataKey(key)) return;
+        const count = backupArrayEntryCount(value);
+        if (count > 0) archiveCounts.set(key, count);
+      });
+    }
+    if (archives && typeof archives === "object" && !Array.isArray(archives)) {
+      Object.entries(archives).forEach(([key, value]) => {
+        const count = backupArrayEntryCount(value);
+        if (count > 0) archiveCounts.set(key, count);
+      });
+    }
+    const archiveAreaCount = archiveCounts.size;
+    const archiveEntryCount = Array.from(archiveCounts.values()).reduce((sum, count) => sum + count, 0);
+    return { archiveAreaCount, archiveEntryCount };
+  }
+
+  function formatBackupDateTime(value) {
+    const timestamp = Date.parse(String(value || ""));
+    if (!Number.isFinite(timestamp)) return "nicht angegeben";
+    return new Date(timestamp).toLocaleString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  function expectedCacheVersionLabel() {
+    const appVersion = getAppVersion();
+    return /^v\d+/i.test(appVersion) ? `fsmobile-${appVersion}` : appVersion;
+  }
+
+  function setOptionsSecurityValues(values = {}) {
+    if (optionsOfflineReady) optionsOfflineReady.textContent = values.offlineReady || "Wird geprüft...";
+    if (optionsCacheVersion) optionsCacheVersion.textContent = values.cacheVersion || "Wird geprüft...";
+    if (optionsLastBackup) optionsLastBackup.textContent = values.lastBackup || "Noch kein Backup erstellt";
+  }
+
+  function updateOptionsLastBackup() {
+    if (!optionsLastBackup) return;
+    const backupTime = localStorage.getItem(LAST_BACKUP_KEY);
+    optionsLastBackup.textContent = backupTime ? formatBackupDateTime(backupTime) : "Noch kein Backup erstellt";
+  }
+
+  async function refreshOptionsSecuritySummary() {
+    if (!optionsOfflineReady && !optionsCacheVersion && !optionsLastBackup) return;
+    setOptionsSecurityValues({
+      offlineReady: "Wird geprüft...",
+      cacheVersion: expectedCacheVersionLabel(),
+      lastBackup: localStorage.getItem(LAST_BACKUP_KEY) ? formatBackupDateTime(localStorage.getItem(LAST_BACKUP_KEY)) : "Noch kein Backup erstellt"
+    });
+    try {
+      const cacheNames = typeof caches !== "undefined" ? await caches.keys() : [];
+      const fsmobileCache = cacheNames
+        .filter(name => /^fsmobile-v\d+/i.test(name))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+        .pop();
+      const registration = navigator.serviceWorker && navigator.serviceWorker.ready
+        ? await navigator.serviceWorker.ready.catch(() => null)
+        : null;
+      const offlineReady = Boolean(registration && registration.active && fsmobileCache);
+      setOptionsSecurityValues({
+        offlineReady: offlineReady ? "Ja" : "Nein",
+        cacheVersion: fsmobileCache || expectedCacheVersionLabel(),
+        lastBackup: localStorage.getItem(LAST_BACKUP_KEY) ? formatBackupDateTime(localStorage.getItem(LAST_BACKUP_KEY)) : "Noch kein Backup erstellt"
+      });
+    } catch {
+      setOptionsSecurityValues({
+        offlineReady: "Nicht prüfbar",
+        cacheVersion: expectedCacheVersionLabel(),
+        lastBackup: localStorage.getItem(LAST_BACKUP_KEY) ? formatBackupDateTime(localStorage.getItem(LAST_BACKUP_KEY)) : "Noch kein Backup erstellt"
+      });
+    }
+  }
+
+  function backupSummaryFromPayload(payload) {
+    const storage = backupLocalStoragePayload(payload) || {};
+    const archiveStats = summarizeArchiveContent(storage, payload && payload.archives);
+    const storageKeys = Object.keys(storage);
+    const pointerKeyCount = storageKeys.filter(isArchivePointerStorageKey).length;
+    const metadata = payload && payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
+    return {
+      archiveAreaCount: archiveStats.archiveAreaCount,
+      archiveEntryCount: archiveStats.archiveEntryCount,
+      favoriteCount: backupFavoriteCount(storage),
+      localReportKeyCount: backupLocalReportKeyCount(storage),
+      storageKeyCount: storageKeys.length,
+      pointerKeyCount,
+      appVersion: metadata.appVersion || "unbekannt",
+      exportedAt: metadata.exportedAt || "",
+      formatVersion: payload && payload.formatVersion ? payload.formatVersion : "unbekannt"
+    };
+  }
+
+  function backupSummaryValueLabel(count, singular, plural) {
+    return count === 1 ? singular : plural;
+  }
+
+  function renderBackupSummary(summary, mode) {
+    if (!archiveBackupSummary || !archiveBackupSummaryTitle || !archiveBackupSummaryText || !archiveBackupSummaryList || !archiveBackupSummaryNote) return;
+    const isImport = mode === "import";
+    const isImported = mode === "imported";
+    archiveBackupSummaryTitle.textContent = isImport ? "Backup importieren?" : (isImported ? "Backup importiert" : "Backup erstellt");
+    archiveBackupSummaryText.textContent = isImport
+      ? "Diese Sicherung wurde gelesen und enthält folgende Daten:"
+      : isImported
+        ? "Diese Sicherung wurde wiederhergestellt:"
+      : "Diese Sicherung enthält folgende Daten:";
+    archiveBackupSummaryList.replaceChildren();
+    [
+      ["Archivdaten", `${summary.archiveEntryCount} ${backupSummaryValueLabel(summary.archiveEntryCount, "Eintrag", "Einträge")} in ${summary.archiveAreaCount} ${backupSummaryValueLabel(summary.archiveAreaCount, "Bereich", "Bereichen")}`],
+      ["Favoriten", `${summary.favoriteCount} ${backupSummaryValueLabel(summary.favoriteCount, "Favorit", "Favoriten")}`],
+      ["Lokale Berichte / Entwürfe", `${summary.localReportKeyCount} ${backupSummaryValueLabel(summary.localReportKeyCount, "Datenwert", "Datenwerte")}`],
+      ["Archiv-Zuordnungen", `${summary.pointerKeyCount} ${backupSummaryValueLabel(summary.pointerKeyCount, "Verknüpfung", "Verknüpfungen")}`],
+      ["Erstellt am", formatBackupDateTime(summary.exportedAt)],
+      ["FSMobile-Version", String(summary.appVersion || "unbekannt")]
+    ].forEach(([label, value]) => {
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const detail = document.createElement("dd");
+      detail.textContent = value;
+      archiveBackupSummaryList.append(term, detail);
+    });
+    archiveBackupSummaryNote.textContent = isImport
+      ? "Beim Import werden Archivdaten zusammengeführt. Lokale Berichte, Entwürfe und Favoriten aus der Datei werden wiederhergestellt."
+      : isImported
+        ? "Archivdaten wurden zusammengeführt. Lokale Berichte, Entwürfe und Favoriten wurden aus der Datei wiederhergestellt."
+      : "Archivdaten, Favoriten und lokale Berichte sind in der Backup-Datei enthalten.";
+    if (archiveBackupImportActions) archiveBackupImportActions.hidden = !isImport;
+    archiveBackupSummary.hidden = false;
+  }
+
+  function cancelPendingBackupImport() {
+    hideBackupSummary();
+    if (archiveBackupFile) archiveBackupFile.value = "";
+    setOptionsStatus("");
+    archiveBackupImportButton && archiveBackupImportButton.focus();
+  }
+
   function exportAllArchiveData() {
     const archives = collectArchiveBackupData();
+    const localStorageBackup = collectLocalStorageBackupData();
     const archiveKeys = Object.keys(archives);
     const entryCount = archiveKeys.reduce((sum, key) => sum + archives[key].length, 0);
+    const storageKeys = Object.keys(localStorageBackup);
+    const pointerKeyCount = storageKeys.filter(isArchivePointerStorageKey).length;
     const payload = {
       format: "FSMobileArchiveBackup",
-      formatVersion: 1,
+      formatVersion: 2,
       metadata: {
         appName: "FSMobile",
         appVersion: getAppVersion(),
         exportedAt: new Date().toISOString(),
         archiveAreaCount: archiveKeys.length,
-        entryCount
+        entryCount,
+        storageKeyCount: storageKeys.length,
+        pointerKeyCount,
+        includesFavorites: Object.prototype.hasOwnProperty.call(localStorageBackup, FAVORITES_STORAGE_KEY)
+      },
+      storage: {
+        localStorage: localStorageBackup
       },
       archives
     };
-    downloadJsonFile(`FSMobile_Archiv_Backup_${todayIso()}.json`, payload);
-    if (entryCount) {
-      setOptionsStatus(`Export erfolgreich. ${entryCount} Archiv-Einträge exportiert.`);
+    const summary = backupSummaryFromPayload(payload);
+    hideArchiveDeleteConfirm();
+    renderBackupSummary(summary, "export");
+    downloadJsonFile(`FSMobile_Backup_${todayIso()}.json`, payload);
+    localStorage.setItem(LAST_BACKUP_KEY, payload.metadata.exportedAt);
+    updateOptionsLastBackup();
+    if (storageKeys.length) {
+      setOptionsStatus(`Backup erstellt. ${summary.archiveEntryCount} Archiv-Einträge, ${summary.favoriteCount} Favoriten und ${summary.localReportKeyCount} lokale Datenwerte sind enthalten.`);
     } else {
-      setOptionsStatus("Export erfolgreich. Keine Archivdaten vorhanden.");
+      setOptionsStatus("Backup erstellt. Keine lokalen Daten vorhanden.");
     }
   }
 
   function validateArchiveBackup(payload) {
     if (!payload || typeof payload !== "object") return false;
     if (payload.format !== "FSMobileArchiveBackup") return false;
-    if (!payload.archives || typeof payload.archives !== "object" || Array.isArray(payload.archives)) return false;
+    const hasArchives = payload.archives && typeof payload.archives === "object" && !Array.isArray(payload.archives);
+    const hasLocalStorage = Boolean(backupLocalStoragePayload(payload));
+    if (!hasArchives && !hasLocalStorage) return false;
     return true;
   }
 
@@ -5797,18 +6450,46 @@
     } catch {}
   }
 
-  async function importArchiveBackupFile(file) {
-    if (!file) return;
+  function importArchiveBackupPayload(payload, summary) {
+    if (!validateArchiveBackup(payload)) {
+      setOptionsStatus("Backup-Datei ungültig.");
+      return;
+    }
     try {
-      const text = await file.text();
-      const payload = JSON.parse(text);
-      if (!validateArchiveBackup(payload)) {
-        setOptionsStatus("Backup-Datei ungültig.");
-        return;
-      }
       let areaCount = 0;
       let importedCount = 0;
-      Object.entries(payload.archives).forEach(([storageKey, entries]) => {
+      let restoredStorageKeys = 0;
+      const processedArchiveKeys = new Set();
+      const localStorageBackup = backupLocalStoragePayload(payload);
+      if (localStorageBackup) {
+        Object.entries(localStorageBackup).forEach(([storageKey, value]) => {
+          if (!storageKey || value == null) return;
+          if (!isArchiveStorageKey(storageKey)) {
+            localStorage.setItem(storageKey, String(value));
+            restoredStorageKeys += 1;
+            return;
+          }
+          const entries = parseArchiveEntriesFromBackupValue(value);
+          if (!entries) {
+            localStorage.setItem(storageKey, String(value));
+            restoredStorageKeys += 1;
+            processedArchiveKeys.add(storageKey);
+            return;
+          }
+          processedArchiveKeys.add(storageKey);
+          if (!entries.length) {
+            if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, "[]");
+            return;
+          }
+          const existing = readArchiveEntries(storageKey);
+          const merged = mergeArchiveEntries(storageKey, existing, entries);
+          writeArchiveEntries(storageKey, merged.entries);
+          areaCount += 1;
+          importedCount += merged.added + merged.updated;
+        });
+      }
+      Object.entries(payload.archives || {}).forEach(([storageKey, entries]) => {
+        if (processedArchiveKeys.has(storageKey)) return;
         if (!isArchiveStorageKey(storageKey) || !Array.isArray(entries) || !entries.length) return;
         const existing = readArchiveEntries(storageKey);
         const merged = mergeArchiveEntries(storageKey, existing, entries);
@@ -5816,17 +6497,54 @@
         areaCount += 1;
         importedCount += merged.added + merged.updated;
       });
-      if (!areaCount || !importedCount) {
+      if (!areaCount && !importedCount && !restoredStorageKeys) {
         setOptionsStatus("Keine Archivdaten gefunden.");
         return;
       }
       refreshOpenArchiveLists();
-      setOptionsStatus(`Import erfolgreich. ${importedCount} Archiv-Einträge eingespielt.`);
+      renderBackupSummary(summary || backupSummaryFromPayload(payload), "imported");
+      if (archiveBackupSummaryTitle) archiveBackupSummaryTitle.textContent = "Backup importiert";
+      setOptionsStatus(`Import erfolgreich. ${importedCount} Archiv-Einträge und ${restoredStorageKeys} Datenwerte eingespielt.`);
     } catch (error) {
-      setOptionsStatus(error instanceof SyntaxError ? "Backup-Datei ungültig." : "Import fehlgeschlagen.");
+      setOptionsStatus("Import fehlgeschlagen.");
+    }
+  }
+
+  async function importArchiveBackupFile(file) {
+    if (!file) return;
+    hideArchiveDeleteConfirm();
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      if (!validateArchiveBackup(payload)) {
+        hideBackupSummary();
+        setOptionsStatus("Backup-Datei ungültig.");
+        return;
+      }
+      pendingBackupImportPayload = payload;
+      pendingBackupImportSummary = backupSummaryFromPayload(payload);
+      renderBackupSummary(pendingBackupImportSummary, "import");
+      setOptionsStatus("Backup-Datei geprüft. Bitte Zusammenfassung vor dem Import bestätigen.");
+      window.setTimeout(() => archiveBackupImportConfirmButton && archiveBackupImportConfirmButton.focus(), 40);
+    } catch (error) {
+      hideBackupSummary();
+      setOptionsStatus(error instanceof SyntaxError ? "Backup-Datei ungültig." : "Backup-Datei konnte nicht gelesen werden.");
     } finally {
       if (archiveBackupFile) archiveBackupFile.value = "";
     }
+  }
+
+  function confirmPendingBackupImport() {
+    const payload = pendingBackupImportPayload;
+    const summary = pendingBackupImportSummary;
+    pendingBackupImportPayload = null;
+    pendingBackupImportSummary = null;
+    if (!payload) {
+      hideBackupSummary();
+      setOptionsStatus("Keine Backup-Datei zum Import vorgemerkt.");
+      return;
+    }
+    importArchiveBackupPayload(payload, summary);
   }
 
   function deleteAllArchiveData() {
@@ -5846,19 +6564,71 @@
     }
   }
 
-  function createModuleCard(id, module, sectionId) {
+  function createFavoriteButton(id, isFavorite) {
+      const button = document.createElement("button");
+      button.className = `favorite-toggle${isFavorite ? " is-active" : ""}`;
+      button.type = "button";
+      button.textContent = "★";
+      button.setAttribute("aria-pressed", String(isFavorite));
+      button.setAttribute("aria-label", isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen");
+      button.title = isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen";
+      button.addEventListener("click", event => {
+        event.stopPropagation();
+        setFavorite(id, !isFavorite);
+      });
+      return button;
+  }
+
+  function createFavoriteMoveButton(id, direction, disabled) {
+      const button = document.createElement("button");
+      button.className = "favorite-move-button favorite-sort-control";
+      button.type = "button";
+      button.textContent = direction < 0 ? "‹" : "›";
+      button.disabled = Boolean(disabled);
+      button.setAttribute("aria-label", direction < 0 ? "Favorit nach links verschieben" : "Favorit nach rechts verschieben");
+      button.title = direction < 0 ? "Nach links" : "Nach rechts";
+      button.addEventListener("click", event => {
+        event.stopPropagation();
+        moveFavorite(id, direction);
+      });
+      return button;
+  }
+
+  function createModuleCard(id, module, sectionId, options = {}) {
       const card = document.createElement("article");
-      card.className = "module-card";
+      const isFavorite = Array.isArray(options.favoriteIds)
+        ? options.favoriteIds.includes(id)
+        : loadFavoriteIds().includes(id);
+      const sourceSectionId = options.sourceSectionId || sectionId;
+      card.className = `module-card has-card-actions${options.isFavoriteSection ? " favorite-card" : ""}`;
+      if (options.isFavoriteSection && sourceSectionId) {
+        card.classList.add(`favorite-card-accent-${sourceSectionId}`);
+      }
+      card.dataset.moduleId = id;
 
       const body = document.createElement("div");
+      body.className = "module-card-body";
       const type = document.createElement("div");
       type.className = "module-kicker";
-      type.textContent = KICKERS[sectionId] || module.group || "Modul";
+      type.textContent = KICKERS[sourceSectionId] || module.group || "Modul";
       const title = document.createElement("h3");
       title.textContent = CARD_TITLES[id] || module.title;
       const description = document.createElement("p");
       description.textContent = module.description || "Bestehende FSMobile-Funktion.";
       body.append(type, title, description);
+
+      if (options.isFavoriteSection) {
+        const controls = document.createElement("div");
+        controls.className = "favorite-card-actions";
+        controls.append(
+          createFavoriteMoveButton(id, -1, options.favoriteIndex <= 0),
+          createFavoriteMoveButton(id, 1, options.favoriteIndex >= options.favoriteCount - 1),
+          createFavoriteButton(id, true)
+        );
+        card.append(controls);
+      } else {
+        card.append(createFavoriteButton(id, isFavorite));
+      }
 
       const button = document.createElement("button");
       button.className = "open-module";
@@ -5952,14 +6722,14 @@
     brand.getBoundingClientRect();
 
     window.requestAnimationFrame(() => {
-      brand.style.transition = "transform 1.05s var(--menu-ease), opacity 0.8s var(--menu-ease)";
+      brand.style.transition = "transform 0.52s var(--menu-ease), opacity 0.46s var(--menu-ease)";
       brand.style.transform = "translate3d(0, 0, 0)";
     });
 
     brandTransitionTimer = window.setTimeout(() => {
       brand.style.transition = "";
       brand.style.transform = "";
-    }, 1120);
+    }, 560);
   }
 
   function clearViewTransitionTimers() {
@@ -5978,8 +6748,31 @@
   function resetViewTransitionState() {
     clearViewTransitionTimers();
     [menuView, moduleView].forEach(view => {
-      view.classList.remove("view-enter", "view-enter-active", "view-exit");
+      view.classList.remove("view-enter", "view-enter-active", "view-exit", "quick-switch-exit", "quick-switch-enter", "quick-switch-enter-active");
     });
+  }
+
+  function runQuickSwitchTransition(updateContent) {
+    if (typeof updateContent !== "function") return;
+    if (prefersReducedMotion() || moduleView.hidden) {
+      updateContent();
+      return;
+    }
+    resetViewTransitionState();
+    moduleView.classList.add("quick-switch-exit");
+    setViewTransitionTimer(() => {
+      updateContent();
+      moduleView.classList.remove("quick-switch-exit");
+      moduleView.classList.add("quick-switch-enter");
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          moduleView.classList.add("quick-switch-enter-active");
+          setViewTransitionTimer(() => {
+            moduleView.classList.remove("quick-switch-enter", "quick-switch-enter-active");
+          }, 400);
+        });
+      });
+    }, 170);
   }
 
   function enterView(view) {
@@ -5990,7 +6783,7 @@
         view.classList.add("view-enter-active");
         setViewTransitionTimer(() => {
           view.classList.remove("view-enter", "view-enter-active");
-        }, 600);
+        }, 420);
       });
     });
   }
@@ -6008,7 +6801,7 @@
       menuView.hidden = true;
       menuView.classList.remove("view-exit");
       enterView(moduleView);
-    }, 300);
+    }, 260);
   }
 
   function switchToMenuView(onModuleHidden) {
@@ -6026,7 +6819,25 @@
       moduleView.classList.remove("view-exit");
       if (typeof onModuleHidden === "function") onModuleHidden();
       enterView(menuView);
-    }, 300);
+    }, 260);
+  }
+
+  function resetMenuScrollPosition() {
+    try {
+      menuView.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } catch (error) {
+      menuView.scrollTop = 0;
+      menuView.scrollLeft = 0;
+    }
+  }
+
+  function scheduleMenuScrollReset() {
+    resetMenuScrollPosition();
+    window.requestAnimationFrame(() => {
+      resetMenuScrollPosition();
+      window.requestAnimationFrame(resetMenuScrollPosition);
+    });
+    window.setTimeout(resetMenuScrollPosition, 360);
   }
 
   function reportSignatureStorageKeys(moduleId) {
@@ -6043,6 +6854,7 @@
       "pb-drehfluegelantrieb": ["pb-drehfluegelantrieb-current-v1"],
       "pb-rauchschutzvorhaenge": ["pb-rauchschutzvorhaenge-current-v1"],
       "pb-feststellanlagen": ["pb-feststellanlagen-current-v1"],
+      "pb-fluchttuer-steuerungen": ["pb-fluchttuer-steuerungen-current-v1"],
       "pb-druckerhoehungsanlage": ["pb-druckerhoehungsanlage-report-v1"],
       "pb-nass-trocken-station": ["fsmobile-pb-nass-trocken-station-v1"],
       "pb-loeschwasser-trocken": ["pb-loeschwasser-trocken-report-v1"],
@@ -6197,18 +7009,73 @@
     });
   }
 
-  function openModule(id, replaceHistory) {
-    if (!isUnlocked) {
-      showAuth();
-      return;
-    }
-
+  function moduleDisplayName(id) {
     const module = registry[id];
-    if (!module) return;
+    return (module && module.title) || CARD_TITLES[id] || id || "Modul";
+  }
 
+  function updateQuickSwitchButton() {
+    if (!quickSwitchButton) return;
+    const canSwitch = Boolean(activeModuleId && previousModuleId && previousModuleId !== activeModuleId && registry[previousModuleId]);
+    quickSwitchButton.hidden = !canSwitch;
+    quickSwitchButton.disabled = !canSwitch;
+    if (canSwitch) {
+      const label = `Zuletzt geöffnetes Modul öffnen: ${moduleDisplayName(previousModuleId)}`;
+      quickSwitchButton.setAttribute("aria-label", label);
+      quickSwitchButton.title = label;
+    } else {
+      quickSwitchButton.setAttribute("aria-label", "Zuletzt geöffnetes Modul öffnen");
+      quickSwitchButton.title = "Schnellwechsel";
+    }
+  }
+
+  function rememberPreviousModule(nextModuleId) {
+    if (activeModuleId && activeModuleId !== nextModuleId && registry[activeModuleId]) {
+      previousModuleId = activeModuleId;
+    }
+  }
+
+  function flushActiveModuleState() {
+    const doc = frameDocument();
+    if (!doc || !doc.body) return;
+    try {
+      const activeElement = doc.activeElement;
+      if (activeElement && activeElement.matches && activeElement.matches("input, textarea, select")) {
+        activeElement.dispatchEvent(new Event("input", { bubbles: true }));
+        activeElement.dispatchEvent(new Event("change", { bubbles: true }));
+        if (typeof activeElement.blur === "function") activeElement.blur();
+      }
+    } catch (error) {}
+
+    let win = null;
+    try {
+      win = frame.contentWindow;
+    } catch (error) {
+      win = null;
+    }
+    if (!win) return;
+
+    [
+      "saveToStorageNow",
+      "saveFormToStorage",
+      "saveCurrentDraft",
+      "saveForm",
+      "saveToStorage"
+    ].some(name => {
+      const fn = win[name];
+      if (typeof fn !== "function") return false;
+      try {
+        fn.call(win);
+      } catch (error) {}
+      return true;
+    });
+  }
+
+  function loadModuleContent(id, module, replaceHistory) {
     finishTitleStartAnimation();
-    const html = decorateModuleHtml(module.html, id);
+    const html = decorateModuleHtml(module.html, id, module.title);
     activeModuleId = id;
+    if (topbar) topbar.classList.add("is-module-active");
     applyModuleHeadingAccent(id);
     clearModuleActionBar();
     updateMenuOptionsVisibility();
@@ -6216,6 +7083,7 @@
     frame.srcdoc = html;
     frame.title = module.title;
     backButton.hidden = false;
+    updateQuickSwitchButton();
     subtitle.textContent = module.title;
     switchToModuleView();
 
@@ -6227,21 +7095,53 @@
     scheduleModuleSignatureRehydration(id);
   }
 
+  function openModule(id, replaceHistory) {
+    if (!isUnlocked) {
+      showAuth();
+      return;
+    }
+
+    const module = registry[id];
+    if (!module) return;
+
+    const shouldAnimateQuickSwitch = Boolean(
+      quickSwitchTransitionPending &&
+      activeModuleId &&
+      activeModuleId !== id &&
+      !moduleView.hidden
+    );
+    quickSwitchTransitionPending = false;
+    flushActiveModuleState();
+    rememberPreviousModule(id);
+
+    if (shouldAnimateQuickSwitch) {
+      runQuickSwitchTransition(() => loadModuleContent(id, module, replaceHistory));
+      return;
+    }
+    loadModuleContent(id, module, replaceHistory);
+  }
+
   function showMenu(replaceHistory) {
     if (!isUnlocked) {
       showAuth();
       return;
     }
 
+    flushActiveModuleState();
+    rememberPreviousModule(null);
     activeModuleId = null;
+    if (topbar) topbar.classList.remove("is-module-active");
     clearModuleHeadingAccent();
     clearModuleActionBar();
     updateMenuOptionsVisibility();
     backButton.hidden = true;
+    updateQuickSwitchButton();
     subtitle.textContent = "Menüauswahl";
+    scheduleMenuScrollReset();
     switchToMenuView(() => {
       frame.srcdoc = "";
       updateMenuOptionsVisibility();
+      scheduleMenuScrollReset();
     });
 
     if (!replaceHistory) {
@@ -6354,9 +7254,12 @@
 
 	  function updateModuleActionStatus(message) {
 	    const status = document.getElementById("moduleActionStatus");
-	    if (!status) return;
-	    status.textContent = message || "";
-	    status.hidden = !message;
+	    const normalized = normalizeShellStatusMessage(message);
+	    if (status) {
+	      status.textContent = normalized;
+	      status.hidden = !normalized;
+	    }
+	    if (normalized) showAppToast(normalized);
 	  }
 
 	  window.addEventListener("message", event => {
@@ -6398,18 +7301,16 @@
 	        }
 	      } catch (error) {}
 	    }
-	    if (key === "pdf" && /^pb-/.test(activeModuleId || "")) {
-	      updateModuleActionStatus("PDF Export wird erstellt...");
-	    }
-	    action.source.click();
-	    if (key === "archive" && /^pb-/.test(activeModuleId || "")) {
-	      updateModuleActionStatus("Archiv wurde geöffnet.");
-	    }
-	    if (key === "save" || key === "clear") {
-	      [80, 240, 700].forEach(delay => window.setTimeout(syncModuleActionStatus, delay));
-	    }
-    window.setTimeout(syncModuleActionBar, 120);
-  }
+		    if (key === "pdf") {
+		      updateModuleActionStatus("PDF Export wird erstellt...");
+		    }
+		    action.source.click();
+		    if (key === "archive") {
+		      updateModuleActionStatus("Archiv wurde geöffnet.");
+		    }
+		    [80, 240, 700].forEach(delay => window.setTimeout(syncModuleActionStatus, delay));
+	    window.setTimeout(syncModuleActionBar, 120);
+	  }
 
   function moduleUsesParentActions(id) {
     return /^pb-/.test(id || "") || MENU_SECTIONS.some(section => (
@@ -6443,6 +7344,8 @@
       button.className = `module-action-button ${actionClass(key)}`;
       button.dataset.actionKey = key;
       button.textContent = actionLabel(key);
+      button.setAttribute("aria-label", actionLabel(key));
+      button.title = actionLabel(key);
       button.disabled = Boolean(source.disabled);
       button.addEventListener("click", () => activateFrameAction(key));
       buttonRow.appendChild(button);
@@ -6463,16 +7366,27 @@
     });
   }
 
-  function decorateModuleHtml(html, id) {
+  function decorateModuleHtml(html, id, title) {
     const bridge = `
       <script>
         window.FSMOBILE_EMBEDDED_MODULE = true;
         window.FSMOBILE_MODULE_ID = ${JSON.stringify(id)};
+        window.FSMOBILE_MODULE_TITLE = ${JSON.stringify(title || id)};
         (function(){
           try {
             document.documentElement.classList.add("fsmobile-embedded-module");
             if (/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) {
               document.documentElement.classList.add("fsmobile-pb-module");
+            }
+            if ({
+              "maengelliste": true,
+              "maengelliste-bilddoku": true,
+              "aufmass-akku": true,
+              "aufmass-einsteckschloss": true,
+              "aufmass-tueren": true,
+              "aufmass-brandabschottungen": true
+            }[window.FSMOBILE_MODULE_ID || ""]) {
+              document.documentElement.classList.add("fsmobile-kalkulation-module");
             }
             if (!document.getElementById("fsmobileEmbeddedActionSourceStyle")) {
               var actionSourceStyle = document.createElement("style");
@@ -6628,6 +7542,138 @@
               .replace(/[^a-z0-9]+/g, "");
           }
 
+          var fsmobileTextareaResizeTimer = 0;
+
+          function fsmobileIsVisibleTextarea(field) {
+            if (!field || field.tagName !== "TEXTAREA" || !document.contains(field)) return false;
+            if (field.closest(".archive-overlay, .archive-dialog, .pdf-render-wrapper, .pdf-render-area")) return false;
+            if (document.body && document.body.classList.contains("generating-pdf")) return false;
+            var style = window.getComputedStyle(field);
+            if (style.display === "none" || style.visibility === "hidden") return false;
+            var rect = field.getBoundingClientRect();
+            return rect.width > 0 && rect.height >= 0;
+          }
+
+          function fsmobileNumericStyle(style, prop) {
+            var value = parseFloat(style.getPropertyValue(prop));
+            return Number.isFinite(value) ? value : 0;
+          }
+
+          function fsmobileMeasureTextareaHeight(field) {
+            var rect = field.getBoundingClientRect();
+            var style = window.getComputedStyle(field);
+            var width = Math.max(1, Math.round(rect.width || field.clientWidth || 1));
+            var mirror = document.createElement("textarea");
+            mirror.value = field.value || "";
+            mirror.rows = field.rows || 1;
+            mirror.setAttribute("aria-hidden", "true");
+            mirror.tabIndex = -1;
+            mirror.style.position = "absolute";
+            mirror.style.left = "-9999px";
+            mirror.style.top = "0";
+            mirror.style.zIndex = "-1";
+            mirror.style.visibility = "hidden";
+            mirror.style.pointerEvents = "none";
+            mirror.style.overflow = "hidden";
+            mirror.style.resize = "none";
+            mirror.style.boxSizing = style.boxSizing;
+            mirror.style.width = width + "px";
+            mirror.style.minHeight = "0";
+            mirror.style.maxHeight = "none";
+            mirror.style.height = "auto";
+            [
+              "fontFamily",
+              "fontSize",
+              "fontStyle",
+              "fontWeight",
+              "fontVariant",
+              "lineHeight",
+              "letterSpacing",
+              "textTransform",
+              "textIndent",
+              "textRendering",
+              "wordSpacing",
+              "wordBreak",
+              "overflowWrap",
+              "whiteSpace",
+              "paddingTop",
+              "paddingRight",
+              "paddingBottom",
+              "paddingLeft",
+              "borderTopWidth",
+              "borderRightWidth",
+              "borderBottomWidth",
+              "borderLeftWidth"
+            ].forEach(function(prop) {
+              mirror.style[prop] = style[prop];
+            });
+            document.body.appendChild(mirror);
+            var measured = Math.ceil(mirror.scrollHeight);
+            if (style.boxSizing === "border-box") {
+              measured += fsmobileNumericStyle(style, "border-top-width") + fsmobileNumericStyle(style, "border-bottom-width");
+            }
+            mirror.remove();
+            var minHeight = parseFloat(style.minHeight);
+            if (!Number.isFinite(minHeight) || minHeight <= 0) {
+              var lineHeight = parseFloat(style.lineHeight);
+              if (!Number.isFinite(lineHeight)) lineHeight = parseFloat(style.fontSize) * 1.35;
+              minHeight = Math.max(30, lineHeight + fsmobileNumericStyle(style, "padding-top") + fsmobileNumericStyle(style, "padding-bottom"));
+            }
+            return Math.max(Math.ceil(minHeight), measured);
+          }
+
+          function fsmobileSafeResizeTextarea(field) {
+            if (!fsmobileIsVisibleTextarea(field)) return;
+            try {
+              var measured = fsmobileMeasureTextareaHeight(field);
+              field.style.height = measured + "px";
+              field.style.overflowY = "hidden";
+            } catch (error) {}
+          }
+
+          function fsmobileResizeAllTextareas() {
+            Array.from(document.querySelectorAll("textarea")).forEach(fsmobileSafeResizeTextarea);
+          }
+
+          function fsmobileScheduleTextareaResize(delay) {
+            window.clearTimeout(fsmobileTextareaResizeTimer);
+            fsmobileTextareaResizeTimer = window.setTimeout(function() {
+              window.requestAnimationFrame(fsmobileResizeAllTextareas);
+            }, delay == null ? 0 : delay);
+          }
+
+          function installFsmobileTextareaAutosizeGuard() {
+            if (window.__fsmobileTextareaAutosizeGuardInstalled) return;
+            window.__fsmobileTextareaAutosizeGuardInstalled = true;
+            document.addEventListener("input", function(event) {
+              if (event.target && event.target.tagName === "TEXTAREA") {
+                window.setTimeout(function() { fsmobileSafeResizeTextarea(event.target); }, 0);
+              }
+            }, true);
+            document.addEventListener("change", function(event) {
+              if (event.target && event.target.tagName === "TEXTAREA") {
+                window.setTimeout(function() { fsmobileSafeResizeTextarea(event.target); }, 0);
+              }
+            }, true);
+            if (window.MutationObserver) {
+              var observer = new MutationObserver(function(mutations) {
+                if (mutations.some(function(mutation) {
+                  return Array.from(mutation.addedNodes || []).some(function(node) {
+                    return node && node.nodeType === 1 && (
+                      node.matches && node.matches("textarea, tr, .card, .dynamic-row") ||
+                      node.querySelector && node.querySelector("textarea")
+                    );
+                  });
+                })) {
+                  fsmobileScheduleTextareaResize(40);
+                }
+              });
+              observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
+            }
+            window.addEventListener("resize", function() { fsmobileScheduleTextareaResize(120); });
+            [0, 60, 180, 420, 900, 1600].forEach(fsmobileScheduleTextareaResize);
+          }
+
           var FSMOBILE_PORTRAIT_REPORT_IDS = {
             "pb-rwa": true,
             "pb-druckerhoehungsanlage": true,
@@ -6652,10 +7698,11 @@
 	            "pb-brandschutzrolltore": true,
 	            "pb-rolltoranlagen": true,
 	            "pb-schiebetuerantrieb": true,
-	            "pb-drehfluegelantrieb": true,
-	            "pb-rauchschutzvorhaenge": true,
-	            "pb-feststellanlagen": true,
-	            "pb-rauchwarnmelder": true
+		            "pb-drehfluegelantrieb": true,
+		            "pb-rauchschutzvorhaenge": true,
+		            "pb-feststellanlagen": true,
+		            "pb-fluchttuer-steuerungen": true,
+		            "pb-rauchwarnmelder": true
 	          };
 
 	          function isFsmobileLandscapeRemarkReport() {
@@ -6827,6 +7874,11 @@
 
 	          function normalizeTechnicianPdfText(value) {
 	            if (typeof value !== "string") return value;
+	            if (window.FSMOBILE_MODULE_ID === "pb-fluchttuer-steuerungen") {
+	              return value
+	                .replace(/^Prüfer(?=\\s+und\\s+)/i, FSMOBILE_TECHNICIAN_LABEL)
+	                .replace(/^Prüfer(\\s*(?::|\\(|$))/i, FSMOBILE_TECHNICIAN_LABEL + "$1");
+	            }
 	            return value
 	              .replace(/^Prüfer(?=\\s+und\\s+)/i, FSMOBILE_TECHNICIAN_LABEL)
 	              .replace(/^(Name|Prüfer)(\\s*(?::|\\(|$))/i, FSMOBILE_TECHNICIAN_LABEL + "$2");
@@ -7046,6 +8098,7 @@
               "pb-drehfluegelantrieb": ["pb-drehfluegelantrieb-current-v1"],
               "pb-rauchschutzvorhaenge": ["pb-rauchschutzvorhaenge-current-v1"],
               "pb-feststellanlagen": ["pb-feststellanlagen-current-v1"],
+              "pb-fluchttuer-steuerungen": ["pb-fluchttuer-steuerungen-current-v1"],
               "pb-druckerhoehungsanlage": ["pb-druckerhoehungsanlage-report-v1"],
               "pb-nass-trocken-station": ["fsmobile-pb-nass-trocken-station-v1"],
               "pb-loeschwasser-trocken": ["pb-loeschwasser-trocken-report-v1"],
@@ -8259,6 +9312,10 @@
               return window.FSMOBILE_MODULE_ID === "pb-rwa";
             }
 
+            function isFluchttuerSteuerungenModule() {
+              return window.FSMOBILE_MODULE_ID === "pb-fluchttuer-steuerungen";
+            }
+
             function isRwaArchiveKey(storageKey) {
               return String(storageKey || "") === "rwa_pruefbericht_archiv_v1";
             }
@@ -9019,6 +10076,152 @@
               return parts ? parts[3] + "." + parts[2] + "." + parts[1] : (String(value || "").trim() || "Ohne Datum");
             }
 
+            function archiveDisplayDateTime(value) {
+              var raw = String(value || "").trim();
+              if (!raw) return "nicht verfügbar";
+              var parsed = Date.parse(raw);
+              if (!Number.isFinite(parsed)) return archiveDisplayDate(raw);
+              var date = new Date(parsed);
+              return String(date.getDate()).padStart(2, "0") + "."
+                + String(date.getMonth() + 1).padStart(2, "0") + "."
+                + date.getFullYear() + ", "
+                + String(date.getHours()).padStart(2, "0") + ":"
+                + String(date.getMinutes()).padStart(2, "0") + " Uhr";
+            }
+
+            function archiveMissingText(value, fallback) {
+              var text = String(value || "").replace(/\\s+/g, " ").trim();
+              return text || fallback;
+            }
+
+            function archiveModuleTypeLabel() {
+              return archiveMissingText(window.FSMOBILE_MODULE_TITLE || document.title || window.FSMOBILE_MODULE_ID, "Archiv-Eintrag");
+            }
+
+            function archiveEntryMetadata(entry, storageKey) {
+              var report = archiveEntryReport(entry, storageKey);
+              var fields = archiveFields(entry, storageKey);
+              var meta = entry && entry.meta && typeof entry.meta === "object" && !Array.isArray(entry.meta) ? entry.meta : {};
+              var reportFields = report && report.fields && typeof report.fields === "object" && !Array.isArray(report.fields) ? report.fields : {};
+              var reportHeader = report && report.header && typeof report.header === "object" && !Array.isArray(report.header) ? report.header : {};
+              var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(meta, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(reportFields, ["object", "objekt", "objectInput", "objektInput"])
+                || firstArchiveValue(reportHeader, ["object", "objekt", "objectInput", "objektInput"]);
+              var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(meta, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(reportFields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"])
+                || firstArchiveValue(reportHeader, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
+              var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(meta, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(reportFields, ["date", "datum", "dateInput", "datumInput"])
+                || firstArchiveValue(reportHeader, ["date", "datum", "dateInput", "datumInput"]);
+              var name = firstArchiveValue(fields, ["name", "pruefer", "prüfer", "techniker", "technician", "nameInput", "prueferInput", "technikerInput"])
+                || firstArchiveValue(meta, ["name", "pruefer", "prüfer", "techniker", "technician", "nameInput", "prueferInput", "technikerInput"])
+                || firstArchiveValue(reportFields, ["name", "pruefer", "prüfer", "techniker", "technician", "nameInput", "prueferInput", "technikerInput"])
+                || firstArchiveValue(reportHeader, ["name", "pruefer", "prüfer", "techniker", "technician", "nameInput", "prueferInput", "technikerInput"]);
+              var trade = firstArchiveValue(meta, ["gewerk", "trade"]) || firstArchiveValue(fields, ["gewerk", "trade"]) || firstArchiveValue(reportFields, ["gewerk", "trade"]);
+              return {
+                type: archiveModuleTypeLabel(),
+                object: archiveMissingText(object, "nicht vorhanden"),
+                anlage: archiveMissingText(anlage, "nicht vorhanden"),
+                date: date ? archiveDisplayDate(date) : "Datum fehlt",
+                updated: archiveDisplayDateTime(entry && (entry.updatedAt || entry.savedAt || entry.createdAt)),
+                name: archiveMissingText(name, ""),
+                trade: archiveMissingText(trade, "")
+              };
+            }
+
+            function appendArchiveMetaPair(host, label, value) {
+              var item = document.createElement("span");
+              item.className = "archive-detail-pair";
+              var key = document.createElement("b");
+              key.textContent = label + ": ";
+              var val = document.createElement("span");
+              val.textContent = value;
+              item.append(key, val);
+              host.appendChild(item);
+            }
+
+            function createArchiveMetadataNode(entry, storageKey) {
+              var meta = archiveEntryMetadata(entry, storageKey);
+              var wrapper = document.createElement("div");
+              wrapper.className = "archive-detail";
+              var head = document.createElement("div");
+              head.className = "archive-detail-head";
+              var type = document.createElement("span");
+              type.className = "archive-type-badge";
+              type.textContent = meta.type;
+              var date = document.createElement("span");
+              date.className = "archive-entry-date";
+              date.textContent = meta.date;
+              head.append(type, date);
+              var object = document.createElement("div");
+              object.className = "archive-detail-object";
+              object.textContent = "Objekt: " + meta.object;
+              var grid = document.createElement("div");
+              grid.className = "archive-detail-grid";
+              appendArchiveMetaPair(grid, "Anlagen-Nr.", meta.anlage);
+              if (meta.name) appendArchiveMetaPair(grid, "Name", meta.name);
+              if (meta.trade) appendArchiveMetaPair(grid, "Gewerk", meta.trade);
+              var updated = document.createElement("div");
+              updated.className = "archive-detail-updated";
+              updated.textContent = "Zuletzt geändert: " + meta.updated;
+              wrapper.append(head, object, grid, updated);
+              return wrapper;
+            }
+
+            function applyArchiveMetadataToItem(item, entry, storageKey) {
+              if (!item || !entry) return;
+              item.classList.add("archive-item-detailed");
+              var text = Array.prototype.find.call(item.children, function(child) {
+                return child && child.tagName !== "BUTTON";
+              });
+              if (!text) {
+                text = document.createElement("div");
+                item.insertBefore(text, item.firstChild);
+              }
+              text.className = "archive-detail-host";
+              text.replaceChildren(createArchiveMetadataNode(entry, storageKey));
+              Array.prototype.forEach.call(item.querySelectorAll("button"), function(button) {
+                var label = (button.textContent || "").replace(/\\s+/g, " ").trim();
+                if (/^Öffnen$/i.test(label)) button.classList.add("archive-open-list-btn");
+                if (/^Löschen$/i.test(label)) {
+                  button.classList.add("archive-delete-list-btn", "danger");
+                }
+              });
+            }
+
+            function enhanceArchiveListMetadata(storageKey) {
+              var archiveList = document.getElementById("archiveList");
+              if (!archiveList || archiveList.__fsmobileArchiveMetadataEnhancing) return;
+              var primaryKey = storageKey || resolveArchiveStorageKey();
+              if (!primaryKey) return;
+              var records = archiveEntryRecordsForDisplay(primaryKey).sort(function(a, b) {
+                return archiveTimestamp(b.entry, b.index) - archiveTimestamp(a.entry, a.index);
+              });
+              if (!records.length) return;
+              var items = Array.prototype.slice.call(archiveList.querySelectorAll(".archive-item"));
+              if (!items.length) return;
+              archiveList.__fsmobileArchiveMetadataEnhancing = true;
+              try {
+                items.forEach(function(item, index) {
+                  var record = records[index];
+                  if (!record) return;
+                  applyArchiveMetadataToItem(item, record.entry, record.storageKey);
+                });
+              } finally {
+                archiveList.__fsmobileArchiveMetadataEnhancing = false;
+              }
+            }
+
+            function scheduleArchiveMetadataEnhancement(storageKey, delay) {
+              window.clearTimeout(window.__fsmobileArchiveMetadataTimer);
+              window.__fsmobileArchiveMetadataTimer = window.setTimeout(function() {
+                enhanceArchiveListMetadata(storageKey || resolveArchiveStorageKey());
+              }, delay == null ? 40 : delay);
+            }
+
             function archiveDisplayTitle(entry, storageKey) {
               var fields = archiveFields(entry, storageKey);
               var anlage = String(firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]) || "").trim() || "Ohne Anlagen Nr.";
@@ -9079,7 +10282,7 @@
               if (!records.length) {
                 var empty = document.createElement("p");
                 empty.className = "archive-empty";
-                empty.textContent = "Noch keine gespeicherten Prüfberichte im Archiv.";
+                empty.textContent = "Archiv leer - zuerst im Archiv speichern legt den ersten Eintrag an.";
                 archiveList.appendChild(empty);
                 return;
               }
@@ -9106,6 +10309,7 @@
                 deleteButton.textContent = "Löschen";
                 deleteButton.addEventListener("click", function() { deleteArchiveEntryFromDisplay(entry, entryStorageKey, record.index); });
                 item.append(text, openButton, deleteButton);
+                applyArchiveMetadataToItem(item, entry, entryStorageKey);
                 archiveList.appendChild(item);
               });
             }
@@ -9136,7 +10340,7 @@
               var existingAcrossKeys = legacyArchiveCompatModule() ? findArchiveEntryByIdentity(report) : null;
               var storageKey = existingAcrossKeys && existingAcrossKeys.storageKey ? existingAcrossKeys.storageKey : primaryStorageKey;
               var entries = readArchiveEntriesForKey(storageKey);
-              var currentId = isRwaModule() ? readCurrentArchiveIdForKey(storageKey) : "";
+              var currentId = isRwaModule() || isFluchttuerSteuerungenModule() ? readCurrentArchiveIdForKey(storageKey) : "";
               var identity = archiveEntryIdentity(storageKey, { report: report });
               var existingIndex = existingAcrossKeys && existingAcrossKeys.storageKey === storageKey
                 ? existingAcrossKeys.index
@@ -9311,8 +10515,46 @@
               }
             }
 
-	          function normalizedActionStatus(message) {
-	            var text = String(message || "").replace(/\\s+/g, " ").trim();
+            function installArchiveMetadataCards() {
+              if (window.__fsmobileArchiveMetadataCardsInstalled) return;
+              window.__fsmobileArchiveMetadataCardsInstalled = true;
+              var originalRenderArchiveList = window.renderArchiveList;
+              if (typeof originalRenderArchiveList === "function" && !originalRenderArchiveList.__fsmobileArchiveMetadataWrapped) {
+                window.renderArchiveList = function() {
+                  var result = originalRenderArchiveList.apply(this, arguments);
+                  scheduleArchiveMetadataEnhancement(resolveArchiveStorageKey(), 0);
+                  return result;
+                };
+                window.renderArchiveList.__fsmobileArchiveMetadataWrapped = true;
+              }
+              document.addEventListener("click", function(event) {
+                var button = event.target && event.target.closest ? event.target.closest("button") : null;
+                if (!isArchiveOpenButton(button)) return;
+                [0, 60, 180].forEach(function(delay) {
+                  scheduleArchiveMetadataEnhancement(resolveArchiveStorageKey(), delay);
+                });
+              }, true);
+              var observer = null;
+              var attachObserver = function() {
+                var list = document.getElementById("archiveList");
+                if (!list || !window.MutationObserver || list.__fsmobileArchiveMetadataObserved) return;
+                list.__fsmobileArchiveMetadataObserved = true;
+                observer = new MutationObserver(function() {
+                  scheduleArchiveMetadataEnhancement(resolveArchiveStorageKey(), 20);
+                });
+                observer.observe(list, { childList: true, subtree: false });
+              };
+              attachObserver();
+              [80, 260, 620, 1200].forEach(function(delay) {
+                window.setTimeout(function() {
+                  attachObserver();
+                  scheduleArchiveMetadataEnhancement(resolveArchiveStorageKey(), 0);
+                }, delay);
+              });
+            }
+
+		          function normalizedActionStatus(message) {
+		            var text = String(message || "").replace(/\\s+/g, " ").trim();
 	            if (!text) return "";
 	            if (/konnte nicht.*archiv/i.test(text)) return "Prüfbericht konnte nicht im Archiv gespeichert werden.";
 	            if (/vorhandener archiv-eintrag aktualisiert/i.test(text)) return "Vorhandener Archiv-Eintrag aktualisiert.";
@@ -9345,10 +10587,10 @@
 	            return status;
 	          }
 
-	          function setUnifiedActionStatus(message) {
-	            var normalized = normalizedActionStatus(message);
-	            var status = ensureActionStatusElement();
-	            status.textContent = normalized;
+		          function setUnifiedActionStatus(message) {
+		            var normalized = normalizedActionStatus(message);
+		            var status = ensureActionStatusElement();
+		            status.textContent = normalized;
 	            window.clearTimeout(window.__fsmobileActionStatusTimer);
 	            if (normalized) {
 	              window.__fsmobileActionStatusTimer = window.setTimeout(function() {
@@ -9359,20 +10601,80 @@
 	              }, 4000);
 	            }
 	            try {
-	              window.parent.postMessage({ type: "fsmobile-action-status", moduleId: window.FSMOBILE_MODULE_ID, message: normalized }, "*");
-	            } catch (error) {}
-	          }
+		              window.parent.postMessage({ type: "fsmobile-action-status", moduleId: window.FSMOBILE_MODULE_ID, message: normalized }, "*");
+		            } catch (error) {}
+		          }
 
-	          function installUnifiedActionStatus() {
-	            if (window.__fsmobileUnifiedActionStatusInstalled) return;
-	            window.__fsmobileUnifiedActionStatusInstalled = true;
-	            window.FSMOBILE_SET_ACTION_STATUS = setUnifiedActionStatus;
-	            var originalSetArchiveStatus = window.setArchiveStatus;
+		          function relayUnifiedActionStatusFromDom() {
+		            var status = document.getElementById("archiveStatus") || document.querySelector(".archive-status");
+		            var normalized = normalizedActionStatus(status ? status.textContent : "");
+		            if (normalized === window.__fsmobileLastRelayedActionStatus) return;
+		            window.__fsmobileLastRelayedActionStatus = normalized;
+		            try {
+		              window.parent.postMessage({ type: "fsmobile-action-status", moduleId: window.FSMOBILE_MODULE_ID, message: normalized }, "*");
+		            } catch (error) {}
+		          }
+
+		          function wrapLateArchiveStatusFunction() {
+		            if (!document.documentElement.classList.contains("fsmobile-kalkulation-module")) return;
+		            if (typeof window.setArchiveStatus !== "function") return;
+		            if (window.setArchiveStatus.__fsmobileUnifiedActionStatusWrapped) return;
+		            var originalSetArchiveStatus = window.setArchiveStatus;
+		            window.setArchiveStatus = function(message) {
+		              var result = originalSetArchiveStatus.apply(this, arguments);
+		              setUnifiedActionStatus(message);
+		              window.setTimeout(relayUnifiedActionStatusFromDom, 0);
+		              return result;
+		            };
+		            window.setArchiveStatus.__fsmobileUnifiedActionStatusWrapped = true;
+		          }
+
+		          function installKalkulationStatusRelay() {
+		            if (!document.documentElement.classList.contains("fsmobile-kalkulation-module")) return;
+		            if (window.__fsmobileKalkulationStatusRelayInstalled) return;
+		            window.__fsmobileKalkulationStatusRelayInstalled = true;
+		            wrapLateArchiveStatusFunction();
+		            [0, 60, 180, 420, 900].forEach(function(delay) {
+		              window.setTimeout(wrapLateArchiveStatusFunction, delay);
+		            });
+		            document.addEventListener("DOMContentLoaded", function() {
+		              wrapLateArchiveStatusFunction();
+		              var status = document.getElementById("archiveStatus") || document.querySelector(".archive-status");
+		              if (!status || !window.MutationObserver) return;
+		              var observer = new MutationObserver(function() {
+		                relayUnifiedActionStatusFromDom();
+		              });
+		              observer.observe(status, { childList: true, characterData: true, subtree: true });
+		            });
+		          }
+
+		          function installUnifiedActionStatus() {
+		            if (window.__fsmobileUnifiedActionStatusInstalled) return;
+		            window.__fsmobileUnifiedActionStatusInstalled = true;
+		            window.FSMOBILE_SET_ACTION_STATUS = setUnifiedActionStatus;
+		            var originalSetArchiveStatus = window.setArchiveStatus;
 	            if (typeof originalSetArchiveStatus === "function") {
 	              window.setArchiveStatus = function(message) {
 	                setUnifiedActionStatus(message);
-	              };
-	            }
+		              };
+		            }
+		            installKalkulationStatusRelay();
+		          }
+
+	          function refreshResultToneMarkers() {
+	            Array.prototype.forEach.call(document.querySelectorAll("select, input, textarea"), function(control) {
+	              var value = String(control.value || "").replace(/\\s+/g, " ").trim().toLowerCase();
+	              control.classList.remove("fsmobile-result-ok", "fsmobile-result-bad");
+	              if (value === "i.o") control.classList.add("fsmobile-result-ok");
+	              if (value === "n.i.o") control.classList.add("fsmobile-result-bad");
+	            });
+	          }
+
+	          function installResultToneMarkers() {
+	            if (window.__fsmobileResultToneMarkersInstalled) return;
+	            window.__fsmobileResultToneMarkersInstalled = true;
+	            document.addEventListener("input", refreshResultToneMarkers, true);
+	            document.addEventListener("change", refreshResultToneMarkers, true);
 	          }
 
 	          function setupReportDataTransfer() {
@@ -9977,6 +11279,7 @@
             installControls();
           }
 			          document.addEventListener("DOMContentLoaded", function() {
+			            installFsmobileTextareaAutosizeGuard();
 			            markPositionCells();
 			            normalizePortraitAssignmentSections();
 			            ensureLandscapeReportRemarkField();
@@ -9986,7 +11289,10 @@
 		            normalizeSignatureLabels();
 		            refreshSignatureCanvasesForReadyLayout();
 		            installUnifiedActionStatus();
+		            installResultToneMarkers();
+		            refreshResultToneMarkers();
 		            installArchiveDedupe();
+		            installArchiveMetadataCards();
 		            installPdfFileNamePatch();
 		            installJsPdfLoaderPatch();
 	            setupReportDataTransfer();
@@ -9994,6 +11300,7 @@
             arrangeHeaderActions();
             var arrangeTimer = 0;
 	            function refreshReportEnhancements() {
+	                fsmobileResizeAllTextareas();
 	                normalizePortraitAssignmentSections();
 		                ensureLandscapeReportRemarkField();
 		                installRwaChoicePillTapFix();
@@ -10002,7 +11309,10 @@
 	                installFsmobileSignatureDataBridge();
 	                normalizeSignatureLabels();
 	                refreshSignatureCanvasesForReadyLayout();
-	                installJsPdfLoaderPatch();
+		                refreshResultToneMarkers();
+		                installJsPdfLoaderPatch();
+		                installArchiveMetadataCards();
+		                fsmobileScheduleTextareaResize(0);
 	            }
             function runReportEnhancementRefresh() {
               refreshReportEnhancements();
@@ -10165,6 +11475,189 @@
           white-space: nowrap !important;
         }
 
+        body:not(.generating-pdf) button {
+          border: 0 !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.22),
+            0 8px 16px rgba(2,8,23,.07) !important;
+        }
+
+        body:not(.generating-pdf) button.archive-save,
+        body:not(.generating-pdf) button.archive-save-btn,
+        body:not(.generating-pdf) button.btn-archive-save,
+        body:not(.generating-pdf) #archiveSaveBtn {
+          color: #fff !important;
+          background: linear-gradient(180deg, #ffb02e 0%, #ff9500 100%) !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.26),
+            0 8px 16px rgba(255,149,0,.16) !important;
+        }
+
+        body:not(.generating-pdf) button.archive-open,
+        body:not(.generating-pdf) button.archive-btn,
+        body:not(.generating-pdf) #archiveBtn,
+        body:not(.generating-pdf) button.pdf-btn,
+        body:not(.generating-pdf) #pdfButton,
+        body:not(.generating-pdf) #pdfBtn,
+        body:not(.generating-pdf) button.fsmobile-data-export {
+          color: #fff !important;
+          background: linear-gradient(180deg, #2f93ff 0%, #0a84ff 100%) !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.24),
+            0 8px 16px rgba(0,122,255,.14) !important;
+        }
+
+        body:not(.generating-pdf) button.clear-btn,
+        body:not(.generating-pdf) button.btn-clear,
+        body:not(.generating-pdf) #clearButton,
+        body:not(.generating-pdf) #clearBtn,
+        body:not(.generating-pdf) button.secondary,
+        body:not(.generating-pdf) button.fsmobile-data-import {
+          color: #fff !important;
+          background: linear-gradient(180deg, #a6a6ad 0%, #8e8e93 100%) !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.22),
+            0 8px 16px rgba(142,142,147,.14) !important;
+        }
+
+        body:not(.generating-pdf) button.danger,
+        body:not(.generating-pdf) button.archive-delete-btn,
+        body:not(.generating-pdf) button.archive-delete-button {
+          color: #fff !important;
+          background: linear-gradient(180deg, #ff4f45 0%, #ff3b30 100%) !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.24),
+            0 8px 16px rgba(255,59,48,.16) !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-item.archive-item-detailed {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) auto auto !important;
+          align-items: stretch !important;
+          gap: 10px !important;
+          padding: 12px !important;
+          min-width: 0 !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-host,
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail {
+          min-width: 0 !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail {
+          display: grid !important;
+          gap: 7px !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-head {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          flex-wrap: wrap !important;
+          gap: 8px !important;
+          min-width: 0 !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-type-badge {
+          display: inline-flex !important;
+          align-items: center !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          padding: 4px 8px !important;
+          border: 1px solid rgba(255,255,255,.36) !important;
+          border-radius: 999px !important;
+          color: rgba(23,32,51,.76) !important;
+          background: rgba(255,255,255,.12) !important;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.22) !important;
+          font-size: 11px !important;
+          font-weight: 850 !important;
+          line-height: 1.15 !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-entry-date,
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-updated {
+          color: rgba(23,32,51,.62) !important;
+          font-size: 12px !important;
+          font-weight: 750 !important;
+          line-height: 1.25 !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-object {
+          color: rgba(23,32,51,.92) !important;
+          font-size: 16px !important;
+          font-weight: 850 !important;
+          line-height: 1.2 !important;
+          overflow-wrap: anywhere !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-grid {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 6px !important;
+          min-width: 0 !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-pair {
+          display: inline-flex !important;
+          align-items: center !important;
+          max-width: 100% !important;
+          padding: 5px 8px !important;
+          border: 1px solid rgba(255,255,255,.28) !important;
+          border-radius: 10px !important;
+          color: rgba(23,32,51,.78) !important;
+          background: rgba(255,255,255,.075) !important;
+          line-height: 1.15 !important;
+          overflow: hidden !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-pair b {
+          margin-right: 3px !important;
+          color: rgba(23,32,51,.88) !important;
+          font-weight: 850 !important;
+          white-space: nowrap !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-pair span {
+          min-width: 0 !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-open-list-btn,
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-delete-list-btn {
+          align-self: center !important;
+          min-height: 40px !important;
+          padding: 9px 14px !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-open-list-btn {
+          color: #fff !important;
+          background: linear-gradient(180deg, #2f93ff 0%, #0a84ff 100%) !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.24),
+            0 8px 16px rgba(0,122,255,.14) !important;
+        }
+
+        html.fsmobile-embedded-module body:not(.generating-pdf) .archive-delete-list-btn {
+          color: #fff !important;
+          background: linear-gradient(180deg, #ff4f45 0%, #ff3b30 100%) !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.24),
+            0 8px 16px rgba(255,59,48,.16) !important;
+        }
+
+        html.fsmobile-kalkulation-module body:not(.generating-pdf) > .container {
+          background: transparent !important;
+          border-color: transparent !important;
+          box-shadow: none !important;
+          -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+        }
+
 	        .fsmobile-actions-empty {
 	          display: none !important;
 	        }
@@ -10267,10 +11760,94 @@
           body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment {
             grid-template-columns: 1fr !important;
           }
+
+          html.fsmobile-embedded-module body:not(.generating-pdf) .archive-item.archive-item-detailed {
+            grid-template-columns: 1fr !important;
+          }
+
+          html.fsmobile-embedded-module body:not(.generating-pdf) .archive-open-list-btn,
+          html.fsmobile-embedded-module body:not(.generating-pdf) .archive-delete-list-btn {
+            width: 100% !important;
+          }
         }
       
 
     /* Hochformat-Transparenz: Unterschrift und lokale Formularflächen */
+    body:not(.generating-pdf) table {
+      border-collapse: separate !important;
+      border-spacing: 0 !important;
+      overflow: hidden !important;
+      border-color: rgba(255,255,255,.34) !important;
+    }
+
+    body:not(.generating-pdf) thead th,
+    body:not(.generating-pdf) table th {
+      padding-top: 10px !important;
+      padding-bottom: 10px !important;
+      border-bottom: 1px solid rgba(15,23,42,.1) !important;
+      line-height: 1.25 !important;
+    }
+
+    body:not(.generating-pdf) table td {
+      padding-top: 9px !important;
+      padding-bottom: 9px !important;
+      border-bottom: 1px solid rgba(255,255,255,.24) !important;
+      line-height: 1.3 !important;
+      vertical-align: middle !important;
+    }
+
+    body:not(.generating-pdf) table tr:last-child td {
+      border-bottom-color: transparent !important;
+    }
+
+    body:not(.generating-pdf) table tbody tr:nth-child(even) td {
+      background-color: rgba(255,255,255,.025) !important;
+    }
+
+    body:not(.generating-pdf) .fsmobile-result-ok {
+      color: #126b36 !important;
+      background:
+        linear-gradient(145deg, rgba(52,199,89,.16), rgba(255,255,255,.035)),
+        rgba(52,199,89,.08) !important;
+      border-color: rgba(52,199,89,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 0 0 1px rgba(52,199,89,.08) !important;
+      font-weight: 850 !important;
+    }
+
+    body:not(.generating-pdf) .fsmobile-result-bad {
+      color: #9f1d1d !important;
+      background:
+        linear-gradient(145deg, rgba(255,59,48,.15), rgba(255,255,255,.03)),
+        rgba(255,59,48,.075) !important;
+      border-color: rgba(255,59,48,.34) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 0 0 1px rgba(255,59,48,.08) !important;
+      font-weight: 850 !important;
+    }
+
+    body:not(.generating-pdf) select.fsmobile-result-ok,
+    body:not(.generating-pdf) select.fsmobile-result-bad {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      padding-right: 34px !important;
+      background-repeat: no-repeat, no-repeat !important;
+      background-position: right 13px center, 0 0 !important;
+      background-size: 12px 8px, auto !important;
+    }
+
+    body:not(.generating-pdf) select.fsmobile-result-ok {
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%23126b36' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+        linear-gradient(145deg, rgba(52,199,89,.16), rgba(255,255,255,.035)) !important;
+      background-color: rgba(52,199,89,.08) !important;
+    }
+
+    body:not(.generating-pdf) select.fsmobile-result-bad {
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%239f1d1d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+        linear-gradient(145deg, rgba(255,59,48,.15), rgba(255,255,255,.03)) !important;
+      background-color: rgba(255,59,48,.075) !important;
+    }
+
     .input-unit,
     .archive-item,
     .row-number,
@@ -10509,15 +12086,15 @@
         max(18px, env(safe-area-inset-right))
         max(18px, env(safe-area-inset-bottom))
         max(18px, env(safe-area-inset-left)) !important;
-      background: rgba(15, 23, 42, .34) !important;
-      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
-      backdrop-filter: blur(18px) saturate(1.08) !important;
+      background: rgba(15, 23, 42, .30) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(1.06) !important;
+      backdrop-filter: blur(20px) saturate(1.06) !important;
     }
 
     body:not(.generating-pdf) .archive-dialog {
       box-sizing: border-box !important;
-      width: min(760px, calc(100vw - 36px)) !important;
-      max-width: min(760px, calc(100vw - 36px)) !important;
+      width: min(820px, calc(100vw - 36px)) !important;
+      max-width: min(820px, calc(100vw - 36px)) !important;
       max-height: min(680px, calc(100vh - 36px)) !important;
       display: flex !important;
       flex-direction: column !important;
@@ -10525,17 +12102,17 @@
       margin: 0 !important;
       padding: 0 !important;
       color: #172033 !important;
-      border: 1px solid rgba(255,255,255,.48) !important;
+      border: 1px solid rgba(255,255,255,.50) !important;
       border-radius: 24px !important;
       background:
-        linear-gradient(145deg, rgba(255,255,255,.24), rgba(255,255,255,.10) 58%, rgba(122,162,211,.10)),
-        rgba(238,244,252,.18) !important;
+        linear-gradient(145deg, rgba(255,255,255,.30), rgba(255,255,255,.13) 58%, rgba(122,162,211,.08)),
+        rgba(238,244,252,.22) !important;
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,.42),
         inset 0 -1px 0 rgba(255,255,255,.10),
-        0 26px 72px rgba(2,8,23,.24) !important;
-      -webkit-backdrop-filter: blur(26px) saturate(1.12) !important;
-      backdrop-filter: blur(26px) saturate(1.12) !important;
+        0 22px 58px rgba(2,8,23,.20) !important;
+      -webkit-backdrop-filter: blur(28px) saturate(1.10) !important;
+      backdrop-filter: blur(28px) saturate(1.10) !important;
     }
 
     body:not(.generating-pdf) .archive-header {
@@ -10545,12 +12122,12 @@
       align-items: center !important;
       justify-content: space-between !important;
       gap: 14px !important;
-      min-height: 68px !important;
+      min-height: 66px !important;
       margin: 0 !important;
-      padding: 18px 20px 14px !important;
+      padding: 17px 20px 13px !important;
       border: 0 !important;
       border-bottom: 1px solid rgba(255,255,255,.34) !important;
-      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.03)) !important;
+      background: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.04)) !important;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.24) !important;
     }
 
@@ -10572,15 +12149,13 @@
       min-width: 44px !important;
       min-height: 44px !important;
       padding: 10px 16px !important;
-      border: 1px solid rgba(255,255,255,.42) !important;
+      border: 0 !important;
       border-radius: 999px !important;
-      color: rgba(17,24,39,.78) !important;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.12)),
-        rgba(255,255,255,.14) !important;
+      color: #fff !important;
+      background: linear-gradient(180deg, #a6a6ad 0%, #8e8e93 100%) !important;
       box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.42),
-        0 8px 18px rgba(2,8,23,.08) !important;
+        inset 0 1px 0 rgba(255,255,255,.22),
+        0 8px 16px rgba(142,142,147,.14) !important;
       -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
       backdrop-filter: blur(16px) saturate(1.08) !important;
     }
@@ -10589,10 +12164,10 @@
       flex: 1 1 auto !important;
       display: flex !important;
       flex-direction: column !important;
-      gap: 10px !important;
+      gap: 9px !important;
       min-height: 0 !important;
       margin: 0 !important;
-      padding: 14px !important;
+      padding: 16px !important;
       overflow: auto !important;
       -webkit-overflow-scrolling: touch !important;
       background: transparent !important;
@@ -10600,35 +12175,37 @@
 
     body:not(.generating-pdf) .archive-empty {
       margin: 0 !important;
-      padding: 28px 14px !important;
+      padding: 10px 14px !important;
       text-align: center !important;
-      color: rgba(17,24,39,.62) !important;
+      color: rgba(17,24,39,.64) !important;
       font-size: 14px !important;
-      line-height: 1.35 !important;
-      font-weight: 760 !important;
-      border: 1px solid rgba(255,255,255,.36) !important;
-      border-radius: 16px !important;
-      background: rgba(255,255,255,.08) !important;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.22) !important;
+      line-height: 1.3 !important;
+      font-weight: 800 !important;
+      border: 1px solid rgba(255,255,255,.26) !important;
+      border-radius: 999px !important;
+      background: rgba(255,255,255,.075) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.20) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(1.05) !important;
+      backdrop-filter: blur(16px) saturate(1.05) !important;
     }
 
     body:not(.generating-pdf) .archive-item {
       display: grid !important;
       grid-template-columns: minmax(0, 1fr) auto auto !important;
-      gap: 10px !important;
+      gap: 8px !important;
       align-items: center !important;
-      min-height: 72px !important;
+      min-height: 70px !important;
       margin: 0 !important;
-      padding: 12px !important;
+      padding: 13px !important;
       color: #172033 !important;
-      border: 1px solid rgba(255,255,255,.40) !important;
+      border: 1px solid rgba(255,255,255,.38) !important;
       border-radius: 16px !important;
       background:
-        linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.055) 58%, rgba(235,0,69,.028)),
-        rgba(255,255,255,.06) !important;
+        linear-gradient(145deg, rgba(255,255,255,.18), rgba(255,255,255,.065) 62%, rgba(122,162,211,.028)),
+        rgba(255,255,255,.075) !important;
       box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.30),
-        0 10px 24px rgba(2,8,23,.06) !important;
+        inset 0 1px 0 rgba(255,255,255,.28),
+        0 8px 18px rgba(2,8,23,.045) !important;
       -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
       backdrop-filter: blur(18px) saturate(1.08) !important;
     }
@@ -10654,21 +12231,21 @@
 
     body:not(.generating-pdf) .archive-item button {
       width: auto !important;
-      min-width: 86px !important;
-      min-height: 42px !important;
-      padding: 10px 14px !important;
+      min-width: 78px !important;
+      min-height: 38px !important;
+      padding: 9px 12px !important;
       border: 0 !important;
       border-radius: 999px !important;
-      font-size: 14px !important;
+      font-size: 13px !important;
       line-height: 1.1 !important;
       font-weight: 850 !important;
       white-space: nowrap !important;
       box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.32),
-        0 10px 20px rgba(2,8,23,.10) !important;
+        inset 0 1px 0 rgba(255,255,255,.30),
+        0 7px 14px rgba(2,8,23,.07) !important;
     }
 
-    body:not(.generating-pdf) .archive-item button:not(.danger),
+    body:not(.generating-pdf) .archive-item button:not(.danger):not(.btn-danger):not(.archive-delete-btn):not(.archive-delete-button),
     body:not(.generating-pdf) .archive-open-btn,
     body:not(.generating-pdf) .archive-open-button,
     body:not(.generating-pdf) button.archive-open {
@@ -10677,19 +12254,27 @@
     }
 
     body:not(.generating-pdf) .archive-item button.danger,
+    body:not(.generating-pdf) .archive-item button.btn-danger,
+    body:not(.generating-pdf) .archive-item button.archive-delete-btn,
+    body:not(.generating-pdf) .archive-item button.archive-delete-button,
+    body:not(.generating-pdf) .btn-danger,
     body:not(.generating-pdf) .archive-delete-btn,
     body:not(.generating-pdf) .archive-delete-button {
       color: #fff !important;
+      border: 0 !important;
       background: linear-gradient(180deg, #ff4f45 0%, #ff3b30 100%) !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.24),
+        0 7px 14px rgba(255,59,48,.16) !important;
     }
 
-    body:not(.generating-pdf) .archive-status {
-      min-height: 20px !important;
-      margin: 10px 0 0 !important;
-      color: rgba(17,24,39,.62) !important;
-      font-size: 13px !important;
-      line-height: 1.35 !important;
-      font-weight: 740 !important;
+    body:not(.generating-pdf) #archiveStatus,
+    body:not(.generating-pdf) .archive-status,
+    body:not(.generating-pdf) .status[role="status"] {
+      display: none !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
     @media (max-width: 760px) {
@@ -10744,6 +12329,17 @@
   }
 
   backButton.addEventListener("click", () => showMenu(false));
+  if (quickSwitchButton) {
+    quickSwitchButton.addEventListener("click", () => {
+      const targetModuleId = previousModuleId;
+      if (!targetModuleId || targetModuleId === activeModuleId || !registry[targetModuleId]) {
+        updateQuickSwitchButton();
+        return;
+      }
+      quickSwitchTransitionPending = true;
+      openModule(targetModuleId);
+    });
+  }
   if (menuOptionsButton) menuOptionsButton.addEventListener("click", openOptionsDialog);
   if (optionsCloseButton) optionsCloseButton.addEventListener("click", closeOptionsDialog);
   if (optionsOverlay) {
@@ -10753,9 +12349,16 @@
   }
   if (archiveBackupExportButton) archiveBackupExportButton.addEventListener("click", exportAllArchiveData);
   if (archiveBackupImportButton && archiveBackupFile) {
-    archiveBackupImportButton.addEventListener("click", () => archiveBackupFile.click());
+    archiveBackupImportButton.addEventListener("click", () => {
+      setOptionsStatus("");
+      hideArchiveDeleteConfirm();
+      hideBackupSummary();
+      archiveBackupFile.click();
+    });
     archiveBackupFile.addEventListener("change", () => importArchiveBackupFile(archiveBackupFile.files && archiveBackupFile.files[0]));
   }
+  if (archiveBackupImportCancelButton) archiveBackupImportCancelButton.addEventListener("click", cancelPendingBackupImport);
+  if (archiveBackupImportConfirmButton) archiveBackupImportConfirmButton.addEventListener("click", confirmPendingBackupImport);
   if (archiveDeleteButton) archiveDeleteButton.addEventListener("click", showArchiveDeleteConfirm);
   if (archiveDeleteCancelButton) archiveDeleteCancelButton.addEventListener("click", () => {
     hideArchiveDeleteConfirm();
@@ -10764,6 +12367,11 @@
   });
   if (archiveDeleteConfirmButton) archiveDeleteConfirmButton.addEventListener("click", deleteAllArchiveData);
   document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && archiveBackupSummary && !archiveBackupSummary.hidden && archiveBackupImportActions && !archiveBackupImportActions.hidden) {
+      event.preventDefault();
+      cancelPendingBackupImport();
+      return;
+    }
     if (event.key === "Escape" && archiveDeleteConfirm && !archiveDeleteConfirm.hidden) {
       hideArchiveDeleteConfirm();
       archiveDeleteButton && archiveDeleteButton.focus();
@@ -10776,6 +12384,7 @@
     actionSyncTimer = window.setTimeout(syncModuleActionBar, 120);
   });
   window.addEventListener("popstate", () => handleRoute(true));
+  initializeConnectionStatus();
 
   if ("serviceWorker" in navigator && window.self === window.top) {
     let serviceWorkerReloading = false;
@@ -10784,9 +12393,19 @@
     let updateCheckTimer = 0;
 
     function resetUpdateButton() {
+      if (updateTitle) updateTitle.textContent = "Neue Version bereit";
+      if (updateText) updateText.textContent = "Neue Version geladen. Jetzt aktualisieren.";
       if (!updateButton) return;
       updateButton.disabled = false;
       updateButton.textContent = "Aktualisieren";
+    }
+
+    function showUpdateApplyingState() {
+      if (updateTitle) updateTitle.textContent = "Update wird angewendet...";
+      if (updateText) updateText.textContent = "Die App wird gleich neu geladen.";
+      if (!updateButton) return;
+      updateButton.disabled = true;
+      updateButton.textContent = "Aktualisiere...";
     }
 
     function showUpdatePrompt(worker) {
@@ -10829,6 +12448,7 @@
 
     if (sessionStorage.getItem(UPDATE_RELOAD_KEY) === "done") {
       sessionStorage.removeItem(UPDATE_RELOAD_KEY);
+      window.setTimeout(() => showAppToast("App wurde aktualisiert."), 450);
     }
 
     navigator.serviceWorker.addEventListener("controllerchange", () => {
@@ -10846,8 +12466,7 @@
           hideUpdatePrompt();
           return;
         }
-        updateButton.disabled = true;
-        updateButton.textContent = "Aktualisiere...";
+        showUpdateApplyingState();
         sessionStorage.setItem(UPDATE_RELOAD_KEY, "pending");
         worker.postMessage({ type: "SKIP_WAITING" });
         window.setTimeout(() => {
@@ -10861,6 +12480,10 @@
         updateRegistration = registration;
         if (registration.waiting) showUpdatePrompt(registration.waiting);
         trackInstallingWorker(registration.installing);
+
+        navigator.serviceWorker.ready
+          .then(() => updateConnectionStatus({ showReady: true }))
+          .catch(() => undefined);
 
         registration.addEventListener("updatefound", () => {
           trackInstallingWorker(registration.installing);
@@ -10915,10 +12538,14 @@
 
   function lockApp() {
     isUnlocked = false;
+    activeModuleId = null;
+    quickSwitchTransitionPending = false;
+    if (topbar) topbar.classList.remove("is-module-active");
     frame.srcdoc = "";
     menuView.hidden = false;
     moduleView.hidden = true;
     backButton.hidden = true;
+    updateQuickSwitchButton();
     updateMenuOptionsVisibility();
     subtitle.textContent = "Menüauswahl";
     history.replaceState({ module: null }, "", location.pathname);
@@ -10940,6 +12567,30 @@
     authError.textContent = "Passwort ist nicht korrekt.";
     authCode.select();
   });
+
+  if (menuSearchInput) {
+    menuSearchInput.addEventListener("input", () => {
+      menuSearchQuery = menuSearchInput.value || "";
+      renderMenu();
+    });
+    menuSearchInput.addEventListener("keydown", event => {
+      if (event.key === "Escape" && menuSearchInput.value) {
+        event.preventDefault();
+        menuSearchInput.value = "";
+        menuSearchQuery = "";
+        renderMenu();
+      }
+    });
+  }
+
+  if (menuSearchClear) {
+    menuSearchClear.addEventListener("click", () => {
+      if (menuSearchInput) menuSearchInput.value = "";
+      menuSearchQuery = "";
+      renderMenu();
+      if (menuSearchInput) menuSearchInput.focus({ preventScroll: true });
+    });
+  }
 
   renderMenu();
   localStorage.removeItem(OLD_PASS_HASH_KEY);

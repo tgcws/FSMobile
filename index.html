@@ -9,11 +9,11 @@
   <meta name="apple-mobile-web-app-title" content="FSMobile" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
-  <link rel="manifest" href="manifest.webmanifest?v=229" />
+  <link rel="manifest" href="manifest.webmanifest?v=256" />
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=229" />
+  <link rel="stylesheet" href="styles.css?v=256" />
   <title>FSMobile</title>
   <script>
     (function () {
@@ -59,7 +59,10 @@
 <body class="app-start-pending">
   <div class="app-shell">
     <header class="topbar">
-      <button class="icon-button" id="backButton" type="button" aria-label="Zurück zum Menü" title="Zurück" hidden>←</button>
+      <div class="topbar-nav" aria-label="Navigation">
+        <button class="icon-button" id="backButton" type="button" aria-label="Zurück zum Menü" title="Zurück" hidden>←</button>
+        <button class="icon-button quick-switch-button" id="quickSwitchButton" type="button" aria-label="Zuletzt geöffnetes Modul öffnen" title="Schnellwechsel" hidden>⇄</button>
+      </div>
       <div class="brand">
         <div>
           <h1>FSMobile</h1>
@@ -72,6 +75,14 @@
     </header>
 
     <main id="menuView" class="menu-view">
+      <section class="menu-search-shell" id="menuSearchShell" aria-label="Module suchen">
+        <label class="menu-search-field" for="menuSearchInput">
+          <span class="menu-search-glyph" aria-hidden="true">⌕</span>
+          <input id="menuSearchInput" type="search" autocomplete="off" inputmode="search" placeholder="Bericht oder Modul suchen" aria-describedby="menuSearchResult" />
+          <button class="menu-search-clear" id="menuSearchClear" type="button" aria-label="Suche löschen" title="Suche löschen" hidden>×</button>
+        </label>
+        <p class="menu-search-result" id="menuSearchResult" role="status" aria-live="polite"></p>
+      </section>
       <div id="moduleGrid"></div>
       <footer class="menu-footer" aria-label="Herstellerhinweis">Made with ❤️ by T.G</footer>
     </main>
@@ -80,10 +91,20 @@
       <iframe id="moduleFrame" title="FSMobile Modul" src="about:blank"></iframe>
     </section>
 
+    <section class="app-toast" id="appToast" role="status" aria-live="polite" hidden>
+      <span class="app-toast-dot" aria-hidden="true"></span>
+      <p class="app-toast-text" id="appToastText"></p>
+    </section>
+
+    <section class="app-connection-status" id="appConnectionStatus" role="status" aria-live="polite" hidden>
+      <span class="app-connection-dot" aria-hidden="true"></span>
+      <span class="app-connection-text" id="appConnectionStatusText"></span>
+    </section>
+
     <section class="update-toast" id="updateToast" role="status" aria-live="polite" hidden>
       <div>
-        <p class="update-title">Update verfügbar</p>
-        <p class="update-text">Eine neue Version von FSMobile kann geladen werden.</p>
+        <p class="update-title">Neue Version bereit</p>
+        <p class="update-text">Neue Version geladen. Jetzt aktualisieren.</p>
       </div>
       <button class="update-button" id="updateButton" type="button">Aktualisieren</button>
     </section>
@@ -97,12 +118,45 @@
           </div>
           <button class="options-close-button" id="optionsCloseButton" type="button" aria-label="Optionen schließen">×</button>
         </div>
+        <section class="options-security-summary" id="optionsSecuritySummary" aria-labelledby="optionsSecurityTitle">
+          <div class="options-security-heading">
+            <p class="options-security-kicker">Status</p>
+            <h3 id="optionsSecurityTitle">Offline &amp; Sicherung</h3>
+          </div>
+          <dl class="options-security-list">
+            <div class="options-security-row">
+              <dt>Offline bereit</dt>
+              <dd id="optionsOfflineReady">Wird geprüft...</dd>
+            </div>
+            <div class="options-security-row">
+              <dt>Cache-Version</dt>
+              <dd id="optionsCacheVersion">Wird geprüft...</dd>
+            </div>
+            <div class="options-security-row">
+              <dt>Letztes Backup</dt>
+              <dd id="optionsLastBackup">Noch kein Backup erstellt</dd>
+            </div>
+          </dl>
+        </section>
         <div class="options-actions">
+          <p class="options-helper">Backups enthalten lokale Berichte, Archivdaten und Favoriten dieser App.</p>
           <button class="options-action-button primary" id="archiveBackupExportButton" type="button">Backup erstellen</button>
           <button class="options-action-button secondary" id="archiveBackupImportButton" type="button">Backup importieren</button>
           <button class="options-action-button danger" id="archiveDeleteButton" type="button">Archivdaten löschen</button>
           <input id="archiveBackupFile" type="file" accept="application/json,.json" hidden />
         </div>
+        <section class="options-backup-summary" id="archiveBackupSummary" aria-labelledby="archiveBackupSummaryTitle" hidden>
+          <div>
+            <p class="options-confirm-title" id="archiveBackupSummaryTitle">Backup</p>
+            <p class="options-confirm-text" id="archiveBackupSummaryText"></p>
+          </div>
+          <dl class="options-backup-summary-list" id="archiveBackupSummaryList"></dl>
+          <p class="options-backup-summary-note" id="archiveBackupSummaryNote"></p>
+          <div class="options-confirm-actions" id="archiveBackupImportActions" hidden>
+            <button class="options-confirm-button secondary" id="archiveBackupImportCancelButton" type="button">Abbrechen</button>
+            <button class="options-confirm-button primary" id="archiveBackupImportConfirmButton" type="button">Importieren</button>
+          </div>
+        </section>
         <div class="options-confirm" id="archiveDeleteConfirm" hidden>
           <div>
             <p class="options-confirm-title">Alle Archivdaten wirklich löschen?</p>
@@ -130,7 +184,7 @@
     </section>
   </div>
 
-  <script src="modules.js?v=229"></script>
-  <script src="app.js?v=229"></script>
+  <script src="modules.js?v=256"></script>
+  <script src="app.js?v=256"></script>
 </body>
 </html>
