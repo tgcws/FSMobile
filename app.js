@@ -7411,11 +7411,45 @@
               var actionSourceStyle = document.createElement("style");
               actionSourceStyle.id = "fsmobileEmbeddedActionSourceStyle";
               actionSourceStyle.textContent = [
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .title-bar > .title-actions,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active header > .title-actions,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active header > .toolbar,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .archive-save,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .archive-open,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .archive-btn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .btn-archive-save,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .btn-clear,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .clear-btn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .pdf-btn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .fsmobile-data-export,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > .fsmobile-data-import,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > #archiveSaveBtn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > #archiveBtn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > #clearButton,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > #clearBtn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > #pdfButton,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .button-area > #pdfBtn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .archive-save,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .archive-open,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .archive-btn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .btn-archive-save,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .btn-clear,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .clear-btn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .pdf-btn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .fsmobile-data-export,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > .fsmobile-data-import,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > #archiveSaveBtn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > #archiveBtn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > #clearButton,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > #clearBtn,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > #pdfButton,",
+                "html.fsmobile-kalkulation-module body.fsmobile-parent-actions-active .actions > #pdfBtn,",
                 "html.fsmobile-pb-module .title-bar > .title-actions,",
                 "html.fsmobile-pb-module header > .toolbar,",
                 "html.fsmobile-embedded-module body.fsmobile-parent-actions-active .fsmobile-parent-action-source,",
                 "html.fsmobile-embedded-module body.fsmobile-parent-actions-active .fsmobile-header-actions,",
-                "html.fsmobile-embedded-module body.fsmobile-parent-actions-active .fsmobile-actions-empty { display: none !important; }"
+                "html.fsmobile-embedded-module body.fsmobile-parent-actions-active .fsmobile-actions-empty { display: none !important; }",
+                "html.fsmobile-kalkulation-module body:not(.generating-pdf) h1 { margin: 0 !important; font-size: clamp(30px, 3vw, 36px) !important; line-height: 1.12 !important; letter-spacing: 0 !important; font-weight: 850 !important; }"
               ].join("\\n");
               (document.head || document.documentElement).appendChild(actionSourceStyle);
             }
