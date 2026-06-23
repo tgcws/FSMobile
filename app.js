@@ -95,6 +95,7 @@
       modules: [
         "maengelliste",
         "maengelliste-bilddoku",
+        "maengelliste-maengelbeschreibungen",
         "aufmass-akku",
         "aufmass-einsteckschloss",
         "aufmass-tueren",
@@ -167,6 +168,7 @@
   ];
 
   const CARD_TITLES = {
+    "maengelliste-maengelbeschreibungen": "Mängelliste-MB",
     "aufmass-brandabschottungen": "Brandabschottungen",
     "pb-feuerloescher": "Feuerlöscher",
     "pb-brandschutztueren": "Brandschutztüren",
@@ -703,6 +705,796 @@
       ${infoSections}
     </div>
   </main>
+</body>
+</html>`;
+  }
+
+  function defectLinkedDefectListLookup() {
+    const byId = Object.fromEntries(DEFECT_DESCRIPTION_MODULES.map(config => [config.id, config.items]));
+    return {
+      BST: byId["maengel-bt-fsa"] || [],
+      FSA: byId["maengel-bt-fsa"] || [],
+      BSK: byId["maengel-bsk"] || [],
+      ATA: byId["maengel-automatiktueren"] || [],
+      DFA: byId["maengel-automatiktueren"] || [],
+      SIBE: byId["maengel-not-sicherheitsleuchte"] || [],
+      RWM: byId["maengel-rauchwarnmelder"] || []
+    };
+  }
+
+  registry["maengelliste-maengelbeschreibungen"] = registry["maengelliste-maengelbeschreibungen"] || {
+    title: "Mängelliste-MB",
+    group: "Arbeitsliste",
+    description: "Mängel erfassen, passende Mängelbeschreibung übernehmen, archivieren und als PDF ausgeben.",
+    html: defectLinkedDefectListHtml()
+  };
+
+  function defectLinkedDefectListHtml() {
+    const lookupJson = JSON.stringify(defectLinkedDefectListLookup()).replace(/</g, "\\u003c");
+    return `<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Mängelliste-MB</title>
+  <meta name="theme-color" content="#ff9500" />
+  <meta name="application-name" content="Mängelliste-MB" />
+  <script defer src="vendor/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --primary:#007aff;
+      --accent:#ff9500;
+      --success:#34c759;
+      --danger:#ff3b30;
+      --neutral:#8e8e93;
+      --text:#1c1c1e;
+      --muted:#6e6e73;
+      --line:rgba(255,255,255,.44);
+      --field:rgba(255,255,255,.065);
+      --radius-lg:22px;
+      --radius-md:14px;
+      --radius-sm:10px;
+      --shadow:0 12px 34px rgba(0,0,0,.08);
+      --ios-ease:cubic-bezier(.2,.8,.2,1);
+    }
+    *{box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%;background:transparent}
+    body{margin:0;min-height:100vh;background:transparent;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Arial,sans-serif}
+    .container{width:min(100%,1280px);margin:0 auto;padding:18px}
+    .title-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding:4px 2px}
+    h1{margin:0;text-align:left;font-size:34px;line-height:1.08;font-weight:800;letter-spacing:0}
+    h2{margin:0 0 12px;font-size:19px;line-height:1.15;font-weight:800;letter-spacing:0}
+    .section,.table-shell,.title-actions,.button-area,.remarks-card{background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.1) 52%,rgba(255,255,255,.04)),rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.46);border-radius:var(--radius-lg);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.32);-webkit-backdrop-filter:blur(18px) saturate(1.08);backdrop-filter:blur(18px) saturate(1.08)}
+    .section,.remarks-card{margin-bottom:14px;padding:14px}
+    .header-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .field-group{display:flex;min-width:0;flex-direction:column;gap:5px}
+    label{padding-left:2px;color:var(--muted);font-size:12px;line-height:1.15;font-weight:760;letter-spacing:0}
+    input,select,textarea,button{font:inherit}
+    input:not([type="file"]),select,textarea{width:100%;min-height:38px;padding:8px 11px;border:1px solid rgba(255,255,255,.34);border-radius:var(--radius-sm);color:var(--text);background:var(--field);font-size:14px;line-height:1.22;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+    select{appearance:auto}
+    textarea{display:block;min-height:44px;resize:none;overflow:hidden;line-height:1.35}
+    tr[data-row-id]{--row-field-height:56px}
+    .table-shell input[data-field],.table-shell textarea[data-field]{min-height:var(--row-field-height);height:var(--row-field-height)}
+    .table-shell textarea{min-height:var(--row-field-height)}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(0,122,255,.45);box-shadow:0 0 0 4px rgba(0,122,255,.12)}
+    .title-actions,.button-area{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;padding:12px}
+    .button-area{justify-content:flex-start;margin-top:14px}
+    button{min-height:46px;padding:12px 18px;border:0;border-radius:999px;cursor:pointer;color:#fff;background:linear-gradient(180deg,#1688ff 0%,var(--primary) 100%);font-size:15px;font-weight:800;letter-spacing:0;box-shadow:0 10px 20px rgba(0,122,255,.24),inset 0 1px 0 rgba(255,255,255,.32);transition:transform .18s var(--ios-ease),box-shadow .18s var(--ios-ease),filter .18s var(--ios-ease);-webkit-tap-highlight-color:transparent}
+    button:hover{filter:brightness(1.02)}
+    button:active{transform:scale(.975)}
+    button:disabled{opacity:.55;cursor:default;transform:none}
+    .archive-save{background:linear-gradient(180deg,#ffad33 0%,var(--accent) 100%);box-shadow:0 10px 20px rgba(255,149,0,.24),inset 0 1px 0 rgba(255,255,255,.32)}
+    .archive-open,.pdf-btn{background:linear-gradient(180deg,#1688ff 0%,var(--primary) 100%)}
+    .clear-btn,.secondary{background:linear-gradient(180deg,#a6a6ad 0%,var(--neutral) 100%);box-shadow:0 10px 20px rgba(142,142,147,.22),inset 0 1px 0 rgba(255,255,255,.28)}
+    .add-btn{background:linear-gradient(180deg,#44db67 0%,var(--success) 100%);box-shadow:0 10px 20px rgba(52,199,89,.22),inset 0 1px 0 rgba(255,255,255,.32)}
+    .duplicate-btn{background:linear-gradient(180deg,#6b5dff 0%,#5856d6 100%);box-shadow:0 10px 20px rgba(88,86,214,.22),inset 0 1px 0 rgba(255,255,255,.32)}
+    .remove-btn,.delete-btn{background:linear-gradient(180deg,#ff5b55 0%,var(--danger) 100%);box-shadow:0 10px 20px rgba(255,59,48,.22),inset 0 1px 0 rgba(255,255,255,.32)}
+    .table-shell{overflow:hidden;margin-bottom:14px}
+    .table-scroll{width:100%;overflow:auto}
+    table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+    th,td{border-right:1px solid rgba(255,255,255,.24);border-bottom:1px solid rgba(255,255,255,.22);padding:10px;vertical-align:top}
+    th{color:var(--muted);font-size:12px;font-weight:800;text-align:left;line-height:1.2}
+    th:last-child,td:last-child{border-right:0}
+    tr:last-child td{border-bottom:0}
+    .col-small{width:78px}
+    .col-medium{width:125px}
+    .col-wide{width:32%}
+    .col-part{width:16%}
+    .row-tools{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:6px}
+    .row-tools button{min-height:30px;min-width:30px;padding:5px 8px;font-size:14px}
+    .status-line{min-height:21px;margin:8px 2px 0;color:var(--muted);font-size:13px;font-weight:750}
+    .archive-panel{display:none;margin-top:14px}
+    .archive-panel.open{display:block}
+    .archive-list{display:grid;gap:10px}
+    .archive-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid rgba(255,255,255,.34);border-radius:var(--radius-md);background:rgba(255,255,255,.07)}
+    .archive-title{font-weight:850;color:var(--text)}
+    .archive-meta{margin-top:3px;color:var(--muted);font-size:12px;font-weight:700;line-height:1.35}
+    .archive-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .archive-actions button{min-height:38px;padding:9px 13px;font-size:13px}
+    [hidden]{display:none!important}
+    @media (max-width:900px){
+      .container{padding:14px}
+      h1{font-size:30px}
+      .header-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .title-bar{align-items:flex-start;flex-direction:column}
+      .title-actions{width:100%;justify-content:flex-start}
+      table{min-width:1050px}
+    }
+    @media (max-width:560px){
+      h1{font-size:26px}
+      .header-grid{grid-template-columns:1fr}
+    }
+    @media (prefers-reduced-motion: reduce){
+      *{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <div class="title-bar">
+      <h1>Mängelliste-MB</h1>
+      <div class="title-actions" aria-label="Aktionen">
+        <button class="archive-save" id="archiveSaveBtn" type="button">Im Archiv speichern</button>
+        <button class="archive-open" id="archiveBtn" type="button">Archiv</button>
+        <button class="clear-btn" id="clearButton" type="button">Leeren</button>
+        <button class="pdf-btn" id="pdfButton" type="button">PDF Export</button>
+      </div>
+    </div>
+
+    <section class="section" aria-label="Kopfdaten">
+      <div class="header-grid">
+        <div class="field-group">
+          <label for="objekt">Objekt</label>
+          <input id="objekt" autocomplete="off" />
+        </div>
+        <div class="field-group">
+          <label for="gewerk">Gewerk</label>
+          <select id="gewerk">
+            <option value="">Bitte auswählen</option>
+            <option value="BST">BST</option>
+            <option value="FSA">FSA</option>
+            <option value="BSK">BSK</option>
+            <option value="ATA">ATA</option>
+            <option value="DFA">DFA</option>
+            <option value="SIBE">SIBE</option>
+            <option value="RWM">RWM</option>
+            <option value="Sonstige">Sonstige</option>
+          </select>
+        </div>
+        <div class="field-group other-field" id="gewerkSonstigeGroup" hidden>
+          <label for="gewerkSonstige">Sonstige</label>
+          <input id="gewerkSonstige" autocomplete="off" />
+        </div>
+        <div class="field-group">
+          <label for="name">Name</label>
+          <input id="name" autocomplete="off" />
+        </div>
+        <div class="field-group">
+          <label for="datum">Datum</label>
+          <input id="datum" type="date" />
+        </div>
+      </div>
+    </section>
+
+    <section class="table-shell" aria-label="Mängeltabelle">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-small">Bauteil Nr.</th>
+              <th class="col-small">Mangel Nr.</th>
+              <th class="col-wide">Beschreibung der Reparatur</th>
+              <th class="col-part">Benötigtes Bauteil</th>
+              <th class="col-small">Einheit</th>
+              <th class="col-medium">Artikel Nr.</th>
+              <th class="col-medium">Benötigte Zeit</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="remarks-card" aria-label="Bemerkungen">
+      <div class="field-group">
+        <label for="reportRemarks">Bemerkungen</label>
+        <textarea id="reportRemarks" rows="3" placeholder="Allgemeine Bemerkungen"></textarea>
+      </div>
+    </section>
+
+    <div class="button-area" aria-label="Zeilen und Bericht Aktionen">
+      <button class="add-btn" id="addRowButton" type="button">Neue Zeile</button>
+      <button class="duplicate-btn" id="duplicateRowButton" type="button">Duplizieren</button>
+      <button class="remove-btn" id="removeRowButton" type="button">Letzte Zeile löschen</button>
+      <button class="clear-btn" id="clearBtn" type="button">Leeren</button>
+      <button class="pdf-btn" id="pdfBtn" type="button">PDF</button>
+    </div>
+
+    <p class="status-line" id="statusLine" aria-live="polite"></p>
+
+    <section class="section archive-panel" id="archivePanel" aria-label="Archiv">
+      <h2>Archiv</h2>
+      <div class="archive-list" id="archiveList"></div>
+    </section>
+  </main>
+
+  <script>
+    const DEFECT_LOOKUP = ${lookupJson};
+    const STORAGE_KEY = "maengelliste-maengelbeschreibungen-pwa-v1";
+    const ARCHIVE_STORAGE_KEY = "maengelliste-maengelbeschreibungen-pwa-v1-archive";
+    const CURRENT_ARCHIVE_ID_KEY = "maengelliste-maengelbeschreibungen-pwa-current-archive-id";
+    const tableBody = document.getElementById("tableBody");
+    const statusLine = document.getElementById("statusLine");
+    const archivePanel = document.getElementById("archivePanel");
+    const archiveList = document.getElementById("archiveList");
+    const fields = {
+      objekt: document.getElementById("objekt"),
+      gewerk: document.getElementById("gewerk"),
+      gewerkSonstige: document.getElementById("gewerkSonstige"),
+      name: document.getElementById("name"),
+      datum: document.getElementById("datum"),
+      reportRemarks: document.getElementById("reportRemarks")
+    };
+    let rows = [];
+    let saveTimer = 0;
+
+    function createId() {
+      return "row-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    }
+
+    function createRow(data) {
+      const source = data || {};
+      return {
+        id: source.id || createId(),
+        bauteilNr: source.bauteilNr || "",
+        mangelNr: source.mangelNr || "",
+        beschreibung: source.beschreibung || "",
+        autoText: source.autoText || "",
+        benoetigtesBauteil: source.benoetigtesBauteil || "",
+        einheit: source.einheit || "",
+        artikelNr: source.artikelNr || "",
+        zeit: source.zeit || ""
+      };
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function autoGrow(element) {
+      if (!element) return;
+      const row = element.closest("tr[data-row-id]");
+      if (row) {
+        syncRowFieldHeights(row);
+        return;
+      }
+      element.style.height = "auto";
+      element.style.height = Math.max(44, element.scrollHeight) + "px";
+    }
+
+    function syncRowFieldHeights(rowElement) {
+      if (!rowElement) return;
+      const controls = Array.from(rowElement.querySelectorAll("input[data-field], textarea[data-field]"));
+      if (!controls.length) return;
+      controls.forEach(function(control) {
+        control.style.height = "";
+        if (control.tagName === "TEXTAREA") control.style.height = "auto";
+      });
+      const maxHeight = Math.ceil(Math.max.apply(null, controls.map(function(control) {
+        return Math.max(54, control.scrollHeight || 0);
+      })) + 2);
+      rowElement.style.setProperty("--row-field-height", maxHeight + "px");
+      controls.forEach(function(control) {
+        control.style.height = "";
+      });
+    }
+
+    function syncAllRowFieldHeights() {
+      tableBody.querySelectorAll("tr[data-row-id]").forEach(syncRowFieldHeights);
+    }
+
+    function setStatus(message) {
+      statusLine.textContent = message || "";
+      try {
+        window.parent.postMessage({
+          type: "fsmobile-action-status",
+          moduleId: window.FSMOBILE_MODULE_ID || "maengelliste-maengelbeschreibungen",
+          message: message || ""
+        }, "*");
+      } catch (error) {}
+    }
+
+    function notifyHost(message) {
+      try {
+        window.parent.postMessage({
+          type: "fsmobile-toast",
+          message: message || ""
+        }, "*");
+      } catch (error) {}
+    }
+
+    function getArchive() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(ARCHIVE_STORAGE_KEY) || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function setArchive(items) {
+      localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+    }
+
+    function getGewerkDisplay(dataFields) {
+      const selected = dataFields && dataFields.gewerk ? dataFields.gewerk : fields.gewerk.value;
+      const sonstige = dataFields && dataFields.gewerkSonstige !== undefined ? dataFields.gewerkSonstige : fields.gewerkSonstige.value;
+      if (selected === "Sonstige") return sonstige ? "Sonstige: " + sonstige : "Sonstige";
+      return selected || "";
+    }
+
+    function updateSonstigeVisibility() {
+      const group = document.getElementById("gewerkSonstigeGroup");
+      group.hidden = fields.gewerk.value !== "Sonstige";
+    }
+
+    function defectTextFor(gewerk, mangelNr) {
+      if (!gewerk || gewerk === "Sonstige") return "";
+      const list = DEFECT_LOOKUP[gewerk] || [];
+      const number = Number.parseInt(String(mangelNr || "").trim(), 10);
+      if (!Number.isFinite(number) || number < 1) return "";
+      return list[number - 1] || "";
+    }
+
+    function maybeAutofillRow(row) {
+      const nextText = defectTextFor(fields.gewerk.value, row.mangelNr);
+      if (!nextText) return false;
+      const current = String(row.beschreibung || "");
+      const previousAuto = String(row.autoText || "");
+      if (!current || (previousAuto && current === previousAuto)) {
+        row.beschreibung = nextText;
+        row.autoText = nextText;
+        return true;
+      }
+      return false;
+    }
+
+    function clearAutofillForEmptyMangelNumber(row) {
+      if (String(row.mangelNr || "").trim() !== "") return false;
+      if (!fields.gewerk.value || fields.gewerk.value === "Sonstige") {
+        row.autoText = "";
+        return false;
+      }
+      const previousAuto = String(row.autoText || "");
+      if (!previousAuto) return false;
+      if (String(row.beschreibung || "") === previousAuto) {
+        row.beschreibung = "";
+        row.autoText = "";
+        row.manualChanged = false;
+        return true;
+      }
+      row.autoText = "";
+      return false;
+    }
+
+    function applyAutofillToVisibleRow(row, element) {
+      const container = element ? element.closest("tr") : null;
+      const description = container ? container.querySelector('[data-field="beschreibung"]') : null;
+      if (clearAutofillForEmptyMangelNumber(row)) {
+        if (description) {
+          description.value = row.beschreibung;
+          syncRowFieldHeights(container);
+        } else {
+          renderRows();
+        }
+        return;
+      }
+      if (!maybeAutofillRow(row)) return;
+      if (description) {
+        description.value = row.beschreibung;
+        syncRowFieldHeights(container);
+      } else {
+        renderRows();
+      }
+    }
+
+    function renderRows() {
+      if (!rows.length) rows = [createRow()];
+      tableBody.innerHTML = rows.map(function(row) {
+        return '<tr data-row-id="' + escapeHtml(row.id) + '">' +
+          '<td><input aria-label="Bauteil Nr." data-field="bauteilNr" value="' + escapeHtml(row.bauteilNr) + '" /></td>' +
+          '<td><input aria-label="Mangel Nr." data-field="mangelNr" value="' + escapeHtml(row.mangelNr) + '" /></td>' +
+          '<td><textarea aria-label="Beschreibung der Reparatur" data-field="beschreibung" rows="2">' + escapeHtml(row.beschreibung) + '</textarea></td>' +
+          '<td><textarea aria-label="Benötigtes Bauteil" data-field="benoetigtesBauteil" rows="2">' + escapeHtml(row.benoetigtesBauteil) + '</textarea></td>' +
+          '<td><textarea aria-label="Einheit" data-field="einheit" rows="1">' + escapeHtml(row.einheit) + '</textarea></td>' +
+          '<td><textarea aria-label="Artikel Nr." data-field="artikelNr" rows="1">' + escapeHtml(row.artikelNr) + '</textarea></td>' +
+          '<td><textarea aria-label="Benötigte Zeit" data-field="zeit" rows="1">' + escapeHtml(row.zeit) + '</textarea><div class="row-tools"><button class="add-btn" type="button" data-row-action="insert" aria-label="Zeile darunter einfügen">+</button><button class="remove-btn" type="button" data-row-action="remove" aria-label="Zeile löschen">−</button></div></td>' +
+          '</tr>';
+      }).join("");
+      syncAllRowFieldHeights();
+    }
+
+    function collectData() {
+      return {
+        fields: {
+          objekt: fields.objekt.value || "",
+          gewerk: fields.gewerk.value || "",
+          gewerkSonstige: fields.gewerkSonstige.value || "",
+          gewerkDisplay: getGewerkDisplay(),
+          name: fields.name.value || "",
+          datum: fields.datum.value || "",
+          reportRemarks: fields.reportRemarks.value || ""
+        },
+        rows: rows.map(function(row) { return Object.assign({}, row); }),
+        savedAt: new Date().toISOString()
+      };
+    }
+
+    function applyData(data) {
+      const next = data && typeof data === "object" ? data : {};
+      const nextFields = next.fields || next.header || {};
+      fields.objekt.value = nextFields.objekt || "";
+      fields.gewerk.value = nextFields.gewerk || "";
+      fields.gewerkSonstige.value = nextFields.gewerkSonstige || "";
+      fields.name.value = nextFields.name || "";
+      fields.datum.value = nextFields.datum || "";
+      fields.reportRemarks.value = nextFields.reportRemarks || next.remarks || "";
+      rows = Array.isArray(next.rows) && next.rows.length ? next.rows.map(createRow) : [createRow()];
+      updateSonstigeVisibility();
+      renderRows();
+      autoGrow(fields.reportRemarks);
+      saveFormNow();
+    }
+
+    function saveFormNow() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(collectData()));
+    }
+
+    function scheduleSave() {
+      window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(saveFormNow, 120);
+    }
+
+    function clearForm() {
+      if (!window.confirm("Mängelliste wirklich leeren?")) return;
+      localStorage.removeItem(CURRENT_ARCHIVE_ID_KEY);
+      fields.objekt.value = "";
+      fields.gewerk.value = "";
+      fields.gewerkSonstige.value = "";
+      fields.name.value = "";
+      fields.datum.value = "";
+      fields.reportRemarks.value = "";
+      rows = [createRow()];
+      updateSonstigeVisibility();
+      renderRows();
+      autoGrow(fields.reportRemarks);
+      saveFormNow();
+      setStatus("Mängelliste geleert.");
+      notifyHost("Mängelliste geleert.");
+    }
+
+    function archiveTitle(entry) {
+      const data = entry && (entry.data || entry.report || entry);
+      const dataFields = data && data.fields ? data.fields : {};
+      const parts = [
+        dataFields.objekt || "Ohne Objekt",
+        getGewerkDisplay(dataFields) || "Ohne Gewerk",
+        dataFields.datum || ""
+      ].filter(Boolean);
+      return parts.join(" · ");
+    }
+
+    function archiveMeta(entry) {
+      const updated = entry && (entry.updatedAt || entry.savedAt || entry.createdAt);
+      const data = entry && (entry.data || entry.report || entry);
+      const dataFields = data && data.fields ? data.fields : {};
+      const rowCount = data && Array.isArray(data.rows) ? data.rows.length : 0;
+      const bits = [];
+      bits.push("Mängelliste-MB");
+      if (dataFields.name) bits.push("Name: " + dataFields.name);
+      bits.push(rowCount + " Zeile" + (rowCount === 1 ? "" : "n"));
+      if (updated) bits.push("Geändert: " + new Date(updated).toLocaleString("de-DE"));
+      return bits.join(" · ");
+    }
+
+    function saveCurrentFormToArchive() {
+      saveFormNow();
+      const data = collectData();
+      const now = new Date().toISOString();
+      const archive = getArchive();
+      const currentId = localStorage.getItem(CURRENT_ARCHIVE_ID_KEY);
+      let entry = currentId ? archive.find(function(item) { return item && item.id === currentId; }) : null;
+      if (entry) {
+        entry.updatedAt = now;
+        entry.data = data;
+      } else {
+        entry = {
+          id: "mlmb-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8),
+          createdAt: now,
+          updatedAt: now,
+          data: data
+        };
+        archive.unshift(entry);
+        localStorage.setItem(CURRENT_ARCHIVE_ID_KEY, entry.id);
+      }
+      setArchive(archive);
+      renderArchiveList();
+      setStatus("Im Archiv gespeichert.");
+      notifyHost("Im Archiv gespeichert.");
+      return entry;
+    }
+
+    function openArchiveEntry(id) {
+      const archive = getArchive();
+      const entry = archive.find(function(item) { return item && item.id === id; });
+      if (!entry) {
+        setStatus("Archiv-Eintrag nicht gefunden.");
+        return;
+      }
+      localStorage.setItem(CURRENT_ARCHIVE_ID_KEY, id);
+      applyData(entry.data || entry.report || entry);
+      setStatus("Archiv geöffnet.");
+      notifyHost("Archiv geöffnet.");
+    }
+
+    function deleteArchiveEntry(id) {
+      if (!window.confirm("Archiv-Eintrag wirklich löschen?")) return;
+      const archive = getArchive().filter(function(item) { return item && item.id !== id; });
+      setArchive(archive);
+      if (localStorage.getItem(CURRENT_ARCHIVE_ID_KEY) === id) {
+        localStorage.removeItem(CURRENT_ARCHIVE_ID_KEY);
+      }
+      renderArchiveList();
+      setStatus("Archiv-Eintrag gelöscht.");
+      notifyHost("Archiv-Eintrag gelöscht.");
+    }
+
+    function renderArchiveList() {
+      const archive = getArchive();
+      if (!archive.length) {
+        archiveList.innerHTML = '<p class="archive-meta">Noch keine Archiv-Einträge vorhanden.</p>';
+        return;
+      }
+      const currentId = localStorage.getItem(CURRENT_ARCHIVE_ID_KEY);
+      archiveList.innerHTML = archive.map(function(entry) {
+        const current = currentId && entry.id === currentId ? " · geöffnet" : "";
+        return '<article class="archive-item" data-archive-id="' + escapeHtml(entry.id) + '">' +
+          '<div><div class="archive-title">' + escapeHtml(archiveTitle(entry)) + current + '</div><div class="archive-meta">' + escapeHtml(archiveMeta(entry)) + '</div></div>' +
+          '<div class="archive-actions"><button class="archive-open-btn" type="button" data-archive-open="' + escapeHtml(entry.id) + '">Öffnen</button><button class="delete-btn" type="button" data-archive-delete="' + escapeHtml(entry.id) + '">Löschen</button></div>' +
+          '</article>';
+      }).join("");
+    }
+
+    function toggleArchive() {
+      renderArchiveList();
+      archivePanel.classList.toggle("open");
+      if (archivePanel.classList.contains("open")) {
+        archivePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+
+    function createPdfDocument() {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        setStatus("PDF-Bibliothek nicht geladen.");
+        return null;
+      }
+      return new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    }
+
+    function drawPdfHeader(doc, title) {
+      doc.setFillColor(255, 180, 71);
+      doc.rect(10, 10, 277, 12, "F");
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(title, 14, 18);
+      doc.setTextColor(0, 0, 0);
+    }
+
+    function addPageIfNeeded(doc, y, needed) {
+      if (y + needed <= 196) return y;
+      doc.addPage();
+      drawPdfHeader(doc, "Mängelliste-MB");
+      return 30;
+    }
+
+    function exportPdf() {
+      saveFormNow();
+      const doc = createPdfDocument();
+      if (!doc) return;
+      const data = collectData();
+      const margin = 10;
+      const widths = [18, 18, 112, 53, 20, 28, 28];
+      const headers = ["Bauteil", "Mangel", "Beschreibung der Reparatur", "Benötigtes Bauteil", "Einheit", "Artikel Nr.", "Zeit"];
+      let y = 10;
+      drawPdfHeader(doc, "Mängelliste-MB");
+      y = 28;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      const meta = [
+        ["Objekt", data.fields.objekt],
+        ["Gewerk", data.fields.gewerkDisplay || getGewerkDisplay(data.fields)],
+        ["Name", data.fields.name],
+        ["Datum", data.fields.datum]
+      ];
+      meta.forEach(function(pair, index) {
+        const x = margin + index * 70;
+        doc.setFont("helvetica", "bold");
+        doc.text(pair[0] + ":", x, y);
+        doc.setFont("helvetica", "normal");
+        doc.text(String(pair[1] || "-"), x + 18, y);
+      });
+      y += 9;
+      doc.setFont("helvetica", "bold");
+      let x = margin;
+      headers.forEach(function(header, index) {
+        doc.setFillColor(255, 180, 71);
+        doc.rect(x, y, widths[index], 8, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.text(header, x + 1.5, y + 5.4);
+        x += widths[index];
+      });
+      y += 8;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(0, 0, 0);
+      data.rows.forEach(function(row) {
+        const cells = [
+          row.bauteilNr,
+          row.mangelNr,
+          row.beschreibung,
+          row.benoetigtesBauteil,
+          row.einheit,
+          row.artikelNr,
+          row.zeit
+        ].map(function(value, index) {
+          return doc.splitTextToSize(String(value || ""), Math.max(8, widths[index] - 3));
+        });
+        const rowHeight = Math.max(8, Math.max.apply(null, cells.map(function(lines) { return lines.length; })) * 4.2 + 4);
+        y = addPageIfNeeded(doc, y, rowHeight);
+        x = margin;
+        doc.setDrawColor(202, 208, 216);
+        cells.forEach(function(lines, index) {
+          doc.rect(x, y, widths[index], rowHeight);
+          doc.setTextColor(0, 0, 0);
+          doc.text(lines, x + 1.5, y + 4.5);
+          x += widths[index];
+        });
+        y += rowHeight;
+      });
+      const remarks = String(data.fields.reportRemarks || "").trim();
+      if (remarks) {
+        const lines = doc.splitTextToSize(remarks, 269);
+        let offset = 0;
+        while (offset < lines.length) {
+          y = addPageIfNeeded(doc, y + 5, 18);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(0, 0, 0);
+          doc.text("Bemerkungen", margin, y);
+          y += 5;
+          doc.setFont("helvetica", "normal");
+          const availableLines = Math.max(1, Math.floor((196 - y) / 4.2));
+          const chunk = lines.slice(offset, offset + availableLines);
+          doc.text(chunk, margin, y);
+          y += chunk.length * 4.2;
+          offset += chunk.length;
+          if (offset < lines.length) {
+            doc.addPage();
+            drawPdfHeader(doc, "Mängelliste-MB");
+            y = 30;
+          }
+        }
+      }
+      doc.save("Maengelliste_MB.pdf");
+      setStatus("PDF erstellt.");
+      notifyHost("PDF erstellt.");
+    }
+
+    function fillFromStorage() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        if (saved) {
+          applyData(saved);
+          return;
+        }
+      } catch (error) {}
+      rows = [createRow()];
+      renderRows();
+      updateSonstigeVisibility();
+    }
+
+    document.addEventListener("input", function(event) {
+      const target = event.target;
+      if (!target) return;
+      if (target.matches("textarea")) autoGrow(target);
+      if (target.id && fields[target.id]) {
+        scheduleSave();
+        return;
+      }
+      const rowElement = target.closest("tr[data-row-id]");
+      if (!rowElement) return;
+      const row = rows.find(function(item) { return item.id === rowElement.dataset.rowId; });
+      const field = target.dataset.field;
+      if (!row || !field) return;
+      row[field] = target.value;
+      if (field === "beschreibung" && row.autoText && row.beschreibung !== row.autoText) {
+        row.manualChanged = true;
+      }
+      if (field === "mangelNr") {
+        applyAutofillToVisibleRow(row, target);
+      }
+      syncRowFieldHeights(rowElement);
+      scheduleSave();
+    });
+
+    document.addEventListener("change", function(event) {
+      const target = event.target;
+      if (!target) return;
+      if (target.id === "gewerk") {
+        updateSonstigeVisibility();
+        rows.forEach(function(row) { maybeAutofillRow(row); });
+        renderRows();
+      }
+      scheduleSave();
+    });
+
+    document.addEventListener("click", function(event) {
+      const target = event.target.closest("button");
+      if (!target) return;
+      if (target.id === "addRowButton") {
+        rows.push(createRow());
+        renderRows();
+        scheduleSave();
+      } else if (target.id === "duplicateRowButton") {
+        const last = rows[rows.length - 1] || createRow();
+        rows.push(createRow(Object.assign({}, last, { id: createId() })));
+        renderRows();
+        scheduleSave();
+      } else if (target.id === "removeRowButton") {
+        if (rows.length > 1) rows.pop();
+        renderRows();
+        scheduleSave();
+      } else if (target.dataset.rowAction === "insert") {
+        const rowElement = target.closest("tr[data-row-id]");
+        const index = rows.findIndex(function(row) { return row.id === rowElement.dataset.rowId; });
+        rows.splice(index + 1, 0, createRow());
+        renderRows();
+        scheduleSave();
+      } else if (target.dataset.rowAction === "remove") {
+        const rowElement = target.closest("tr[data-row-id]");
+        rows = rows.filter(function(row) { return row.id !== rowElement.dataset.rowId; });
+        if (!rows.length) rows = [createRow()];
+        renderRows();
+        scheduleSave();
+      } else if (target.id === "archiveSaveBtn") {
+        saveCurrentFormToArchive();
+      } else if (target.id === "archiveBtn") {
+        toggleArchive();
+      } else if (target.id === "clearButton" || target.id === "clearBtn") {
+        clearForm();
+      } else if (target.id === "pdfButton" || target.id === "pdfBtn") {
+        exportPdf();
+      } else if (target.dataset.archiveOpen) {
+        openArchiveEntry(target.dataset.archiveOpen);
+      } else if (target.dataset.archiveDelete) {
+        deleteArchiveEntry(target.dataset.archiveDelete);
+      }
+    });
+
+    window.collectData = collectData;
+    window.applyData = applyData;
+    window.clearForm = clearForm;
+    window.saveForm = saveFormNow;
+    window.setArchiveStatus = setStatus;
+
+    fillFromStorage();
+    fields.reportRemarks.addEventListener("input", function() { autoGrow(fields.reportRemarks); });
+  </script>
 </body>
 </html>`;
   }
@@ -7400,6 +8192,7 @@
             if ({
               "maengelliste": true,
               "maengelliste-bilddoku": true,
+              "maengelliste-maengelbeschreibungen": true,
               "aufmass-akku": true,
               "aufmass-einsteckschloss": true,
               "aufmass-tueren": true,
