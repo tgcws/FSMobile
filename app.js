@@ -751,6 +751,8 @@
       --muted:#6e6e73;
       --line:rgba(255,255,255,.44);
       --field:rgba(255,255,255,.065);
+      --surface-strong:rgba(255,255,255,.12);
+      --separator:rgba(255,255,255,.24);
       --radius-lg:22px;
       --radius-md:14px;
       --radius-sm:10px;
@@ -766,6 +768,7 @@
     h2{margin:0 0 12px;font-size:19px;line-height:1.15;font-weight:800;letter-spacing:0}
     .section,.table-shell,.title-actions,.button-area,.remarks-card{background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.1) 52%,rgba(255,255,255,.04)),rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.46);border-radius:var(--radius-lg);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.32);-webkit-backdrop-filter:blur(18px) saturate(1.08);backdrop-filter:blur(18px) saturate(1.08)}
     .section,.remarks-card{margin-bottom:14px;padding:14px}
+    .remarks-card textarea{width:100%;min-height:88px}
     .header-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
     .field-group{display:flex;min-width:0;flex-direction:column;gap:5px}
     label{padding-left:2px;color:var(--muted);font-size:12px;line-height:1.15;font-weight:760;letter-spacing:0}
@@ -803,14 +806,20 @@
     .row-tools{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:6px}
     .row-tools button{min-height:30px;min-width:30px;padding:5px 8px;font-size:14px}
     .status-line{min-height:21px;margin:8px 2px 0;color:var(--muted);font-size:13px;font-weight:750}
-    .archive-panel{display:none;margin-top:14px}
-    .archive-panel.open{display:block}
-    .archive-list{display:grid;gap:10px}
-    .archive-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid rgba(255,255,255,.34);border-radius:var(--radius-md);background:rgba(255,255,255,.07)}
+    .archive-overlay[hidden]{display:none}
+    .archive-overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(28,28,30,.34);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+    .archive-dialog{width:min(100%,720px);max-height:min(680px,92vh);display:flex;flex-direction:column;overflow:hidden;background:var(--surface-strong);border:1px solid rgba(255,255,255,.34);border-radius:var(--radius-lg);box-shadow:0 18px 50px rgba(0,0,0,.18)}
+    .archive-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--separator)}
+    .archive-header h2{margin:0;font-size:22px;line-height:1.15;font-weight:800}
+    .archive-close-btn{min-width:46px;padding:8px 14px;background:linear-gradient(180deg,#a6a6ad 0%,var(--neutral) 100%);box-shadow:none}
+    .archive-list{display:flex;flex-direction:column;gap:8px;padding:12px;overflow:auto}
+    .archive-empty{margin:0;padding:24px 12px;color:var(--muted);text-align:center;font-weight:700}
+    .archive-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:12px;border:1px solid rgba(255,255,255,.34);border-radius:var(--radius-md);background:rgba(255,255,255,.07)}
     .archive-title{font-weight:850;color:var(--text)}
     .archive-meta{margin-top:3px;color:var(--muted);font-size:12px;font-weight:700;line-height:1.35}
-    .archive-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-    .archive-actions button{min-height:38px;padding:9px 13px;font-size:13px}
+    .archive-item button{min-height:38px;padding:8px 13px;font-size:13px;box-shadow:none}
+    .archive-open-btn{background:linear-gradient(180deg,#1688ff 0%,var(--primary) 100%)}
+    .archive-delete-btn{background:linear-gradient(180deg,#ff5b55 0%,var(--danger) 100%)}
     [hidden]{display:none!important}
     @media (max-width:900px){
       .container{padding:14px}
@@ -819,6 +828,8 @@
       .title-bar{align-items:flex-start;flex-direction:column}
       .title-actions{width:100%;justify-content:flex-start}
       table{min-width:1050px}
+      .archive-dialog{max-height:88vh}
+      .archive-item{grid-template-columns:1fr}
     }
     @media (max-width:560px){
       h1{font-size:26px}
@@ -898,7 +909,7 @@
     <section class="remarks-card" aria-label="Bemerkungen">
       <div class="field-group">
         <label for="reportRemarks">Bemerkungen</label>
-        <textarea id="reportRemarks" rows="3" placeholder="Allgemeine Bemerkungen"></textarea>
+        <textarea id="reportRemarks" placeholder="Allgemeine Bemerkungen"></textarea>
       </div>
     </section>
 
@@ -912,11 +923,17 @@
 
     <p class="status-line" id="statusLine" aria-live="polite"></p>
 
-    <section class="section archive-panel" id="archivePanel" aria-label="Archiv">
-      <h2>Archiv</h2>
-      <div class="archive-list" id="archiveList"></div>
-    </section>
   </main>
+
+  <div class="archive-overlay" id="archiveOverlay" hidden>
+    <div class="archive-dialog" role="dialog" aria-modal="true" aria-labelledby="archiveTitle">
+      <div class="archive-header">
+        <h2 id="archiveTitle">Archiv</h2>
+        <button type="button" class="archive-close-btn" id="archiveCloseButton" aria-label="Archiv schließen">Schließen</button>
+      </div>
+      <div class="archive-list" id="archiveList" aria-live="polite"></div>
+    </div>
+  </div>
 
   <script>
     const DEFECT_LOOKUP = ${lookupJson};
@@ -925,7 +942,7 @@
     const CURRENT_ARCHIVE_ID_KEY = "maengelliste-maengelbeschreibungen-pwa-current-archive-id";
     const tableBody = document.getElementById("tableBody");
     const statusLine = document.getElementById("statusLine");
-    const archivePanel = document.getElementById("archivePanel");
+    const archiveOverlay = document.getElementById("archiveOverlay");
     const archiveList = document.getElementById("archiveList");
     const fields = {
       objekt: document.getElementById("objekt"),
@@ -973,7 +990,8 @@
         return;
       }
       element.style.height = "auto";
-      element.style.height = Math.max(44, element.scrollHeight) + "px";
+      const minHeight = Number.parseFloat(window.getComputedStyle(element).minHeight || "44") || 44;
+      element.style.height = Math.max(minHeight, element.scrollHeight) + "px";
     }
 
     function syncRowFieldHeights(rowElement) {
@@ -1239,6 +1257,7 @@
       applyData(entry.data || entry.report || entry);
       setStatus("Archiv geöffnet.");
       notifyHost("Archiv geöffnet.");
+      closeArchive();
     }
 
     function deleteArchiveEntry(id) {
@@ -1256,7 +1275,7 @@
     function renderArchiveList() {
       const archive = getArchive();
       if (!archive.length) {
-        archiveList.innerHTML = '<p class="archive-meta">Noch keine Archiv-Einträge vorhanden.</p>';
+        archiveList.innerHTML = '<p class="archive-empty">Noch keine Archiv-Einträge vorhanden.</p>';
         return;
       }
       const currentId = localStorage.getItem(CURRENT_ARCHIVE_ID_KEY);
@@ -1264,17 +1283,18 @@
         const current = currentId && entry.id === currentId ? " · geöffnet" : "";
         return '<article class="archive-item" data-archive-id="' + escapeHtml(entry.id) + '">' +
           '<div><div class="archive-title">' + escapeHtml(archiveTitle(entry)) + current + '</div><div class="archive-meta">' + escapeHtml(archiveMeta(entry)) + '</div></div>' +
-          '<div class="archive-actions"><button class="archive-open-btn" type="button" data-archive-open="' + escapeHtml(entry.id) + '">Öffnen</button><button class="delete-btn" type="button" data-archive-delete="' + escapeHtml(entry.id) + '">Löschen</button></div>' +
+          '<button class="archive-open-btn" type="button" data-archive-open="' + escapeHtml(entry.id) + '">Öffnen</button><button class="archive-delete-btn" type="button" data-archive-delete="' + escapeHtml(entry.id) + '">Löschen</button>' +
           '</article>';
       }).join("");
     }
 
-    function toggleArchive() {
+    function openArchive() {
       renderArchiveList();
-      archivePanel.classList.toggle("open");
-      if (archivePanel.classList.contains("open")) {
-        archivePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
+      archiveOverlay.hidden = false;
+    }
+
+    function closeArchive() {
+      archiveOverlay.hidden = true;
     }
 
     function createPdfDocument() {
@@ -1474,7 +1494,9 @@
       } else if (target.id === "archiveSaveBtn") {
         saveCurrentFormToArchive();
       } else if (target.id === "archiveBtn") {
-        toggleArchive();
+        openArchive();
+      } else if (target.id === "archiveCloseButton") {
+        closeArchive();
       } else if (target.id === "clearButton" || target.id === "clearBtn") {
         clearForm();
       } else if (target.id === "pdfButton" || target.id === "pdfBtn") {
@@ -1484,6 +1506,14 @@
       } else if (target.dataset.archiveDelete) {
         deleteArchiveEntry(target.dataset.archiveDelete);
       }
+    });
+
+    archiveOverlay.addEventListener("click", function(event) {
+      if (event.target === archiveOverlay) closeArchive();
+    });
+
+    document.addEventListener("keydown", function(event) {
+      if (event.key === "Escape" && !archiveOverlay.hidden) closeArchive();
     });
 
     window.collectData = collectData;
