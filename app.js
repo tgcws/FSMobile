@@ -805,7 +805,7 @@
     .col-part{width:16%}
     .row-tools{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:6px}
     .row-tools button{min-height:30px;min-width:30px;padding:5px 8px;font-size:14px}
-    .status-line{min-height:21px;margin:8px 2px 0;color:var(--muted);font-size:13px;font-weight:750}
+    .status-line{display:none}
     .archive-overlay[hidden]{display:none}
     .archive-overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(28,28,30,.34);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
     .archive-dialog{width:min(100%,720px);max-height:min(680px,92vh);display:flex;flex-direction:column;overflow:hidden;background:var(--surface-strong);border:1px solid rgba(255,255,255,.34);border-radius:var(--radius-lg);box-shadow:0 18px 50px rgba(0,0,0,.18)}
@@ -1016,20 +1016,15 @@
     }
 
     function setStatus(message) {
-      statusLine.textContent = message || "";
-      try {
-        window.parent.postMessage({
-          type: "fsmobile-action-status",
-          moduleId: window.FSMOBILE_MODULE_ID || "maengelliste-maengelbeschreibungen",
-          message: message || ""
-        }, "*");
-      } catch (error) {}
+      if (statusLine) statusLine.textContent = "";
+      notifyHost(message);
     }
 
     function notifyHost(message) {
       try {
         window.parent.postMessage({
           type: "fsmobile-toast",
+          moduleId: window.FSMOBILE_MODULE_ID || "maengelliste-maengelbeschreibungen",
           message: message || ""
         }, "*");
       } catch (error) {}
@@ -1192,7 +1187,6 @@
       autoGrow(fields.reportRemarks);
       saveFormNow();
       setStatus("Mängelliste geleert.");
-      notifyHost("Mängelliste geleert.");
     }
 
     function archiveTitle(entry) {
@@ -1242,7 +1236,6 @@
       setArchive(archive);
       renderArchiveList();
       setStatus("Im Archiv gespeichert.");
-      notifyHost("Im Archiv gespeichert.");
       return entry;
     }
 
@@ -1256,7 +1249,6 @@
       localStorage.setItem(CURRENT_ARCHIVE_ID_KEY, id);
       applyData(entry.data || entry.report || entry);
       setStatus("Archiv geöffnet.");
-      notifyHost("Archiv geöffnet.");
       closeArchive();
     }
 
@@ -1269,7 +1261,6 @@
       }
       renderArchiveList();
       setStatus("Archiv-Eintrag gelöscht.");
-      notifyHost("Archiv-Eintrag gelöscht.");
     }
 
     function renderArchiveList() {
@@ -1320,6 +1311,31 @@
       doc.addPage();
       drawPdfHeader(doc, "Mängelliste-MB");
       return 30;
+    }
+
+    function sanitizeFileName(value) {
+      return String(value || "")
+        .trim()
+        .replace(/[\\\\/:*?"<>|]+/g, "-")
+        .replace(/\\s+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^-+|-+$/g, "") || "Objekt";
+    }
+
+    function formatDateForFileName(value) {
+      const date = value ? new Date(value + "T00:00:00") : new Date();
+      const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+      return validDate.toLocaleDateString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    }
+
+    function getPdfFileName() {
+      const objekt = sanitizeFileName(fields.objekt.value);
+      const datum = formatDateForFileName(fields.datum.value);
+      return objekt + "_" + datum + ".pdf";
     }
 
     function exportPdf() {
@@ -1410,9 +1426,8 @@
           }
         }
       }
-      doc.save("Maengelliste_MB.pdf");
+      doc.save(getPdfFileName());
       setStatus("PDF erstellt.");
-      notifyHost("PDF erstellt.");
     }
 
     function fillFromStorage() {
@@ -8114,6 +8129,11 @@
 	      removeStoredModuleSignature(moduleId);
 	      return;
 	    }
+	    if (data.type === "fsmobile-toast") {
+	      if (data.moduleId && data.moduleId !== activeModuleId) return;
+	      showAppToast(String(data.message || ""));
+	      return;
+	    }
 	    if (data.type !== "fsmobile-action-status") return;
 	    if (data.moduleId && data.moduleId !== activeModuleId) return;
 	    updateModuleActionStatus(String(data.message || ""));
@@ -8129,6 +8149,7 @@
 	    if (!doc) return;
 	    const action = collectFrameActionButtons(doc).find(item => item.key === key);
 	    if (!action) return;
+	    const toastOnlyStatus = activeModuleId === "maengelliste-maengelbeschreibungen";
 	    if (key === "pdf" && /^pb-/.test(activeModuleId || "")) {
 	      try {
 	        const win = doc.defaultView;
@@ -8143,13 +8164,17 @@
 	      } catch (error) {}
 	    }
 		    if (key === "pdf") {
-		      updateModuleActionStatus("PDF Export wird erstellt...");
+		      if (toastOnlyStatus) showAppToast("PDF Export wird erstellt...");
+		      else updateModuleActionStatus("PDF Export wird erstellt...");
 		    }
 		    action.source.click();
 		    if (key === "archive") {
-		      updateModuleActionStatus("Archiv wurde geöffnet.");
+		      if (toastOnlyStatus) showAppToast("Archiv wurde geöffnet.");
+		      else updateModuleActionStatus("Archiv wurde geöffnet.");
 		    }
-		    [80, 240, 700].forEach(delay => window.setTimeout(syncModuleActionStatus, delay));
+		    if (!toastOnlyStatus) {
+		      [80, 240, 700].forEach(delay => window.setTimeout(syncModuleActionStatus, delay));
+		    }
 	    window.setTimeout(syncModuleActionBar, 120);
 	  }
 
