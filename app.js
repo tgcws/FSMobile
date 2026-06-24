@@ -6681,14 +6681,14 @@
     if (/export erfolgreich/i.test(text)) return `${text} Lokale Berichte, Archive und Favoriten sind enthalten.`;
     if (/import erfolgreich/i.test(text)) return `${text} Lokale Berichte, Archive und Favoriten wurden wiederhergestellt.`;
     if (/keine archivdaten gefunden/i.test(text)) return "Backup enthält keine wiederherstellbaren Archivdaten.";
-    if (/konnte nicht.*archiv/i.test(text)) return "Prüfbericht konnte nicht im Archiv gespeichert werden.";
-    if (/vorhandener archiv-eintrag aktualisiert/i.test(text)) return "Vorhandener Archiv-Eintrag aktualisiert.";
-    if (/bericht im archiv gespeichert|archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Bericht im Archiv gespeichert.";
+    if (/konnte nicht.*archiv/i.test(text)) return "Formular konnte nicht im Archiv gespeichert werden.";
+    if (/vorhandener archiv-eintrag aktualisiert/i.test(text)) return "Formular aktualisiert.";
+    if (/bericht im archiv gespeichert|aufmaß.*archiv gespeichert|archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Formular im Archiv gespeichert.";
     if (/archiv-eintrag.*geöffnet/i.test(text)) return "Archiv-Eintrag wurde geöffnet.";
-    if (/aus dem archiv geöffnet/i.test(text)) return "Prüfbericht wurde aus dem Archiv geöffnet.";
+    if (/aus dem archiv geöffnet/i.test(text)) return "Archiv-Eintrag wurde geöffnet.";
     if (/archiv.*geöffnet/i.test(text)) return "Archiv wurde geöffnet.";
     if (/archiv.*gelöscht/i.test(text)) return "Archiv-Eintrag wurde gelöscht.";
-    if (/geleert|eingaben.*löschen/i.test(text)) return "Prüfbericht wurde geleert.";
+    if (/geleert|eingaben.*löschen/i.test(text)) return "Formular geleert.";
     if (/pdf export.*wird erstellt|pdf.*wird erstellt/i.test(text)) return "PDF-Export wird erstellt...";
     if (/pdf export.*nicht|pdf.*nicht|kombinierter.*nicht/i.test(text)) return "PDF-Export konnte nicht erstellt werden.";
     if (/pdf export.*erstellt|zip.*erstellt|pdf.*erstellt/i.test(text)) return "PDF-Export wurde erstellt.";
@@ -8199,8 +8199,8 @@
     }
     const afterFingerprint = frameFormFingerprint(doc);
     if (beforeState.fingerprint && afterFingerprint && beforeState.fingerprint !== afterFingerprint) {
-      if (toastOnlyStatus) showAppToast("Prüfbericht wurde geleert.");
-      else updateModuleActionStatus("Prüfbericht wurde geleert.");
+      if (toastOnlyStatus) showAppToast("Formular geleert.");
+      else updateModuleActionStatus("Formular geleert.");
     }
   }
 
@@ -8219,6 +8219,10 @@
 	      "maengelliste",
 	      "maengelliste-bilddoku",
 	      "maengelliste-maengelbeschreibungen",
+	      "aufmass-akku",
+	      "aufmass-einsteckschloss",
+	      "aufmass-tueren",
+	      "aufmass-brandabschottungen",
 	      "pb-feuerloescher",
 	      "pb-brandschutztueren"
 	    ].includes(id || "");
@@ -11691,14 +11695,14 @@
 		          function normalizedActionStatus(message) {
 		            var text = String(message || "").replace(/\\s+/g, " ").trim();
 	            if (!text) return "";
-	            if (/konnte nicht.*archiv/i.test(text)) return "Prüfbericht konnte nicht im Archiv gespeichert werden.";
-	            if (/vorhandener archiv-eintrag aktualisiert/i.test(text)) return "Vorhandener Archiv-Eintrag aktualisiert.";
-	            if (/bericht im archiv gespeichert/i.test(text)) return "Bericht im Archiv gespeichert.";
-	            if (/archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Bericht im Archiv gespeichert.";
-	            if (/aus dem archiv geöffnet/i.test(text)) return "Prüfbericht wurde aus dem Archiv geöffnet.";
+	            if (/konnte nicht.*archiv/i.test(text)) return "Formular konnte nicht im Archiv gespeichert werden.";
+	            if (/vorhandener archiv-eintrag aktualisiert/i.test(text)) return "Formular aktualisiert.";
+	            if (/bericht im archiv gespeichert/i.test(text)) return "Formular im Archiv gespeichert.";
+	            if (/aufmaß.*archiv gespeichert|archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Formular im Archiv gespeichert.";
+	            if (/aus dem archiv geöffnet/i.test(text)) return "Archiv-Eintrag wurde geöffnet.";
 	            if (/archiv.*geöffnet/i.test(text)) return "Archiv wurde geöffnet.";
 	            if (/archiv.*gelöscht/i.test(text)) return "Archiv-Eintrag wurde gelöscht.";
-	            if (/geleert|eingaben.*löschen/i.test(text)) return "Prüfbericht wurde geleert.";
+	            if (/geleert|eingaben.*löschen/i.test(text)) return "Formular geleert.";
 	            if (/import.*nicht|exportdatei.*nicht|passt nicht/i.test(text)) return "Exportdatei konnte nicht importiert werden.";
 	            if (/importiert|exportdatei.*geladen|daten.*geladen/i.test(text)) return "Exportdatei wurde importiert.";
 	            if (/pdf export.*wird erstellt|pdf.*wird erstellt/i.test(text)) return "PDF Export wird erstellt...";
@@ -12723,7 +12727,10 @@
           align-items: stretch !important;
           gap: 10px !important;
           padding: 12px !important;
+          flex: 0 0 auto !important;
+          height: auto !important;
           min-width: 0 !important;
+          overflow: visible !important;
         }
 
         html.fsmobile-embedded-module body:not(.generating-pdf) .archive-detail-host,
