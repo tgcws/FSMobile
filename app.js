@@ -1426,7 +1426,8 @@
           }
         }
       }
-      doc.save(getPdfFileName());
+	      if (typeof window.FSMOBILE_STAMP_PDF_LOGO === "function") window.FSMOBILE_STAMP_PDF_LOGO(doc);
+	      doc.save(getPdfFileName());
       setStatus("PDF erstellt.");
     }
 
@@ -6681,9 +6682,11 @@
     if (/konnte nicht.*archiv/i.test(text)) return "Prüfbericht konnte nicht im Archiv gespeichert werden.";
     if (/vorhandener archiv-eintrag aktualisiert/i.test(text)) return "Vorhandener Archiv-Eintrag aktualisiert.";
     if (/bericht im archiv gespeichert|archiv.*gespeichert|gespeichert.*archiv/i.test(text)) return "Bericht im Archiv gespeichert.";
+    if (/archiv-eintrag.*geöffnet/i.test(text)) return "Archiv-Eintrag wurde geöffnet.";
     if (/aus dem archiv geöffnet/i.test(text)) return "Prüfbericht wurde aus dem Archiv geöffnet.";
     if (/archiv.*geöffnet/i.test(text)) return "Archiv wurde geöffnet.";
     if (/archiv.*gelöscht/i.test(text)) return "Archiv-Eintrag wurde gelöscht.";
+    if (/geleert|eingaben.*löschen/i.test(text)) return "Prüfbericht wurde geleert.";
     if (/pdf export.*wird erstellt|pdf.*wird erstellt/i.test(text)) return "PDF-Export wird erstellt...";
     if (/pdf export.*nicht|pdf.*nicht|kombinierter.*nicht/i.test(text)) return "PDF-Export konnte nicht erstellt werden.";
     if (/pdf export.*erstellt|zip.*erstellt|pdf.*erstellt/i.test(text)) return "PDF-Export wurde erstellt.";
@@ -6712,6 +6715,57 @@
       appToast.hidden = true;
     }, tone === "error" ? 7600 : 5800);
   }
+
+  function standardFileSegment(value, fallback = "Ohne_Wert") {
+    const text = String(value || "").replace(/\s+/g, " ").trim() || fallback;
+    return text
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/\s+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 90) || fallback;
+  }
+
+  function standardPdfFileName(parts = [], fallback = "FSMobile_Export") {
+    const segments = (Array.isArray(parts) ? parts : [parts])
+      .map(part => standardFileSegment(part, ""))
+      .filter(Boolean);
+    return `${segments.length ? segments.join("_") : standardFileSegment(fallback)}.pdf`;
+  }
+
+  function createStandardArchiveEntry({ moduleId = "", title = "", meta = {}, data = {}, previous = null } = {}) {
+    const now = new Date().toISOString();
+    const id = previous && previous.id
+      ? previous.id
+      : (window.crypto && typeof window.crypto.randomUUID === "function"
+        ? window.crypto.randomUUID()
+        : `archive-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    return {
+      id,
+      moduleId,
+      title: String(title || meta.type || moduleId || "Archiv-Eintrag"),
+      createdAt: previous && previous.createdAt ? previous.createdAt : now,
+      updatedAt: now,
+      meta: {
+        type: meta.type || "",
+        object: meta.object || meta.objekt || "",
+        anlage: meta.anlage || meta.anlagenNr || "",
+        date: meta.date || meta.datum || ""
+      },
+      data
+    };
+  }
+
+  window.FSMOBILE_STANDARD = Object.freeze({
+    version: 1,
+    normalizeStatusMessage: normalizeShellStatusMessage,
+    showToast: showAppToast,
+    fileSegment: standardFileSegment,
+    pdfFileName: standardPdfFileName,
+    createArchiveEntry: createStandardArchiveEntry
+  });
 
   function showConnectionStatus(message, tone = "ready", options = {}) {
     if (!appConnectionStatus || !appConnectionStatusText || !message) return;
@@ -8108,14 +8162,64 @@
     return status ? (status.textContent || "").replace(/\s+/g, " ").trim() : "";
   }
 
-	  function updateModuleActionStatus(message) {
-	    const status = document.getElementById("moduleActionStatus");
-	    const normalized = normalizeShellStatusMessage(message);
+  function frameFormFingerprint(doc) {
+    if (!doc) return "";
+    const fields = Array.from(doc.querySelectorAll("input, textarea, select"))
+      .filter(field => {
+        if (field.closest(".archive-dialog, .archive-overlay, .pdf-render-wrapper")) return false;
+        const type = String(field.type || "").toLowerCase();
+        return !["button", "file", "hidden", "image", "reset", "submit"].includes(type);
+      })
+      .map(field => {
+        const key = field.name || field.id || field.getAttribute("aria-label") || field.dataset.field || field.tagName;
+        const type = String(field.type || "").toLowerCase();
+        const value = type === "checkbox" || type === "radio" ? String(Boolean(field.checked)) : String(field.value || "");
+        return `${field.tagName}:${key}:${type}:${value}`;
+      });
+    return JSON.stringify(fields);
+  }
+
+  function appToastShows(pattern) {
+    const toast = document.getElementById("appToast");
+    if (!toast || toast.hidden) return false;
+    return pattern.test(document.getElementById("appToastText")?.textContent || "");
+  }
+
+  function notifyClearActionStatusIfNeeded(doc, beforeState, toastOnlyStatus) {
+    if (!beforeState || appToastShows(/geleert/i)) return;
+    const statusText = readFrameArchiveStatus(doc);
+    const beforeStatus = normalizeShellStatusMessage(beforeState.status);
+    const normalizedStatus = normalizeShellStatusMessage(statusText);
+    if (normalizedStatus && normalizedStatus !== beforeStatus) {
+      if (toastOnlyStatus) showAppToast(normalizedStatus);
+      else updateModuleActionStatus(normalizedStatus);
+      return;
+    }
+    const afterFingerprint = frameFormFingerprint(doc);
+    if (beforeState.fingerprint && afterFingerprint && beforeState.fingerprint !== afterFingerprint) {
+      if (toastOnlyStatus) showAppToast("Prüfbericht wurde geleert.");
+      else updateModuleActionStatus("Prüfbericht wurde geleert.");
+    }
+  }
+
+  function updateModuleActionStatus(message) {
+    const status = document.getElementById("moduleActionStatus");
+    const normalized = normalizeShellStatusMessage(message);
 	    if (status) {
 	      status.textContent = normalized;
 	      status.hidden = !normalized;
 	    }
 	    if (normalized) showAppToast(normalized);
+	  }
+
+	  function moduleUsesToastOnlyStatus(id) {
+	    return [
+	      "maengelliste",
+	      "maengelliste-bilddoku",
+	      "maengelliste-maengelbeschreibungen",
+	      "pb-feuerloescher",
+	      "pb-brandschutztueren"
+	    ].includes(id || "");
 	  }
 
 	  window.addEventListener("message", event => {
@@ -8136,6 +8240,16 @@
 	    }
 	    if (data.type !== "fsmobile-action-status") return;
 	    if (data.moduleId && data.moduleId !== activeModuleId) return;
+	    if (moduleUsesToastOnlyStatus(activeModuleId)) {
+	      const status = document.getElementById("moduleActionStatus");
+	      if (status) {
+	        status.textContent = "";
+	        status.hidden = true;
+	      }
+	      const normalized = normalizeShellStatusMessage(String(data.message || ""));
+	      if (normalized) showAppToast(normalized);
+	      return;
+	    }
 	    updateModuleActionStatus(String(data.message || ""));
 	  });
 
@@ -8144,14 +8258,17 @@
     updateModuleActionStatus(readFrameArchiveStatus(doc));
   }
 
-	  function activateFrameAction(key) {
-	    const doc = frameDocument();
-	    if (!doc) return;
-	    const action = collectFrameActionButtons(doc).find(item => item.key === key);
-	    if (!action) return;
-	    const toastOnlyStatus = activeModuleId === "maengelliste-maengelbeschreibungen";
-	    if (key === "pdf" && /^pb-/.test(activeModuleId || "")) {
-	      try {
+  function activateFrameAction(key) {
+    const doc = frameDocument();
+    if (!doc) return;
+    const action = collectFrameActionButtons(doc).find(item => item.key === key);
+    if (!action) return;
+    const toastOnlyStatus = moduleUsesToastOnlyStatus(activeModuleId);
+    const clearBeforeState = key === "clear"
+      ? { fingerprint: frameFormFingerprint(doc), status: readFrameArchiveStatus(doc) }
+      : null;
+    if (key === "pdf" && /^pb-/.test(activeModuleId || "")) {
+      try {
 	        const win = doc.defaultView;
 	        if (win && typeof win.FSMOBILE_CREATE_REPORT_EXPORT_ZIP === "function") {
 	          win.FSMOBILE_COMBINED_PDF_EXPORT = { startedAt: Date.now() };
@@ -8163,18 +8280,23 @@
 	        }
 	      } catch (error) {}
 	    }
-		    if (key === "pdf") {
-		      if (toastOnlyStatus) showAppToast("PDF Export wird erstellt...");
-		      else updateModuleActionStatus("PDF Export wird erstellt...");
-		    }
-		    action.source.click();
-		    if (key === "archive") {
-		      if (toastOnlyStatus) showAppToast("Archiv wurde geöffnet.");
-		      else updateModuleActionStatus("Archiv wurde geöffnet.");
-		    }
-		    if (!toastOnlyStatus) {
-		      [80, 240, 700].forEach(delay => window.setTimeout(syncModuleActionStatus, delay));
-		    }
+    if (key === "pdf") {
+      if (toastOnlyStatus) showAppToast("PDF Export wird erstellt...");
+      else updateModuleActionStatus("PDF Export wird erstellt...");
+    }
+    action.source.click();
+    if (key === "archive") {
+      if (toastOnlyStatus) showAppToast("Archiv wurde geöffnet.");
+      else updateModuleActionStatus("Archiv wurde geöffnet.");
+    }
+    if (key === "clear") {
+      [80, 240, 700].forEach(delay => window.setTimeout(() => {
+        notifyClearActionStatusIfNeeded(frameDocument(), clearBeforeState, toastOnlyStatus);
+      }, delay));
+    }
+    if (!toastOnlyStatus) {
+      [80, 240, 700].forEach(delay => window.setTimeout(syncModuleActionStatus, delay));
+    }
 	    window.setTimeout(syncModuleActionBar, 120);
 	  }
 
@@ -8235,10 +8357,15 @@
   function decorateModuleHtml(html, id, title) {
     const bridge = `
       <script>
-        window.FSMOBILE_EMBEDDED_MODULE = true;
-        window.FSMOBILE_MODULE_ID = ${JSON.stringify(id)};
-        window.FSMOBILE_MODULE_TITLE = ${JSON.stringify(title || id)};
-        (function(){
+	        window.FSMOBILE_EMBEDDED_MODULE = true;
+	        window.FSMOBILE_MODULE_ID = ${JSON.stringify(id)};
+	        window.FSMOBILE_MODULE_TITLE = ${JSON.stringify(title || id)};
+	        try {
+	          if (window.parent && window.parent.FSMOBILE_STANDARD) {
+	            window.FSMOBILE_STANDARD = window.parent.FSMOBILE_STANDARD;
+	          }
+	        } catch (error) {}
+	        (function(){
           try {
             document.documentElement.classList.add("fsmobile-embedded-module");
             if (/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) {
@@ -9778,7 +9905,7 @@
           var FSMOBILE_PDF_LOGO_RIGHT_MM = 15;
 
           function shouldStampFsmobilePdfLogo() {
-            return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen";
+            return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen" || window.FSMOBILE_MODULE_ID === "maengelliste" || window.FSMOBILE_MODULE_ID === "maengelliste-bilddoku" || window.FSMOBILE_MODULE_ID === "maengelliste-maengelbeschreibungen";
           }
 
           function getFsmobilePdfPageWidth(doc) {
@@ -11072,11 +11199,11 @@
               return wrapper;
             }
 
-            function applyArchiveMetadataToItem(item, entry, storageKey) {
-              if (!item || !entry) return;
-              item.classList.add("archive-item-detailed");
-              var text = Array.prototype.find.call(item.children, function(child) {
-                return child && child.tagName !== "BUTTON";
+	            function applyArchiveMetadataToItem(item, entry, storageKey) {
+	              if (!item || !entry) return;
+	              item.classList.add("archive-item-detailed");
+	              var text = Array.prototype.find.call(item.children, function(child) {
+	                return child && child.tagName !== "BUTTON";
               });
               if (!text) {
                 text = document.createElement("div");
@@ -11088,14 +11215,83 @@
                 var label = (button.textContent || "").replace(/\\s+/g, " ").trim();
                 if (/^Öffnen$/i.test(label)) button.classList.add("archive-open-list-btn");
                 if (/^Löschen$/i.test(label)) {
-                  button.classList.add("archive-delete-list-btn", "danger");
-                }
-              });
-            }
+	                  button.classList.add("archive-delete-list-btn", "danger");
+	                }
+	              });
+	              updateArchiveCurrentMarker(item, entry, storageKey);
+	            }
 
-            function enhanceArchiveListMetadata(storageKey) {
-              var archiveList = document.getElementById("archiveList");
-              if (!archiveList || archiveList.__fsmobileArchiveMetadataEnhancing) return;
+	            function updateArchiveCurrentMarker(item, entry, storageKey) {
+	              if (!item || !entry) return;
+	              var currentId = readCurrentArchiveIdForKey(storageKey);
+	              var isCurrent = Boolean(currentId && entry.id && String(currentId) === String(entry.id));
+	              item.classList.toggle("archive-item-current", isCurrent);
+	              if (isCurrent) item.setAttribute("aria-current", "true");
+	              else item.removeAttribute("aria-current");
+	            }
+
+	            function normalizeArchiveSearchText(value) {
+	              return String(value || "").replace(/\\s+/g, " ").trim().toLowerCase();
+	            }
+
+	            function ensureArchiveFilterControls(archiveList) {
+	              if (!archiveList) return null;
+	              var dialog = archiveList.closest(".archive-dialog") || archiveList.parentElement;
+	              if (!dialog) return null;
+	              var controls = dialog.querySelector(".archive-filter-tools");
+	              if (!controls) {
+	                controls = document.createElement("div");
+	                controls.className = "archive-filter-tools";
+	                var input = document.createElement("input");
+	                input.type = "search";
+	                input.className = "archive-filter-input";
+	                input.autocomplete = "off";
+	                input.setAttribute("aria-label", "Archiv filtern");
+	                input.placeholder = "Archiv filtern: Objekt, Anlagen-Nr., Datum";
+	                var count = document.createElement("span");
+	                count.className = "archive-filter-count";
+	                count.setAttribute("aria-live", "polite");
+	                controls.append(input, count);
+	                (archiveList.parentNode || dialog).insertBefore(controls, archiveList);
+	                input.addEventListener("input", function() { applyArchiveListFilter(archiveList); });
+	              }
+	              return controls;
+	            }
+
+	            function applyArchiveListFilter(archiveList) {
+	              if (!archiveList) return;
+	              var controls = ensureArchiveFilterControls(archiveList);
+	              if (!controls) return;
+	              var input = controls.querySelector(".archive-filter-input");
+	              var count = controls.querySelector(".archive-filter-count");
+	              var query = normalizeArchiveSearchText(input && input.value);
+	              var items = Array.prototype.slice.call(archiveList.querySelectorAll(".archive-item"));
+	              var visible = 0;
+	              items.forEach(function(item) {
+	                var matches = !query || normalizeArchiveSearchText(item.textContent).indexOf(query) >= 0;
+	                item.hidden = !matches;
+	                item.classList.toggle("archive-item-filtered-out", !matches);
+	                if (matches) visible += 1;
+	              });
+	              var empty = archiveList.querySelector(".archive-filter-empty");
+	              if (!empty) {
+	                empty = document.createElement("p");
+	                empty.className = "archive-empty archive-filter-empty";
+	                empty.hidden = true;
+	                empty.textContent = "Keine Archiv-Einträge zum Filter gefunden.";
+	                archiveList.appendChild(empty);
+	              }
+	              empty.hidden = !(query && items.length && visible === 0);
+	              if (count) {
+	                count.textContent = items.length
+	                  ? (query ? visible + " von " + items.length + " Einträgen" : items.length + " Einträge")
+	                  : "";
+	              }
+	            }
+
+	            function enhanceArchiveListMetadata(storageKey) {
+	              var archiveList = document.getElementById("archiveList");
+	              if (!archiveList || archiveList.__fsmobileArchiveMetadataEnhancing) return;
               var primaryKey = storageKey || resolveArchiveStorageKey();
               if (!primaryKey) return;
               var records = archiveEntryRecordsForDisplay(primaryKey).sort(function(a, b) {
@@ -11106,15 +11302,17 @@
               if (!items.length) return;
               archiveList.__fsmobileArchiveMetadataEnhancing = true;
               try {
-                items.forEach(function(item, index) {
-                  var record = records[index];
-                  if (!record) return;
-                  applyArchiveMetadataToItem(item, record.entry, record.storageKey);
-                });
-              } finally {
-                archiveList.__fsmobileArchiveMetadataEnhancing = false;
-              }
-            }
+	                items.forEach(function(item, index) {
+	                  var record = records[index];
+	                  if (!record) return;
+	                  applyArchiveMetadataToItem(item, record.entry, record.storageKey);
+	                });
+	                ensureArchiveFilterControls(archiveList);
+	                applyArchiveListFilter(archiveList);
+	              } finally {
+	                archiveList.__fsmobileArchiveMetadataEnhancing = false;
+	              }
+	            }
 
             function scheduleArchiveMetadataEnhancement(storageKey, delay) {
               window.clearTimeout(window.__fsmobileArchiveMetadataTimer);
@@ -11209,11 +11407,13 @@
                 deleteButton.className = "danger";
                 deleteButton.textContent = "Löschen";
                 deleteButton.addEventListener("click", function() { deleteArchiveEntryFromDisplay(entry, entryStorageKey, record.index); });
-                item.append(text, openButton, deleteButton);
-                applyArchiveMetadataToItem(item, entry, entryStorageKey);
-                archiveList.appendChild(item);
-              });
-            }
+	                item.append(text, openButton, deleteButton);
+	                applyArchiveMetadataToItem(item, entry, entryStorageKey);
+	                archiveList.appendChild(item);
+	              });
+	              ensureArchiveFilterControls(archiveList);
+	              applyArchiveListFilter(archiveList);
+	            }
 
             function persistCurrentDraftBeforeArchive() {
               ["saveToStorageNow", "saveFormToStorage", "saveCurrentDraft", "saveCurrentReport", "saveForm", "saveToStorage"].some(function(name) {
@@ -11562,20 +11762,72 @@
 		            installKalkulationStatusRelay();
 		          }
 
+	          function resultToneValue(element) {
+	            if (!element) return "";
+	            var source = /^(INPUT|SELECT|TEXTAREA)$/i.test(element.tagName || "")
+	              ? element.value
+	              : element.textContent;
+	            var value = String(source || "").replace(/\\s+/g, " ").trim().toLowerCase();
+	            if (value === "i.o") return "ok";
+	            if (value === "n.i.o") return "bad";
+	            return "";
+	          }
+
+	          function applyResultToneMarker(element) {
+	            if (!element || !element.classList) return;
+	            var tone = resultToneValue(element);
+	            var shouldOk = tone === "ok";
+	            var shouldBad = tone === "bad";
+	            if (element.classList.contains("fsmobile-result-ok") !== shouldOk) {
+	              element.classList.toggle("fsmobile-result-ok", shouldOk);
+	            }
+	            if (element.classList.contains("fsmobile-result-bad") !== shouldBad) {
+	              element.classList.toggle("fsmobile-result-bad", shouldBad);
+	            }
+	          }
+
 	          function refreshResultToneMarkers() {
-	            Array.prototype.forEach.call(document.querySelectorAll("select, input, textarea"), function(control) {
-	              var value = String(control.value || "").replace(/\\s+/g, " ").trim().toLowerCase();
-	              control.classList.remove("fsmobile-result-ok", "fsmobile-result-bad");
-	              if (value === "i.o") control.classList.add("fsmobile-result-ok");
-	              if (value === "n.i.o") control.classList.add("fsmobile-result-bad");
-	            });
+	            var selector = [
+	              "select",
+	              "input",
+	              "textarea",
+	              "[data-result]",
+	              ".result-field",
+	              ".result-ok",
+	              ".result-bad"
+	            ].join(",");
+	            Array.prototype.forEach.call(document.querySelectorAll(selector), applyResultToneMarker);
+	          }
+
+	          function scheduleResultToneRefresh() {
+	            refreshResultToneMarkers();
+	            window.clearTimeout(window.__fsmobileResultToneRefreshTimer);
+	            window.__fsmobileResultToneRefreshTimer = window.setTimeout(refreshResultToneMarkers, 0);
 	          }
 
 	          function installResultToneMarkers() {
 	            if (window.__fsmobileResultToneMarkersInstalled) return;
 	            window.__fsmobileResultToneMarkersInstalled = true;
-	            document.addEventListener("input", refreshResultToneMarkers, true);
-	            document.addEventListener("change", refreshResultToneMarkers, true);
+	            document.addEventListener("input", scheduleResultToneRefresh, true);
+	            document.addEventListener("change", scheduleResultToneRefresh, true);
+	            if (window.MutationObserver) {
+	              var observer = new MutationObserver(function(mutations) {
+	                var shouldRefresh = mutations.some(function(mutation) {
+	                  if (mutation.type === "characterData") return true;
+	                  if (mutation.type === "childList") return mutation.addedNodes.length || mutation.removedNodes.length;
+	                  if (mutation.type === "attributes") return /^(class|value)$/i.test(mutation.attributeName || "");
+	                  return false;
+	                });
+	                if (shouldRefresh) scheduleResultToneRefresh();
+	              });
+	              observer.observe(document.documentElement, {
+	                attributes: true,
+	                attributeFilter: ["class", "value"],
+	                childList: true,
+	                characterData: true,
+	                subtree: true
+	              });
+	            }
 	          }
 
 	          function setupReportDataTransfer() {
@@ -13043,10 +13295,10 @@
       text-shadow: 0 1px 0 rgba(255,255,255,.42) !important;
     }
 
-    body:not(.generating-pdf) .archive-header button,
-    body:not(.generating-pdf) .archive-close-btn {
-      flex: 0 0 auto !important;
-      width: auto !important;
+	    body:not(.generating-pdf) .archive-header button,
+	    body:not(.generating-pdf) .archive-close-btn {
+	      flex: 0 0 auto !important;
+	      width: auto !important;
       min-width: 44px !important;
       min-height: 44px !important;
       padding: 10px 16px !important;
@@ -13057,14 +13309,54 @@
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,.22),
         0 8px 16px rgba(142,142,147,.14) !important;
-      -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
-      backdrop-filter: blur(16px) saturate(1.08) !important;
-    }
+	      -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
+	      backdrop-filter: blur(16px) saturate(1.08) !important;
+	    }
 
-    body:not(.generating-pdf) .archive-list {
-      flex: 1 1 auto !important;
-      display: flex !important;
-      flex-direction: column !important;
+	    body:not(.generating-pdf) .archive-filter-tools {
+	      flex: 0 0 auto !important;
+	      display: flex !important;
+	      align-items: center !important;
+	      gap: 10px !important;
+	      margin: 0 !important;
+	      padding: 12px 16px 0 !important;
+	      background: transparent !important;
+	      border: 0 !important;
+	      box-shadow: none !important;
+	    }
+
+	    body:not(.generating-pdf) .archive-filter-input {
+	      flex: 1 1 auto !important;
+	      min-width: 0 !important;
+	      min-height: 42px !important;
+	      margin: 0 !important;
+	      padding: 10px 13px !important;
+	      color: rgba(17,24,39,.9) !important;
+	      border: 1px solid rgba(255,255,255,.42) !important;
+	      border-radius: 999px !important;
+	      background:
+	        linear-gradient(145deg, rgba(255,255,255,.18), rgba(255,255,255,.07)),
+	        rgba(255,255,255,.08) !important;
+	      box-shadow: inset 0 1px 0 rgba(255,255,255,.26) !important;
+	      -webkit-backdrop-filter: blur(18px) saturate(1.06) !important;
+	      backdrop-filter: blur(18px) saturate(1.06) !important;
+	      font-size: 14px !important;
+	      font-weight: 700 !important;
+	      line-height: 1.2 !important;
+	    }
+
+	    body:not(.generating-pdf) .archive-filter-count {
+	      flex: 0 0 auto !important;
+	      color: rgba(17,24,39,.58) !important;
+	      font-size: 12px !important;
+	      font-weight: 800 !important;
+	      white-space: nowrap !important;
+	    }
+
+	    body:not(.generating-pdf) .archive-list {
+	      flex: 1 1 auto !important;
+	      display: flex !important;
+	      flex-direction: column !important;
       gap: 9px !important;
       min-height: 0 !important;
       margin: 0 !important;
@@ -13107,9 +13399,35 @@
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,.28),
         0 8px 18px rgba(2,8,23,.045) !important;
-      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
-      backdrop-filter: blur(18px) saturate(1.08) !important;
-    }
+	      -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+	      backdrop-filter: blur(18px) saturate(1.08) !important;
+	    }
+
+	    body:not(.generating-pdf) .archive-item.archive-item-current {
+	      border-color: rgba(10,132,255,.58) !important;
+	      box-shadow:
+	        inset 0 1px 0 rgba(255,255,255,.30),
+	        0 0 0 2px rgba(10,132,255,.12),
+	        0 8px 18px rgba(2,8,23,.045) !important;
+	    }
+
+	    body:not(.generating-pdf) .archive-item-current .archive-detail-head::after,
+	    body:not(.generating-pdf) .archive-item-current .archive-title::after {
+	      content: "Geöffnet" !important;
+	      display: inline-flex !important;
+	      align-items: center !important;
+	      margin-left: 8px !important;
+	      padding: 4px 8px !important;
+	      border: 1px solid rgba(10,132,255,.22) !important;
+	      border-radius: 999px !important;
+	      color: #0a5fc8 !important;
+	      background: rgba(10,132,255,.12) !important;
+	      font-size: 11px !important;
+	      font-weight: 850 !important;
+	      line-height: 1.1 !important;
+	      vertical-align: middle !important;
+	      white-space: nowrap !important;
+	    }
 
     body:not(.generating-pdf) .archive-title {
       min-width: 0 !important;
@@ -13196,10 +13514,19 @@
         grid-template-columns: 1fr !important;
       }
 
-      body:not(.generating-pdf) .archive-item button {
-        width: 100% !important;
-      }
-    }
+	      body:not(.generating-pdf) .archive-item button {
+	        width: 100% !important;
+	      }
+
+	      body:not(.generating-pdf) .archive-filter-tools {
+	        align-items: stretch !important;
+	        flex-direction: column !important;
+	      }
+
+	      body:not(.generating-pdf) .archive-filter-count {
+	        align-self: flex-start !important;
+	      }
+	    }
 </style>
     `;
 
