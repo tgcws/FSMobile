@@ -9870,8 +9870,25 @@
 
 	          window.FSMOBILE_APPEND_REPORT_REMARK_TO_PDF = appendLandscapeReportRemarkToPdf;
 
+          function fsmobilePdfImageMatchesReference(imageData, referenceDataUrl) {
+            if (!imageData || !referenceDataUrl || typeof imageData !== "string" || typeof referenceDataUrl !== "string") return false;
+            if (imageData === referenceDataUrl) return true;
+            return imageData.length > 10000 && referenceDataUrl.length > 10000 && imageData.slice(0, 220) === referenceDataUrl.slice(0, 220);
+          }
+
+          function isFsmobileSignaturePdfImage(imageData, width, height) {
+            if (typeof imageData !== "string" || !/^data:image\\/png;base64,/i.test(imageData)) return false;
+            var currentSignature = currentFsmobileSignatureDataUrl();
+            var generatedSignature = generatedSignatureDataUrl();
+            if (fsmobilePdfImageMatchesReference(imageData, currentSignature) || fsmobilePdfImageMatchesReference(imageData, generatedSignature)) return true;
+            var imageWidth = Number(width);
+            var imageHeight = Number(height);
+            var signatureSized = imageWidth >= 55 && imageWidth <= 90 && imageHeight >= 15 && imageHeight <= 35;
+            return !!(signatureSized && imageData.length > 5000 && (currentSignature || generatedSignature));
+          }
+
 	          function appendGeneratedSignatureToPdf(doc) {
-	            if (!doc || doc.__fsmobileGeneratedSignatureAppended || doc.__fsmobileSignaturePdfTextSeen) return;
+	            if (!doc || doc.__fsmobileGeneratedSignatureAppended || doc.__fsmobileSignaturePdfTextSeen || doc.__fsmobileSignatureImageSeen) return;
 	            var signature = currentFsmobileSignatureDataUrl() || generatedSignatureDataUrl();
 	            if (!signature) return;
 	            Object.defineProperty(doc, "__fsmobileGeneratedSignatureAppended", { value: true });
@@ -10052,9 +10069,22 @@
             };
           }
 
+          function patchPdfImageMethod(target) {
+            if (!target || target.__fsmobileImagePatched || typeof target.addImage !== "function") return;
+            var originalAddImage = target.addImage;
+            Object.defineProperty(target, "__fsmobileImagePatched", { value: true });
+            target.addImage = function(imageData, format, x, y, width, height) {
+              if (isFsmobileSignaturePdfImage(imageData, width, height)) {
+                this.__fsmobileSignatureImageSeen = true;
+              }
+              return originalAddImage.apply(this, arguments);
+            };
+          }
+
           function patchPdfInstance(instance) {
             if (!instance) return instance;
             patchPdfTextMethod(instance);
+            patchPdfImageMethod(instance);
             patchPdfLogoMethods(instance);
             if (instance.__fsmobileSavePatched || typeof instance.save !== "function") return instance;
             var originalSave = instance.save;
@@ -10076,6 +10106,8 @@
           function patchJsPdfPrototype(JsPDF) {
             if (!JsPDF || !JsPDF.prototype) return;
             patchPdfTextMethod(JsPDF.prototype);
+            patchPdfImageMethod(JsPDF.prototype);
+            patchPdfImageMethod(JsPDF.API);
             patchPdfLogoMethods(JsPDF.prototype);
             if (JsPDF.prototype.__fsmobileSavePatched) return;
             var originalSave = JsPDF.prototype.save;

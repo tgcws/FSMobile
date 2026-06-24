@@ -1,5 +1,5 @@
-const CACHE_NAME = "fsmobile-v273";
-const APP_VERSION = "2026-06-24-v273";
+const CACHE_NAME = "fsmobile-v274";
+const APP_VERSION = "2026-06-24-v274";
 const CORE_ASSETS = [
   "./",
   "./index.html",
