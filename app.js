@@ -6964,18 +6964,31 @@
     return Number.isFinite(timestamp) ? timestamp : 0;
   }
 
+  const KNOWN_ARCHIVE_STORAGE_KEYS = new Set([
+    "maengelliste-pwa-v1-archive",
+    "maengelliste-bilddoku-pwa-v1-archive",
+    "maengelliste-maengelbeschreibungen-pwa-v1-archive",
+    "rwa_pruefbericht_archiv_v1"
+  ]);
+
+  const KNOWN_ARCHIVE_POINTER_STORAGE_KEYS = new Set([
+    "maengelliste-pwa-current-archive-id",
+    "maengelliste-bilddoku-pwa-current-archive-id",
+    "maengelliste-maengelbeschreibungen-pwa-current-archive-id",
+    "rwa_pruefbericht_current_archive_id"
+  ]);
+
   function isArchiveStorageKey(key) {
     const value = String(key || "");
-    if (!/^(?:fsmobile-.*archive.*v\d+|pb-.*archive.*v\d+)$/i.test(value)) return false;
     if (/current|session|temp|draft|pending/i.test(value)) return false;
-    return true;
+    if (KNOWN_ARCHIVE_STORAGE_KEYS.has(value)) return true;
+    return /^(?:fsmobile-.*archive.*v\d+|pb-.*archive.*v\d+)$/i.test(value);
   }
 
   function isArchivePointerStorageKey(key) {
     const value = String(key || "");
-    if (value === "pb-feuerloescher-current-archive-id") return true;
-    if (value === "pb-brandschutztueren-current-archive-id") return true;
-    if (/^pb-.*current-archive-id-v\d+$/i.test(value)) return true;
+    if (KNOWN_ARCHIVE_POINTER_STORAGE_KEYS.has(value)) return true;
+    if (/^pb-.*current-archive-id(?:-v\d+)?$/i.test(value)) return true;
     if (!/^fsmobile-/i.test(value) || !/current/i.test(value)) return false;
     if (/session|temp|draft|pending|auth|update/i.test(value)) return false;
     if (/archive/i.test(value)) return true;
@@ -8883,6 +8896,214 @@
             return "";
           }
 
+          var FSMOBILE_CUSTOMER_NUMBER_LABEL = "Kunden Nr.";
+          window.FSMOBILE_CUSTOMER_NUMBER_LABEL = FSMOBILE_CUSTOMER_NUMBER_LABEL;
+
+          var FSMOBILE_CUSTOMER_NUMBER_ALIGNED_HEADER_IDS = {
+            "pb-druckerhoehungsanlage": true,
+            "pb-nass-trocken-station": true,
+            "pb-loeschwasser-trocken": true,
+            "pb-loeschwasser-nass": true,
+            "pb-zentralbatterie-anlage": true,
+            "pb-wandhydranten": true,
+            "pb-hydranten": true
+          };
+
+          function isCustomerNumberAlignedHeaderReport() {
+            return Boolean(FSMOBILE_CUSTOMER_NUMBER_ALIGNED_HEADER_IDS[window.FSMOBILE_MODULE_ID || ""]);
+          }
+
+          function customerNumberKeys() {
+            return ["kundenNr", "kundennr", "kundenNummer", "kundennummer", "kunden_nr", "customerNumber", "customerNo", "customerId"];
+          }
+
+          function fieldLooksLikeCustomerNumber(field) {
+            if (!field || !("value" in field)) return false;
+            var haystack = normalizeFsmobileKey([
+              field.id || "",
+              field.name || "",
+              field.dataset ? field.dataset.field || "" : "",
+              field.getAttribute("aria-label") || "",
+              field.getAttribute("placeholder") || "",
+              fieldLabelText(field)
+            ].join(" "));
+            return haystack === "kundennr" ||
+              haystack.indexOf("kundennr") >= 0 ||
+              haystack.indexOf("kundennummer") >= 0 ||
+              haystack.indexOf("customernumber") >= 0 ||
+              haystack.indexOf("customerno") >= 0;
+          }
+
+          function customerNumberField() {
+            var direct = document.getElementById("kundenNrInput") ||
+              document.getElementById("kundenNummerInput") ||
+              document.getElementById("kundennrInput") ||
+              document.querySelector("[name='kundenNr'], [name='kundennr'], [name='kundenNummer'], [data-field='kundenNr'], [data-field='kundennr'], [data-field='kundenNummer']");
+            if (direct && "value" in direct) return direct;
+            return Array.from(document.querySelectorAll("input, textarea, select")).find(fieldLooksLikeCustomerNumber) || null;
+          }
+
+          function currentCustomerNumberValue() {
+            var field = customerNumberField();
+            return field && "value" in field ? String(field.value || "").trim() : "";
+          }
+
+          function setCustomerNumberFieldValue(value, options) {
+            var field = customerNumberField();
+            if (!field || !("value" in field)) return false;
+            field.value = value == null ? "" : String(value);
+            if (!options || options.dispatch !== false) {
+              try { field.dispatchEvent(new Event("input", { bubbles: true })); } catch (error) {}
+              try { field.dispatchEvent(new Event("change", { bubbles: true })); } catch (error) {}
+            }
+            return true;
+          }
+
+          function findAnlageFieldForCustomerPlacement() {
+            var ids = ["anlageInput", "anlagenNrInput", "anlagenNummerInput", "anlageNrInput", "anlagennrInput"];
+            for (var index = 0; index < ids.length; index += 1) {
+              var field = document.getElementById(ids[index]);
+              if (field && "value" in field) return field;
+            }
+            return Array.from(document.querySelectorAll("input, textarea, select")).find(function(field) {
+              var text = normalizeFsmobileKey([
+                field.id || "",
+                field.name || "",
+                field.dataset ? field.dataset.field || "" : "",
+                fieldLabelText(field)
+              ].join(" "));
+              return text.indexOf("anlagennr") >= 0 || text.indexOf("anlagennummer") >= 0 || (text.indexOf("anlagen") >= 0 && text.indexOf("nr") >= 0);
+            }) || null;
+          }
+
+          function createCustomerNumberControl(container) {
+            var wrapper = document.createElement("div");
+            var useFieldGroup = container && (
+              container.classList.contains("info-grid") ||
+              container.classList.contains("header-row") ||
+              container.classList.contains("form-grid")
+            );
+            wrapper.className = useFieldGroup ? "field-group fsmobile-kunden-nr-field" : "field fsmobile-kunden-nr-field";
+            var label = document.createElement("label");
+            label.setAttribute("for", "kundenNrInput");
+            label.textContent = FSMOBILE_CUSTOMER_NUMBER_LABEL;
+            var input = document.createElement("input");
+            input.id = "kundenNrInput";
+            input.name = "kundenNr";
+            input.type = "text";
+            input.autocomplete = "off";
+            input.setAttribute("data-field", "kundenNr");
+            input.setAttribute("aria-label", FSMOBILE_CUSTOMER_NUMBER_LABEL);
+            wrapper.append(label, input);
+            return wrapper;
+          }
+
+          function ensureCustomerNumberField() {
+            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "") || !document.body || document.body.classList.contains("generating-pdf")) return;
+            document.body.classList.toggle("fsmobile-kunden-nr-aligned-header", isCustomerNumberAlignedHeaderReport());
+            if (customerNumberField()) return;
+            var anlageField = findAnlageFieldForCustomerPlacement();
+            var anlageHost = anlageField ? anlageField.closest(".field, .field-group, .form-field, .control, label") : null;
+            var container = anlageHost ? anlageHost.parentElement : null;
+            if (!container) {
+              var assignmentSection = Array.from(document.querySelectorAll("section.card, .card, .info-grid, .header-row, .form-grid")).find(function(section) {
+                return section && section.textContent && normalizeFsmobileKey(section.textContent).indexOf("zuordnung") >= 0;
+              });
+              container = assignmentSection && assignmentSection.matches(".grid, .info-grid, .header-row, .form-grid")
+                ? assignmentSection
+                : assignmentSection && assignmentSection.querySelector(".grid, .info-grid, .header-row, .form-grid");
+            }
+            if (!container) {
+              container = document.createElement("div");
+              container.className = "grid fsmobile-portrait-assignment fsmobile-generated-assignment";
+              var anchor = document.querySelector(".title-bar, header") || document.body.firstElementChild;
+              if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(container, anchor.nextSibling);
+              else document.body.insertBefore(container, document.body.firstChild);
+            }
+            var control = createCustomerNumberControl(container);
+            if (anlageHost && anlageHost.parentNode === container) container.insertBefore(control, anlageHost.nextSibling);
+            else container.insertBefore(control, container.firstChild || null);
+          }
+
+          function extractCustomerNumberFromData(data) {
+            if (!data || typeof data !== "object") return "";
+            var direct = firstArchiveValue(data, customerNumberKeys());
+            if (direct) return String(direct).trim();
+            if (data.fields && typeof data.fields === "object") {
+              var fieldValue = firstArchiveValue(data.fields, customerNumberKeys());
+              if (fieldValue) return String(fieldValue).trim();
+            }
+            if (data.header && typeof data.header === "object") {
+              var headerValue = firstArchiveValue(data.header, customerNumberKeys());
+              if (headerValue) return String(headerValue).trim();
+            }
+            if (data.meta && typeof data.meta === "object") {
+              var metaValue = firstArchiveValue(data.meta, customerNumberKeys());
+              if (metaValue) return String(metaValue).trim();
+            }
+            if (data.report && typeof data.report === "object") return extractCustomerNumberFromData(data.report);
+            if (data.data && typeof data.data === "object") return extractCustomerNumberFromData(data.data);
+            return "";
+          }
+
+          function assignCustomerNumberToReportData(data, value) {
+            if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+            if (!data.fields || typeof data.fields !== "object" || Array.isArray(data.fields)) data.fields = {};
+            data.fields.kundenNr = value;
+            if (data.header && typeof data.header === "object" && !Array.isArray(data.header)) data.header.kundenNr = value;
+            if (data.meta && typeof data.meta === "object" && !Array.isArray(data.meta)) data.meta.kundenNr = value;
+            return data;
+          }
+
+          function mergeCustomerNumberIntoReportData(data) {
+            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return data;
+            var value = currentCustomerNumberValue();
+            return assignCustomerNumberToReportData(data, value);
+          }
+
+          function installCustomerNumberDataBridge() {
+            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.__fsmobileCustomerNumberBridgeInstalled) return;
+            window.__fsmobileCustomerNumberBridgeInstalled = true;
+            ["getCurrentReport", "collectData", "collectReportData", "buildStoragePayload"].forEach(function(name) {
+              var original = window[name];
+              if (typeof original !== "function" || original.__fsmobileCustomerNumberWrapped) return;
+              window[name] = function() {
+                return mergeCustomerNumberIntoReportData(original.apply(this, arguments));
+              };
+              window[name].__fsmobileCustomerNumberWrapped = true;
+            });
+            ["applyReport", "applyData", "applyReportData", "applyStoragePayload", "restoreReportData"].forEach(function(name) {
+              var original = window[name];
+              if (typeof original !== "function" || original.__fsmobileCustomerNumberWrapped) return;
+              window[name] = function(data) {
+                var value = extractCustomerNumberFromData(data);
+                var result = original.apply(this, arguments);
+                window.setTimeout(function() {
+                  ensureCustomerNumberField();
+                  setCustomerNumberFieldValue(value, { dispatch: false });
+                }, 0);
+                return result;
+              };
+              window[name].__fsmobileCustomerNumberWrapped = true;
+            });
+            if (window.Storage && window.Storage.prototype && !window.Storage.prototype.__fsmobileCustomerNumberPatched) {
+              var originalSetItem = window.Storage.prototype.setItem;
+              Object.defineProperty(window.Storage.prototype, "__fsmobileCustomerNumberPatched", { value: true });
+              window.Storage.prototype.setItem = function(key, value) {
+                if (this === localStorage && /^pb-/.test(window.FSMOBILE_MODULE_ID || "") && !window.__fsmobileReportImportInProgress) {
+                  try {
+                    var text = String(value || "");
+                    if (/^\\s*\\{/.test(text) && isModuleDraftStorageKey(key)) {
+                      var payload = JSON.parse(text);
+                      value = JSON.stringify(mergeCustomerNumberIntoReportData(payload));
+                    }
+                  } catch (error) {}
+                }
+                return originalSetItem.call(this, key, value);
+              };
+            }
+          }
+
 	          var FSMOBILE_SIGNATURE_LABEL = "Unterschrift Techniker";
 	          var FSMOBILE_TECHNICIAN_LABEL = "Techniker";
 	          window.FSMOBILE_SIGNATURE_LABEL = FSMOBILE_SIGNATURE_LABEL;
@@ -8948,7 +9169,7 @@
 
           function looksLikeInlinePdfLabel(value) {
             if (typeof value !== "string") return false;
-            return /^(Objekt|Anlagen\s*Nr\.?|Techniker|Name|Prüfer|Datum)\s*:?\s*$/i.test(value);
+            return /^(Objekt|Anlagen\s*Nr\.?|Kunden\s*Nr\.?|Techniker|Name|Prüfer|Datum)\s*:?\s*$/i.test(value);
           }
 
           function rememberInlinePdfLabel(doc, originalText, normalizedText, x, y) {
@@ -9998,6 +10219,30 @@
             return doc;
           }
 
+          function appendCustomerNumberToPdf(doc) {
+            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "") || !doc || doc.__fsmobileCustomerNumberPdfAppended || doc.__fsmobileCustomerNumberPdfTextSeen) return doc;
+            var label = FSMOBILE_CUSTOMER_NUMBER_LABEL + ": " + (currentCustomerNumberValue() || "-");
+            try { Object.defineProperty(doc, "__fsmobileCustomerNumberPdfAppended", { value: true }); }
+            catch (error) { doc.__fsmobileCustomerNumberPdfAppended = true; }
+            try {
+              var pageCount = getFsmobilePdfPageCount(doc);
+              var currentPage = getFsmobileCurrentPdfPage(doc);
+              var pageWidth = getFsmobilePdfPageWidth(doc);
+              var x = 12;
+              var y = 24;
+              var maxWidth = Math.max(50, pageWidth - 24);
+              for (var page = 1; page <= pageCount; page += 1) {
+                try { if (typeof doc.setPage === "function") doc.setPage(page); } catch (error) {}
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.setTextColor("#111827");
+                doc.text(doc.splitTextToSize(label, maxWidth), x, y);
+              }
+              try { if (currentPage && typeof doc.setPage === "function") doc.setPage(currentPage); } catch (error) {}
+            } catch (error) {}
+            return doc;
+          }
+
           window.FSMOBILE_STAMP_PDF_LOGO = stampFsmobilePdfLogo;
 
           function patchPdfLogoMethods(target) {
@@ -10006,6 +10251,7 @@
             if (typeof target.output === "function") {
               var originalOutput = target.output;
               target.output = function() {
+                appendCustomerNumberToPdf(this);
                 stampFsmobilePdfLogo(this);
                 return originalOutput.apply(this, arguments);
               };
@@ -10061,6 +10307,9 @@
               if (/unterschrift\s+techniker/i.test(pdfArgumentPlainText(originalPdfText)) || /unterschrift\s+techniker/i.test(pdfArgumentPlainText(args[0]))) {
                 this.__fsmobileSignaturePdfTextSeen = true;
               }
+              if (/kunden\s*nr\.?/i.test(pdfArgumentPlainText(originalPdfText)) || /kunden\s*nr\.?/i.test(pdfArgumentPlainText(args[0]))) {
+                this.__fsmobileCustomerNumberPdfTextSeen = true;
+              }
               var framedReportTitle = false;
               if (typeof args[1] === "number" && typeof args[2] === "number") {
                 applyInlinePdfLabelSpacing(this, args, args[0]);
@@ -10094,10 +10343,11 @@
             patchPdfLogoMethods(instance);
             if (instance.__fsmobileSavePatched || typeof instance.save !== "function") return instance;
             var originalSave = instance.save;
-	            Object.defineProperty(instance, "__fsmobileSavePatched", { value: true });
+		            Object.defineProperty(instance, "__fsmobileSavePatched", { value: true });
 		            instance.save = function(fileName) {
 		              var args = Array.prototype.slice.call(arguments);
 		              args[0] = fsmobilePdfFileName(fileName);
+		              appendCustomerNumberToPdf(this);
 		              appendLandscapeReportRemarkToPdf(this);
 		              appendGeneratedSignatureToPdf(this);
 	              stampFsmobilePdfLogo(this);
@@ -10122,6 +10372,7 @@
 		            JsPDF.prototype.save = function(fileName) {
 		              var args = Array.prototype.slice.call(arguments);
 		              args[0] = fsmobilePdfFileName(fileName);
+		              appendCustomerNumberToPdf(this);
 		              appendLandscapeReportRemarkToPdf(this);
 		              appendGeneratedSignatureToPdf(this);
 	              stampFsmobilePdfLogo(this);
@@ -10470,9 +10721,13 @@
               var date = firstArchiveValue(sourceHeader, ["date", "datum", "dateInput", "datumInput"])
                 || firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
                 || firstArchiveValue(report, ["date", "datum", "dateInput", "datumInput"]);
+              var customer = firstArchiveValue(sourceHeader, customerNumberKeys())
+                || firstArchiveValue(fields, customerNumberKeys())
+                || firstArchiveValue(report, customerNumberKeys());
               var header = Object.assign({}, sourceHeader, {
                 objekt: String(object || "").trim(),
                 anlage: String(anlage || "").trim(),
+                kundenNr: String(customer || "").trim(),
                 name: String(technician || "").trim(),
                 datum: normalizeArchiveDate(date)
               });
@@ -10480,6 +10735,7 @@
               fields.objekt = header.objekt;
               fields.anlage = header.anlage;
               fields.anlagenNr = header.anlage;
+              fields.kundenNr = header.kundenNr;
               fields.pruefer = header.name;
               fields.techniker = header.name;
               fields.name = header.name;
@@ -10559,9 +10815,13 @@
               var date = firstArchiveValue(sourceHeader, ["date", "datum", "dateInput", "datumInput"])
                 || firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
                 || firstArchiveValue(report, ["date", "datum", "dateInput", "datumInput"]);
+              var customer = firstArchiveValue(sourceHeader, customerNumberKeys())
+                || firstArchiveValue(fields, customerNumberKeys())
+                || firstArchiveValue(report, customerNumberKeys());
               var header = Object.assign({}, sourceHeader, {
                 objekt: String(object || "").trim(),
                 anlage: String(anlage || "").trim(),
+                kundenNr: String(customer || "").trim(),
                 name: String(technician || "").trim(),
                 datum: normalizeArchiveDate(date)
               });
@@ -10569,6 +10829,7 @@
               fields.objekt = header.objekt;
               fields.anlage = header.anlage;
               fields.anlagenNr = header.anlage;
+              fields.kundenNr = header.kundenNr;
               fields.pruefer = header.name;
               fields.techniker = header.name;
               fields.name = header.name;
@@ -10599,7 +10860,7 @@
                     Array.isArray(entry.rows)
                     || entry.header
                     || entry.fields
-                    || archiveSourceHasAnyKey(entry, ["object", "objekt", "anlage", "anlagenNr", "name", "date", "datum"])
+                    || archiveSourceHasAnyKey(entry, ["object", "objekt", "anlage", "anlagenNr", "name", "date", "datum"].concat(customerNumberKeys()))
                   )
                     ? entry
                     : {};
@@ -10622,9 +10883,14 @@
                 || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"]);
               var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
                 || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"]);
+              var customer = firstArchiveValue(fields, customerNumberKeys())
+                || firstArchiveValue(header, customerNumberKeys());
               if (anlage) {
                 fields.anlage = String(anlage).trim();
                 if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
+              }
+              if (customer || archiveSourceHasAnyKey(fields, customerNumberKeys()) || archiveSourceHasAnyKey(header, customerNumberKeys())) {
+                fields.kundenNr = String(customer || "").trim();
               }
               if (object) {
                 fields.object = String(object).trim();
@@ -10676,11 +10942,18 @@
               var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
                 || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"])
                 || domFields.date;
+              var customer = firstArchiveValue(fields, customerNumberKeys())
+                || firstArchiveValue(header, customerNumberKeys())
+                || domFields.kundenNr;
               var technician = firstArchiveValue(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])
                 || firstArchiveValue(header, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"]);
               if (anlage) {
                 fields.anlage = String(anlage).trim();
                 if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
+              }
+              if (customer || archiveHasAnyKey(fields, customerNumberKeys()) || archiveHasAnyKey(header, customerNumberKeys()) || customerNumberField()) {
+                fields.kundenNr = String(customer || "").trim();
+                if (report.header && typeof report.header === "object" && !Array.isArray(report.header)) report.header.kundenNr = fields.kundenNr;
               }
               if (object) {
                 fields.object = String(object).trim();
@@ -10714,6 +10987,11 @@
                   ["dateInput", "datumInput"],
                   ["[name='date']", "[name='datum']", "[data-field='date']", "[data-field='datum']", "[aria-label='Datum']", "input[type='date']"],
                   [["datum"], ["date"]]
+                ),
+                kundenNr: firstArchiveDomValue(
+                  ["kundenNrInput", "kundenNummerInput", "kundennrInput"],
+                  ["[name='kundenNr']", "[name='kundennr']", "[name='kundenNummer']", "[data-field='kundenNr']", "[data-field='kundennr']", "[data-field='kundenNummer']", "[aria-label='Kunden Nr.']", "[aria-label='Kunden Nr']", "[placeholder*='Kunden']"],
+                  [["kunden", "nr"], ["kunde", "nr"], ["customer"]]
                 )
               };
             }
@@ -10794,11 +11072,16 @@
                 || firstArchiveValue(header, ["object", "objekt", "objectInput", "objektInput"]);
               var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"])
                 || firstArchiveValue(header, ["date", "datum", "dateInput", "datumInput"]);
+              var customer = firstArchiveValue(fields, customerNumberKeys())
+                || firstArchiveValue(header, customerNumberKeys());
               var technician = firstArchiveValue(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"])
                 || firstArchiveValue(header, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"]);
               if (anlage) {
                 fields.anlage = String(anlage).trim();
                 if (!fields.anlagenNr) fields.anlagenNr = fields.anlage;
+              }
+              if (customer || archiveHasAnyKey(fields, customerNumberKeys()) || archiveHasAnyKey(header, customerNumberKeys())) {
+                fields.kundenNr = String(customer || "").trim();
               }
               if (object) {
                 fields.object = String(object).trim();
@@ -10858,6 +11141,7 @@
               var anlage = firstArchiveValue(fields, ["anlage", "anlagenNr", "anlagenNummer", "anlageNr", "anlagennr", "anlagen_nr"]);
               var object = firstArchiveValue(fields, ["object", "objekt", "objectInput", "objektInput"]);
               var date = firstArchiveValue(fields, ["date", "datum", "dateInput", "datumInput"]);
+              var customer = firstArchiveValue(fields, customerNumberKeys());
               var technician = firstArchiveValue(fields, ["pruefer", "techniker", "name", "technician", "prueferInput", "technikerInput"]);
               var hasReportRemark = archiveHasAnyKey(fields, ["berichtBemerkung", "reportRemark", "reportBemerkung"]) || archiveHasAnyKey(report, ["berichtBemerkung", "reportRemark", "reportBemerkung"]);
               var reportRemark = firstArchiveValue(fields, ["berichtBemerkung", "reportRemark", "reportBemerkung"]);
@@ -10869,6 +11153,15 @@
                   ["[name='anlage']", "[name='anlagenNr']", "[name='anlagenNummer']", "[name='anlageNr']", "[name='anlagen_nr']", "[data-field='anlage']", "[data-field='anlagenNr']", "[data-field='anlagenNummer']", "[data-field='anlageNr']", "[data-field='anlagen_nr']", "[aria-label='Anlagen Nr.']", "[aria-label='Anlagen Nr']"],
                   [["anlagen", "nr"], ["anlage", "nr"]],
                   anlage
+                );
+              }
+              if (archiveHasAnyKey(fields, customerNumberKeys())) {
+                ensureCustomerNumberField();
+                setFirstArchiveDomValue(
+                  ["kundenNrInput", "kundenNummerInput", "kundennrInput"],
+                  ["[name='kundenNr']", "[name='kundennr']", "[name='kundenNummer']", "[data-field='kundenNr']", "[data-field='kundennr']", "[data-field='kundenNummer']", "[aria-label='Kunden Nr.']", "[aria-label='Kunden Nr']"],
+                  [["kunden", "nr"], ["kunde", "nr"], ["customer"]],
+                  customer
                 );
               }
               if (archiveHasAnyKey(fields, ["object", "objekt", "objectInput", "objektInput"])) {
@@ -11186,11 +11479,16 @@
                 || firstArchiveValue(meta, ["name", "pruefer", "prüfer", "techniker", "technician", "nameInput", "prueferInput", "technikerInput"])
                 || firstArchiveValue(reportFields, ["name", "pruefer", "prüfer", "techniker", "technician", "nameInput", "prueferInput", "technikerInput"])
                 || firstArchiveValue(reportHeader, ["name", "pruefer", "prüfer", "techniker", "technician", "nameInput", "prueferInput", "technikerInput"]);
+              var customer = firstArchiveValue(fields, customerNumberKeys())
+                || firstArchiveValue(meta, customerNumberKeys())
+                || firstArchiveValue(reportFields, customerNumberKeys())
+                || firstArchiveValue(reportHeader, customerNumberKeys());
               var trade = firstArchiveValue(meta, ["gewerk", "trade"]) || firstArchiveValue(fields, ["gewerk", "trade"]) || firstArchiveValue(reportFields, ["gewerk", "trade"]);
               return {
                 type: archiveModuleTypeLabel(),
                 object: archiveMissingText(object, "nicht vorhanden"),
                 anlage: archiveMissingText(anlage, "nicht vorhanden"),
+                kundenNr: archiveMissingText(customer, ""),
                 date: date ? archiveDisplayDate(date) : "Datum fehlt",
                 updated: archiveDisplayDateTime(entry && (entry.updatedAt || entry.savedAt || entry.createdAt)),
                 name: archiveMissingText(name, ""),
@@ -11228,6 +11526,7 @@
               var grid = document.createElement("div");
               grid.className = "archive-detail-grid";
               appendArchiveMetaPair(grid, "Anlagen-Nr.", meta.anlage);
+              if (meta.kundenNr) appendArchiveMetaPair(grid, "Kunden-Nr.", meta.kundenNr);
               if (meta.name) appendArchiveMetaPair(grid, "Name", meta.name);
               if (meta.trade) appendArchiveMetaPair(grid, "Gewerk", meta.trade);
               var updated = document.createElement("div");
@@ -12473,6 +12772,8 @@
 			            installFsmobileTextareaAutosizeGuard();
 			            markPositionCells();
 			            normalizePortraitAssignmentSections();
+			            ensureCustomerNumberField();
+			            installCustomerNumberDataBridge();
 			            ensureLandscapeReportRemarkField();
 			            installRwaChoicePillTapFix();
 			            ensureGeneratedTechnikerSignatureField();
@@ -12493,6 +12794,8 @@
 	            function refreshReportEnhancements() {
 	                fsmobileResizeAllTextareas();
 	                normalizePortraitAssignmentSections();
+		                ensureCustomerNumberField();
+		                installCustomerNumberDataBridge();
 		                ensureLandscapeReportRemarkField();
 		                installRwaChoicePillTapFix();
 	                markPositionCells();
@@ -12574,6 +12877,7 @@
         body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment {
           display: grid !important;
           grid-template-columns: repeat(4, minmax(150px, 1fr)) !important;
+          align-items: end !important;
           gap: 12px !important;
           width: 100% !important;
           margin: 0 0 18px !important;
@@ -12586,10 +12890,16 @@
           backdrop-filter: none !important;
         }
 
-        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment .field {
+        body:not(.generating-pdf).fsmobile-portrait-report.fsmobile-kunden-nr-aligned-header .fsmobile-portrait-assignment {
+          grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        }
+
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment .field,
+        body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment .field-group {
           min-width: 0 !important;
           display: flex !important;
           flex-direction: column !important;
+          gap: 0 !important;
         }
 
         body:not(.generating-pdf).fsmobile-portrait-report .fsmobile-portrait-assignment label {
