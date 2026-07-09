@@ -769,7 +769,7 @@
     .section,.table-shell,.title-actions,.button-area,.remarks-card{background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.1) 52%,rgba(255,255,255,.04)),rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.46);border-radius:var(--radius-lg);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.32);-webkit-backdrop-filter:blur(18px) saturate(1.08);backdrop-filter:blur(18px) saturate(1.08)}
     .section,.remarks-card{margin-bottom:14px;padding:14px}
     .remarks-card textarea{width:100%;min-height:88px}
-    .header-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .header-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
     .field-group{display:flex;min-width:0;flex-direction:column;gap:5px}
     label{padding-left:2px;color:var(--muted);font-size:12px;line-height:1.15;font-weight:760;letter-spacing:0}
     input,select,textarea,button{font:inherit}
@@ -859,6 +859,10 @@
           <input id="objekt" autocomplete="off" />
         </div>
         <div class="field-group">
+          <label for="kundenNr">Kunden Nr.</label>
+          <input id="kundenNr" name="kundenNr" autocomplete="off" aria-label="Kunden Nr." />
+        </div>
+        <div class="field-group">
           <label for="gewerk">Gewerk</label>
           <select id="gewerk">
             <option value="">Bitte auswählen</option>
@@ -946,6 +950,7 @@
     const archiveList = document.getElementById("archiveList");
     const fields = {
       objekt: document.getElementById("objekt"),
+      kundenNr: document.getElementById("kundenNr"),
       gewerk: document.getElementById("gewerk"),
       gewerkSonstige: document.getElementById("gewerkSonstige"),
       name: document.getElementById("name"),
@@ -1135,6 +1140,7 @@
       return {
         fields: {
           objekt: fields.objekt.value || "",
+          kundenNr: fields.kundenNr.value || "",
           gewerk: fields.gewerk.value || "",
           gewerkSonstige: fields.gewerkSonstige.value || "",
           gewerkDisplay: getGewerkDisplay(),
@@ -1151,6 +1157,7 @@
       const next = data && typeof data === "object" ? data : {};
       const nextFields = next.fields || next.header || {};
       fields.objekt.value = nextFields.objekt || "";
+      fields.kundenNr.value = nextFields.kundenNr || "";
       fields.gewerk.value = nextFields.gewerk || "";
       fields.gewerkSonstige.value = nextFields.gewerkSonstige || "";
       fields.name.value = nextFields.name || "";
@@ -1176,6 +1183,7 @@
       if (!window.confirm("Mängelliste wirklich leeren?")) return;
       localStorage.removeItem(CURRENT_ARCHIVE_ID_KEY);
       fields.objekt.value = "";
+      fields.kundenNr.value = "";
       fields.gewerk.value = "";
       fields.gewerkSonstige.value = "";
       fields.name.value = "";
@@ -1207,6 +1215,7 @@
       const rowCount = data && Array.isArray(data.rows) ? data.rows.length : 0;
       const bits = [];
       bits.push("Mängelliste-MB");
+      if (dataFields.kundenNr) bits.push("Kunden Nr.: " + dataFields.kundenNr);
       if (dataFields.name) bits.push("Name: " + dataFields.name);
       bits.push(rowCount + " Zeile" + (rowCount === 1 ? "" : "n"));
       if (updated) bits.push("Geändert: " + new Date(updated).toLocaleString("de-DE"));
@@ -1296,21 +1305,25 @@
       return new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     }
 
+    const PDF_TITLE_TOP = 24;
+    const PDF_TITLE_HEIGHT = 10;
+    const PDF_CONTENT_TOP = PDF_TITLE_TOP + PDF_TITLE_HEIGHT + 8;
+
     function drawPdfHeader(doc, title) {
       doc.setFillColor(255, 180, 71);
-      doc.rect(10, 10, 277, 12, "F");
+      doc.rect(10, PDF_TITLE_TOP, 277, PDF_TITLE_HEIGHT, "F");
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text(title, 14, 18);
+      doc.text(title, 14, PDF_TITLE_TOP + 6.8);
       doc.setTextColor(0, 0, 0);
+      return PDF_CONTENT_TOP;
     }
 
     function addPageIfNeeded(doc, y, needed) {
       if (y + needed <= 196) return y;
       doc.addPage();
-      drawPdfHeader(doc, "Mängelliste-MB");
-      return 30;
+      return drawPdfHeader(doc, "Mängelliste-MB");
     }
 
     function sanitizeFileName(value) {
@@ -1347,25 +1360,29 @@
       const widths = [18, 18, 112, 53, 20, 28, 28];
       const headers = ["Bauteil", "Mangel", "Beschreibung der Reparatur", "Benötigtes Bauteil", "Einheit", "Artikel Nr.", "Zeit"];
       let y = 10;
-      drawPdfHeader(doc, "Mängelliste-MB");
-      y = 28;
+      y = drawPdfHeader(doc, "Mängelliste-MB");
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(0, 0, 0);
       const meta = [
         ["Objekt", data.fields.objekt],
+        ["Kunden Nr.", data.fields.kundenNr],
         ["Gewerk", data.fields.gewerkDisplay || getGewerkDisplay(data.fields)],
         ["Name", data.fields.name],
         ["Datum", data.fields.datum]
       ];
+      const metaColumnWidth = (doc.internal.pageSize.getWidth() - margin * 2) / meta.length;
+      let metaBlockHeight = 0;
       meta.forEach(function(pair, index) {
-        const x = margin + index * 70;
+        const x = margin + index * metaColumnWidth;
+        const valueLines = doc.splitTextToSize(String(pair[1] || "-"), metaColumnWidth - 3);
+        metaBlockHeight = Math.max(metaBlockHeight, valueLines.length * 3.8);
         doc.setFont("helvetica", "bold");
-        doc.text(pair[0] + ":", x, y);
+        doc.text(pair[0], x, y);
         doc.setFont("helvetica", "normal");
-        doc.text(String(pair[1] || "-"), x + 18, y);
+        doc.text(valueLines, x, y + 4.8);
       });
-      y += 9;
+      y += Math.max(13, metaBlockHeight + 8);
       doc.setFont("helvetica", "bold");
       let x = margin;
       headers.forEach(function(header, index) {
@@ -1421,8 +1438,7 @@
           offset += chunk.length;
           if (offset < lines.length) {
             doc.addPage();
-            drawPdfHeader(doc, "Mängelliste-MB");
-            y = 30;
+            y = drawPdfHeader(doc, "Mängelliste-MB");
           }
         }
       }
