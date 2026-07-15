@@ -93,6 +93,7 @@
       title: "Kalkulation",
       accent: "accent-orange",
       modules: [
+        "auftrag-bescheinigungen",
         "maengelliste",
         "maengelliste-bilddoku",
         "maengelliste-maengelbeschreibungen",
@@ -168,6 +169,7 @@
   ];
 
   const CARD_TITLES = {
+    "auftrag-bescheinigungen": "Auftrag Bescheinigungen",
     "maengelliste-maengelbeschreibungen": "Mängelliste-MB",
     "aufmass-brandabschottungen": "Brandabschottungen",
     "pb-feuerloescher": "Feuerlöscher",
@@ -6981,6 +6983,7 @@
   }
 
   const KNOWN_ARCHIVE_STORAGE_KEYS = new Set([
+    "auftrag-bescheinigungen-archive-v1",
     "maengelliste-pwa-v1-archive",
     "maengelliste-bilddoku-pwa-v1-archive",
     "maengelliste-maengelbeschreibungen-pwa-v1-archive",
@@ -6988,6 +6991,7 @@
   ]);
 
   const KNOWN_ARCHIVE_POINTER_STORAGE_KEYS = new Set([
+    "auftrag-bescheinigungen-current-archive-id-v1",
     "maengelliste-pwa-current-archive-id",
     "maengelliste-bilddoku-pwa-current-archive-id",
     "maengelliste-maengelbeschreibungen-pwa-current-archive-id",
@@ -8245,6 +8249,7 @@
 
 	  function moduleUsesToastOnlyStatus(id) {
 	    return [
+	      "auftrag-bescheinigungen",
 	      "maengelliste",
 	      "maengelliste-bilddoku",
 	      "maengelliste-maengelbeschreibungen",
@@ -8406,8 +8411,9 @@
             if (/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) {
               document.documentElement.classList.add("fsmobile-pb-module");
             }
-            if ({
-              "maengelliste": true,
+	            if ({
+	              "auftrag-bescheinigungen": true,
+	              "maengelliste": true,
               "maengelliste-bilddoku": true,
               "maengelliste-maengelbeschreibungen": true,
               "aufmass-akku": true,
@@ -10165,7 +10171,7 @@
           var FSMOBILE_PDF_LOGO_RIGHT_MM = 15;
 
           function shouldStampFsmobilePdfLogo() {
-            return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen" || window.FSMOBILE_MODULE_ID === "maengelliste" || window.FSMOBILE_MODULE_ID === "maengelliste-bilddoku" || window.FSMOBILE_MODULE_ID === "maengelliste-maengelbeschreibungen";
+            return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "auftrag-bescheinigungen" || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen" || window.FSMOBILE_MODULE_ID === "maengelliste" || window.FSMOBILE_MODULE_ID === "maengelliste-bilddoku" || window.FSMOBILE_MODULE_ID === "maengelliste-maengelbeschreibungen";
           }
 
           function getFsmobilePdfPageWidth(doc) {

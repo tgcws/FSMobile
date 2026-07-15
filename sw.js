@@ -1,11 +1,12 @@
-const CACHE_NAME = "fsmobile-v284";
-const APP_VERSION = "2026-07-09-v284";
+const CACHE_NAME = "fsmobile-v290";
+const APP_VERSION = "2026-07-15-v290";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./modules.js",
+  "./auftrag-bescheinigungen.js",
   "./manifest.webmanifest",
   "./vendor/html2canvas.min.js",
   "./vendor/jspdf.umd.min.js",
