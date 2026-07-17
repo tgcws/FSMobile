@@ -9126,6 +9126,26 @@
             }
           }
 
+          function restoreCustomerNumberFromDraft() {
+            if (!/^pb-/.test(window.FSMOBILE_MODULE_ID || "")) return false;
+            ensureCustomerNumberField();
+            var field = customerNumberField();
+            if (!field || !("value" in field) || String(field.value || "").trim()) return false;
+            var keys = moduleDraftStorageKeys();
+            for (var index = 0; index < keys.length; index += 1) {
+              var raw = "";
+              try { raw = localStorage.getItem(keys[index]) || ""; } catch (error) { continue; }
+              if (!/^\s*\{/.test(raw)) continue;
+              try {
+                var value = extractCustomerNumberFromData(JSON.parse(raw));
+                if (!value) continue;
+                setCustomerNumberFieldValue(value, { dispatch: false });
+                return true;
+              } catch (error) {}
+            }
+            return false;
+          }
+
 	          var FSMOBILE_SIGNATURE_LABEL = "Unterschrift Techniker";
 	          var FSMOBILE_TECHNICIAN_LABEL = "Techniker";
 	          window.FSMOBILE_SIGNATURE_LABEL = FSMOBILE_SIGNATURE_LABEL;
@@ -12803,6 +12823,7 @@
 			            normalizePortraitAssignmentSections();
 			            ensureCustomerNumberField();
 			            installCustomerNumberDataBridge();
+			            restoreCustomerNumberFromDraft();
 			            ensureLandscapeReportRemarkField();
 			            installRwaChoicePillTapFix();
 			            ensureGeneratedTechnikerSignatureField();
@@ -12825,6 +12846,7 @@
 	                normalizePortraitAssignmentSections();
 		                ensureCustomerNumberField();
 		                installCustomerNumberDataBridge();
+		                restoreCustomerNumberFromDraft();
 		                ensureLandscapeReportRemarkField();
 		                installRwaChoicePillTapFix();
 	                markPositionCells();
