@@ -12308,8 +12308,15 @@
             function findReportValue(keys) {
               for (var index = 0; index < keys.length; index += 1) {
                 var key = keys[index];
-                var field = document.getElementById(key + "Input") || document.getElementById(key) || document.querySelector("[name='" + key + "']");
-                if (field && "value" in field && field.type !== "radio" && field.type !== "checkbox" && field.type !== "file" && field.type !== "hidden" && String(field.value || "").trim()) return field.value;
+                var candidates = [
+                  document.getElementById(key + "Input"),
+                  document.getElementById(key),
+                  document.querySelector("[name='" + key + "']")
+                ];
+                for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+                  var field = candidates[candidateIndex];
+                  if (field && "value" in field && field.type !== "radio" && field.type !== "checkbox" && field.type !== "file" && field.type !== "hidden" && String(field.value || "").trim()) return field.value;
+                }
               }
               return "";
             }
