@@ -3441,6 +3441,44 @@
           });
           y += 4;
         }
+        function flowingKv(title, rows) {
+          const rowWidth = pageWidth - margin * 2;
+          const lineHeight = 3.6;
+          function continuation() {
+            pdf.addPage();
+            y = 30;
+            header(true);
+            section(title + " (Fortsetzung)");
+          }
+          ensure(21);
+          section(title);
+          rows.forEach(row => {
+            const lines = pdf.splitTextToSize(clean(row[1]), rowWidth - 4).slice();
+            let continued = false;
+            while (lines.length) {
+              if (y + 13 > bottom) continuation();
+              const availableLines = Math.max(1, Math.floor((bottom - y - 9) / lineHeight));
+              const chunk = lines.splice(0, availableLines);
+              const rowHeight = Math.max(13, 9 + chunk.length * lineHeight);
+              pdf.setDrawColor(255, 255, 255);
+              pdf.setLineWidth(0.2);
+              pdf.setFillColor("#f5f5f5");
+              pdf.rect(margin, y, rowWidth, rowHeight, "FD");
+              pdf.setFont("helvetica", "bold");
+              pdf.setFontSize(6.5);
+              pdf.setTextColor("#6b7280");
+              pdf.text(continued ? clean(row[0]) + " (Fortsetzung)" : clean(row[0]), margin + 2, y + 3.8);
+              pdf.setFont("helvetica", "normal");
+              pdf.setFontSize(8.2);
+              pdf.setTextColor("#1c1c1e");
+              pdf.text(chunk, margin + 2, y + 8.5);
+              y += rowHeight;
+              continued = true;
+              if (lines.length) continuation();
+            }
+          });
+          y += 4;
+        }
         function table(title, headers, rows, widths) {
           section(title);
           const tableRows = rows.length ? rows : [headers.map(() => "-")];
@@ -3532,10 +3570,10 @@
           ...CHECK_FIELDS.filter(item => item[2] === "waterChecks").map(item => [item[1], boolLabel(document.querySelector("[data-field='" + item[0] + "']").value)]),
           ["Anschluss", textValue("anschlussSelect")]
         ], 1);
-        kv("Prüfergebnis", [
+        flowingKv("Prüfergebnis", [
           ["Prüfergebnis", textValue("pruefergebnisSelect")],
           ["Bemerkung", textValue("bemerkungInput")]
-        ], 1);
+        ]);
         ensure(32);
         section("Unterschrift Techniker");
         pdf.setFillColor("#f5f5f5");
