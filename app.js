@@ -125,6 +125,7 @@
         "pb-fluchttuer-steuerungen",
         "pb-druckerhoehungsanlage",
         "pb-nass-trocken-station",
+        "pb-druckpruefung-din-14462",
         "pb-loeschwasser-trocken",
         "pb-loeschwasser-nass",
         "pb-zentralbatterie-anlage",
@@ -190,6 +191,7 @@
     "pb-fluchttuer-steuerungen": "Fluchttür-Steuerungen",
     "pb-druckerhoehungsanlage": "Druckerhöhungsanlagen",
     "pb-nass-trocken-station": "Nass/Trocken-Station",
+    "pb-druckpruefung-din-14462": "Druckprüfung DIN 14462",
     "pb-loeschwasser-trocken": "Löschwassereinrichtung Trocken",
     "pb-loeschwasser-nass": "Löschwassereinrichtung Nass",
     "pb-zentralbatterie-anlage": "Zentralbatterie-Anlage",
@@ -8301,7 +8303,8 @@
 	      "aufmass-tueren",
 	      "aufmass-brandabschottungen",
 	      "pb-feuerloescher",
-	      "pb-brandschutztueren"
+	      "pb-brandschutztueren",
+	      "pb-druckpruefung-din-14462"
 	    ].includes(id || "");
 	  }
 
@@ -8791,6 +8794,7 @@
             "pb-rwa": true,
             "pb-druckerhoehungsanlage": true,
             "pb-nass-trocken-station": true,
+            "pb-druckpruefung-din-14462": true,
             "pb-loeschwasser-trocken": true,
             "pb-loeschwasser-nass": true,
             "pb-zentralbatterie-anlage": true,
@@ -8968,6 +8972,7 @@
           var FSMOBILE_CUSTOMER_NUMBER_ALIGNED_HEADER_IDS = {
             "pb-druckerhoehungsanlage": true,
             "pb-nass-trocken-station": true,
+            "pb-druckpruefung-din-14462": true,
             "pb-loeschwasser-trocken": true,
             "pb-loeschwasser-nass": true,
             "pb-zentralbatterie-anlage": true,
