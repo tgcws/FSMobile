@@ -7076,12 +7076,37 @@
     return [AUTH_UNLOCK_KEY, OLD_PASS_HASH_KEY, UPDATE_RELOAD_KEY, LAST_BACKUP_KEY].includes(String(key || ""));
   }
 
+  const POSITION_CHECKBOX_UI_METADATA_KEY = "positionCheckboxes";
+
+  function withoutPositionCheckboxUiMetadata(entry) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
+    const copy = { ...entry };
+    const uiMetadata = copy.uiMetadata && typeof copy.uiMetadata === "object" && !Array.isArray(copy.uiMetadata)
+      ? { ...copy.uiMetadata }
+      : null;
+    if (!uiMetadata || !Object.prototype.hasOwnProperty.call(uiMetadata, POSITION_CHECKBOX_UI_METADATA_KEY)) return copy;
+    delete uiMetadata[POSITION_CHECKBOX_UI_METADATA_KEY];
+    if (Object.keys(uiMetadata).length) copy.uiMetadata = uiMetadata;
+    else delete copy.uiMetadata;
+    return copy;
+  }
+
+  function withoutPositionCheckboxUiMetadataFromEntries(entries) {
+    return (Array.isArray(entries) ? entries : []).map(withoutPositionCheckboxUiMetadata);
+  }
+
   function collectLocalStorageBackupData() {
     const storage = {};
     for (let index = 0; index < localStorage.length; index += 1) {
       const key = localStorage.key(index);
       if (!key || isBackupExcludedStorageKey(key)) continue;
-      const value = localStorage.getItem(key);
+      let value = localStorage.getItem(key);
+      if (value != null && isArchiveStorageKey(key)) {
+        try {
+          const entries = JSON.parse(value);
+          if (Array.isArray(entries)) value = JSON.stringify(withoutPositionCheckboxUiMetadataFromEntries(entries));
+        } catch {}
+      }
       if (value != null) storage[key] = value;
     }
     return Object.keys(storage).sort().reduce((result, key) => {
@@ -7096,7 +7121,7 @@
       const key = localStorage.key(index);
       if (!isArchiveStorageKey(key)) continue;
       const entries = readArchiveEntries(key);
-      if (entries.length) archives[key] = entries;
+      if (entries.length) archives[key] = withoutPositionCheckboxUiMetadataFromEntries(entries);
     }
     return archives;
   }
@@ -7112,7 +7137,9 @@
   function parseArchiveEntriesFromBackupValue(value) {
     try {
       const entries = JSON.parse(String(value || "[]"));
-      return Array.isArray(entries) ? entries.filter(entry => entry && typeof entry === "object") : null;
+      return Array.isArray(entries)
+        ? withoutPositionCheckboxUiMetadataFromEntries(entries.filter(entry => entry && typeof entry === "object"))
+        : null;
     } catch {
       return null;
     }
@@ -7383,7 +7410,8 @@
     const merged = existingEntries.slice();
     let added = 0;
     let updated = 0;
-    incomingEntries.forEach(incoming => {
+    incomingEntries.forEach(rawIncoming => {
+      const incoming = withoutPositionCheckboxUiMetadata(rawIncoming);
       if (!incoming || typeof incoming !== "object") return;
       const incomingId = String(incoming.id || "").trim();
       const incomingAssignment = archiveEntryAssignmentKey(storageKey, incoming);
@@ -7400,7 +7428,7 @@
       }
       const existing = merged[index];
       if (archiveEntryTimestamp(incoming) >= archiveEntryTimestamp(existing)) {
-        merged[index] = Object.assign({}, existing, incoming, {
+        merged[index] = Object.assign({}, withoutPositionCheckboxUiMetadata(existing), incoming, {
           id: (existing && existing.id) || incoming.id,
           createdAt: (existing && existing.createdAt) || incoming.createdAt
         });
@@ -8578,6 +8606,241 @@
               if (cell) cell.classList.add("fsm-pos-cell");
             });
           }
+
+          var FSMOBILE_POSITION_CHECKBOX_MODULES = Object.freeze({
+            "pb-brandschutztueren": true,
+            "pb-feststellanlagen": true,
+            "pb-drehfluegelantrieb": true,
+            "pb-feuerloescher": true,
+            "pb-not-sicherheitsbeleuchtung": true,
+            "pb-brandschutzklappen": true,
+            "pb-rauchwarnmelder": true,
+            "pb-schiebetuerantrieb": true,
+            "pb-brandschutzschiebetor": true,
+            "pb-brandschutzrolltore": true,
+            "pb-rolltoranlagen": true,
+            "pb-fluchttuer-steuerungen": true,
+            "pb-rauchschutzvorhaenge": true
+          });
+          var FSMOBILE_POSITION_CHECKBOX_META_KEY = "positionCheckboxes";
+
+          function usesPositionCheckboxUi() {
+            return Boolean(FSMOBILE_POSITION_CHECKBOX_MODULES[window.FSMOBILE_MODULE_ID || ""]);
+          }
+
+          function positionCheckboxHeader(table) {
+            if (!table || !table.tHead) return null;
+            return Array.from(table.tHead.querySelectorAll("th")).find(function(cell) {
+              return String(cell.textContent || "").replace(/\\s+/g, " ").trim() === "Pos.";
+            }) || null;
+          }
+
+          function installPositionCheckboxStyle() {
+            if (!usesPositionCheckboxUi() || document.getElementById("fsmobilePositionCheckboxStyle")) return;
+            var style = document.createElement("style");
+            style.id = "fsmobilePositionCheckboxStyle";
+            style.textContent = [
+              "col.fsmobile-position-checkbox-col { width: 44px !important; min-width: 44px !important; max-width: 44px !important; }",
+              "th.fsmobile-position-checkbox-head, td.fsmobile-position-checkbox-cell { width: 44px !important; min-width: 44px !important; max-width: 44px !important; padding: 6px !important; text-align: center !important; vertical-align: middle !important; }",
+              "th.fsmobile-position-checkbox-head { position: sticky; top: 0; z-index: 2; }",
+              "input.fsmobile-position-checkbox { display: inline-block !important; width: 22px !important; min-width: 22px !important; max-width: 22px !important; height: 22px !important; min-height: 22px !important; margin: 0 !important; padding: 0 !important; border: 1px solid rgba(60, 60, 67, .32) !important; border-radius: 5px !important; box-shadow: none !important; accent-color: #eb0045; cursor: pointer; vertical-align: middle; }",
+              "input.fsmobile-position-checkbox:focus-visible { outline: 3px solid rgba(0, 122, 255, .32) !important; outline-offset: 2px !important; }",
+              "body.generating-pdf col.fsmobile-position-checkbox-col, body.generating-pdf .fsmobile-position-checkbox-head, body.generating-pdf .fsmobile-position-checkbox-cell, .pdf-render-wrapper col.fsmobile-position-checkbox-col, .pdf-render-wrapper .fsmobile-position-checkbox-head, .pdf-render-wrapper .fsmobile-position-checkbox-cell { display: none !important; width: 0 !important; min-width: 0 !important; max-width: 0 !important; padding: 0 !important; border: 0 !important; }",
+              "@media print { col.fsmobile-position-checkbox-col, .fsmobile-position-checkbox-head, .fsmobile-position-checkbox-cell { display: none !important; width: 0 !important; min-width: 0 !important; max-width: 0 !important; padding: 0 !important; border: 0 !important; } }"
+            ].join("\\n");
+            (document.head || document.documentElement).appendChild(style);
+          }
+
+          function createPositionCheckboxRowId() {
+            if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+            return "position-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+          }
+
+          function ensurePositionCheckboxRowId(row, preferredId) {
+            if (!row) return "";
+            var id = String(preferredId || row.dataset.fsmobilePositionCheckboxId || "").trim().slice(0, 120);
+            if (!id) id = createPositionCheckboxRowId();
+            row.dataset.fsmobilePositionCheckboxId = id;
+            return id;
+          }
+
+          function positionCheckboxRows() {
+            if (!usesPositionCheckboxUi()) return [];
+            return Array.from(document.querySelectorAll("table.fsmobile-position-checkbox-table tbody tr")).filter(function(row) {
+              return Boolean(row.querySelector("input[data-fsmobile-position-checkbox='true']"));
+            });
+          }
+
+          function refreshPositionCheckboxLabels() {
+            positionCheckboxRows().forEach(function(row, index) {
+              var checkbox = row.querySelector("input[data-fsmobile-position-checkbox='true']");
+              if (!checkbox) return;
+              var label = "Position " + (index + 1) + " markieren";
+              checkbox.setAttribute("aria-label", label);
+              checkbox.title = label;
+            });
+          }
+
+          function ensurePositionCheckboxUi() {
+            if (!usesPositionCheckboxUi() || !document.body) return;
+            installPositionCheckboxStyle();
+            Array.from(document.querySelectorAll("table")).forEach(function(table) {
+              var positionHeader = positionCheckboxHeader(table);
+              if (!positionHeader) return;
+              table.classList.add("fsmobile-position-checkbox-table");
+              var originalPositionIndex = positionHeader.cellIndex;
+              var colgroup = table.querySelector("colgroup");
+              if (colgroup && !colgroup.querySelector("col.fsmobile-position-checkbox-col")) {
+                var markerCol = document.createElement("col");
+                markerCol.className = "fsmobile-position-checkbox-col";
+                colgroup.insertBefore(markerCol, colgroup.children[originalPositionIndex] || null);
+              }
+              if (!positionHeader.parentElement.querySelector("th.fsmobile-position-checkbox-head")) {
+                var markerHeader = document.createElement("th");
+                markerHeader.className = "fsmobile-position-checkbox-head";
+                markerHeader.scope = "col";
+                markerHeader.setAttribute("aria-label", "UI-Markierung");
+                markerHeader.setAttribute("data-html2canvas-ignore", "true");
+                positionHeader.parentElement.insertBefore(markerHeader, positionHeader);
+              }
+              Array.from(table.tBodies || []).forEach(function(body) {
+                Array.from(body.rows || []).forEach(function(row) {
+                  var positionField = row.querySelector(".pos-field");
+                  var positionCell = positionField && positionField.closest ? positionField.closest("td") : null;
+                  if (!positionCell) return;
+                  var hasMarkerCell = Array.from(row.cells || []).some(function(cell) {
+                    return cell.classList.contains("fsmobile-position-checkbox-cell");
+                  });
+                  if (hasMarkerCell) {
+                    ensurePositionCheckboxRowId(row);
+                    return;
+                  }
+                  ensurePositionCheckboxRowId(row);
+                  var markerCell = document.createElement("td");
+                  markerCell.className = "fsmobile-position-checkbox-cell";
+                  markerCell.setAttribute("data-html2canvas-ignore", "true");
+                  var checkbox = document.createElement("input");
+                  checkbox.type = "checkbox";
+                  checkbox.className = "fsmobile-position-checkbox";
+                  checkbox.setAttribute("data-fsmobile-position-checkbox", "true");
+                  checkbox.setAttribute("data-html2canvas-ignore", "true");
+                  markerCell.appendChild(checkbox);
+                  row.insertBefore(markerCell, positionCell);
+                });
+              });
+            });
+            refreshPositionCheckboxLabels();
+          }
+
+          function collectPositionCheckboxUiMetadata() {
+            if (!usesPositionCheckboxUi()) return null;
+            ensurePositionCheckboxUi();
+            return {
+              version: 1,
+              rows: positionCheckboxRows().map(function(row) {
+                var checkbox = row.querySelector("input[data-fsmobile-position-checkbox='true']");
+                return {
+                  id: ensurePositionCheckboxRowId(row),
+                  checked: Boolean(checkbox && checkbox.checked)
+                };
+              })
+            };
+          }
+
+          function positionCheckboxUiMetadataFromEntry(entry) {
+            if (!entry || typeof entry !== "object") return null;
+            var uiMetadata = entry.uiMetadata;
+            if (!uiMetadata || typeof uiMetadata !== "object" || Array.isArray(uiMetadata)) return null;
+            var value = uiMetadata[FSMOBILE_POSITION_CHECKBOX_META_KEY];
+            return value && typeof value === "object" && Array.isArray(value.rows) ? value : null;
+          }
+
+          function applyPositionCheckboxUiMetadata(metadata) {
+            if (!usesPositionCheckboxUi()) return;
+            ensurePositionCheckboxUi();
+            var savedRows = metadata && Array.isArray(metadata.rows) ? metadata.rows : [];
+            positionCheckboxRows().forEach(function(row, index) {
+              var saved = savedRows[index] && typeof savedRows[index] === "object" ? savedRows[index] : null;
+              var checkbox = row.querySelector("input[data-fsmobile-position-checkbox='true']");
+              ensurePositionCheckboxRowId(row, saved && saved.id);
+              if (checkbox) checkbox.checked = Boolean(saved && saved.checked === true);
+            });
+            refreshPositionCheckboxLabels();
+          }
+
+          function resetPositionCheckboxUi() {
+            applyPositionCheckboxUiMetadata(null);
+          }
+
+          function restorePositionCheckboxUiFromEntry(entry) {
+            if (!usesPositionCheckboxUi()) return;
+            applyPositionCheckboxUiMetadata(positionCheckboxUiMetadataFromEntry(entry));
+          }
+
+          function restorePositionCheckboxUiFromCurrentArchive() {
+            if (!usesPositionCheckboxUi()) return false;
+            ensurePositionCheckboxUi();
+            var primaryKey = resolveArchiveStorageKey();
+            var storageKeys = archiveStorageKeysForDisplay(primaryKey);
+            for (var keyIndex = 0; keyIndex < storageKeys.length; keyIndex += 1) {
+              var storageKey = storageKeys[keyIndex];
+              var currentId = readCurrentArchiveIdForKey(storageKey);
+              if (!currentId) continue;
+              var entry = readArchiveEntriesForKey(storageKey).find(function(item) {
+                return item && String(item.id || "") === String(currentId);
+              });
+              if (!entry) continue;
+              restorePositionCheckboxUiFromEntry(entry);
+              return true;
+            }
+            return false;
+          }
+
+          function schedulePositionCheckboxUiRefresh() {
+            if (!usesPositionCheckboxUi()) return;
+            window.clearTimeout(window.__fsmobilePositionCheckboxRefreshTimer);
+            window.__fsmobilePositionCheckboxRefreshTimer = window.setTimeout(ensurePositionCheckboxUi, 0);
+          }
+
+          function installPositionCheckboxUi() {
+            if (!usesPositionCheckboxUi() || window.__fsmobilePositionCheckboxUiInstalled) return;
+            window.__fsmobilePositionCheckboxUiInstalled = true;
+            ensurePositionCheckboxUi();
+            document.addEventListener("click", function(event) {
+              var button = event.target && event.target.closest ? event.target.closest("button") : null;
+              if (!button || button.closest(".archive-dialog, .archive-overlay")) return;
+              var text = String(button.textContent || "").replace(/\\s+/g, " ").trim();
+              var haystack = (button.id || "") + " " + (button.className || "");
+              if (text === "Leeren" || /clearButton|clearBtn|clear-btn|btn-clear/.test(haystack)) {
+                window.setTimeout(resetPositionCheckboxUi, 0);
+                window.setTimeout(resetPositionCheckboxUi, 80);
+              }
+            }, true);
+            if (window.MutationObserver) {
+              var observer = new MutationObserver(function(mutations) {
+                var rowsChanged = mutations.some(function(mutation) {
+                  return mutation.type === "childList" && (mutation.addedNodes.length || mutation.removedNodes.length);
+                });
+                if (rowsChanged) schedulePositionCheckboxUiRefresh();
+              });
+              observer.observe(document.body, { childList: true, subtree: true });
+            }
+            [0, 80, 240].forEach(function(delay) {
+              window.setTimeout(function() {
+                ensurePositionCheckboxUi();
+                if (!window.__fsmobilePositionCheckboxArchiveRestored) {
+                  window.__fsmobilePositionCheckboxArchiveRestored = restorePositionCheckboxUiFromCurrentArchive();
+                }
+              }, delay);
+            });
+          }
+
+          window.FSMOBILE_POSITION_CHECKBOX_UI = Object.freeze({
+            collect: collectPositionCheckboxUiMetadata,
+            apply: applyPositionCheckboxUiMetadata,
+            reset: resetPositionCheckboxUi,
+            refresh: ensurePositionCheckboxUi
+          });
 
           function normalizedButtonText(button) {
             return (button.textContent || "").replace(/\\s+/g, " ").trim();
@@ -11774,6 +12037,10 @@
                 return applied;
               });
               if (!applied || !archiveReportMatchesDom(report)) applyArchiveReportDomFallback(report);
+              if (usesPositionCheckboxUi()) {
+                restorePositionCheckboxUiFromEntry(entry);
+                window.__fsmobilePositionCheckboxArchiveRestored = true;
+              }
               if (entry.id) writeCurrentArchiveIdForKey(storageKey, entry.id);
               persistCurrentDraftBeforeArchive();
               var overlay = document.getElementById("archiveOverlay");
@@ -11886,6 +12153,13 @@
                 createdAt: previous && previous.createdAt ? previous.createdAt : now,
                 updatedAt: now
               };
+              if (usesPositionCheckboxUi()) {
+                var uiMetadata = previous && previous.uiMetadata && typeof previous.uiMetadata === "object" && !Array.isArray(previous.uiMetadata)
+                  ? Object.assign({}, previous.uiMetadata)
+                  : {};
+                uiMetadata[FSMOBILE_POSITION_CHECKBOX_META_KEY] = collectPositionCheckboxUiMetadata();
+                entry.uiMetadata = uiMetadata;
+              }
               if (isRwaModule() && isRwaArchiveKey(storageKey)) entry.data = report;
               else entry.report = report;
               if (wasUpdate) entries[existingIndex] = entry;
@@ -12276,7 +12550,10 @@
               signaturepad: true,
               unterschrift: true,
               digitaleunterschrift: true,
-              signatur: true
+              signatur: true,
+              positioncheckboxes: true,
+              fsmobilepositioncheckbox: true,
+              fsmobilepositioncheckboxes: true
             };
 
             function reportTitle() {
@@ -12336,6 +12613,7 @@
 
             function isExcludedField(field) {
               if (!field) return false;
+              if (field.matches && field.matches("[data-fsmobile-position-checkbox='true']")) return true;
               var idKey = normalizeKey(field.id);
               var nameKey = normalizeKey(field.name);
               var dataKey = normalizeKey(field.dataset ? field.dataset.field || "" : "");
@@ -12355,11 +12633,13 @@
 
             function isExcludedFieldData(fieldData) {
               if (!fieldData) return false;
+              var classKey = normalizeKey(fieldData.className);
+              if (classKey.indexOf("fsmobilepositioncheckbox") >= 0) return true;
               return Boolean(
                 excludedStructuredKeys[normalizeKey(fieldData.id)] ||
                 excludedStructuredKeys[normalizeKey(fieldData.name)] ||
                 excludedStructuredKeys[normalizeKey(fieldData.dataField)] ||
-                excludedStructuredKeys[normalizeKey(fieldData.className)]
+                excludedStructuredKeys[classKey]
               );
             }
 
@@ -12823,6 +13103,10 @@
                 window.__fsmobileReportImportInProgress = false;
               }
               restoreExcludedValues(excludedSnapshot);
+	              if (usesPositionCheckboxUi()) {
+	                resetPositionCheckboxUi();
+	                window.__fsmobilePositionCheckboxArchiveRestored = true;
+	              }
 	              window.setTimeout(function() {
 	                document.dispatchEvent(new Event("input", { bubbles: true }));
 	                document.dispatchEvent(new Event("change", { bubbles: true }));
@@ -12866,10 +13150,11 @@
 
             installControls();
           }
-			          document.addEventListener("DOMContentLoaded", function() {
-			            installFsmobileTextareaAutosizeGuard();
-			            markPositionCells();
-			            normalizePortraitAssignmentSections();
+		          document.addEventListener("DOMContentLoaded", function() {
+		            installFsmobileTextareaAutosizeGuard();
+		            markPositionCells();
+		            installPositionCheckboxUi();
+		            normalizePortraitAssignmentSections();
 			            ensureCustomerNumberField();
 			            installCustomerNumberDataBridge();
 			            restoreCustomerNumberFromDraft();
@@ -12893,6 +13178,7 @@
 	            function refreshReportEnhancements() {
 	                fsmobileResizeAllTextareas();
 	                normalizePortraitAssignmentSections();
+	                ensurePositionCheckboxUi();
 		                ensureCustomerNumberField();
 		                installCustomerNumberDataBridge();
 		                restoreCustomerNumberFromDraft();
