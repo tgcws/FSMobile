@@ -9631,6 +9631,7 @@
 	            try {
 	              if (!canvasIsBlank(canvas)) oldData = canvas.toDataURL("image/png");
 	            } catch (error) {}
+	            markFsmobileSignatureCanvasDirty(canvas);
 	            canvas.width = expectedWidth;
 	            canvas.height = expectedHeight;
 	            context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -9662,6 +9663,7 @@
 	            context.lineCap = "round";
 	            context.lineJoin = "round";
 	            context.strokeStyle = "#1c1c1e";
+	            markFsmobileSignatureCanvasDirty(canvas);
 	          }
 
 	          function refreshSignatureCanvasesForReadyLayout() {
@@ -9686,6 +9688,16 @@
               }
             } catch (error) {}
             return true;
+          }
+
+          var fsmobileSignatureCanvasCache = typeof WeakMap === "function" ? new WeakMap() : null;
+
+          function markFsmobileSignatureCanvasDirty(canvas) {
+            if (canvas && fsmobileSignatureCanvasCache) fsmobileSignatureCanvasCache.delete(canvas);
+          }
+
+          function cacheFsmobileSignatureCanvasData(canvas, value) {
+            if (canvas && fsmobileSignatureCanvasCache) fsmobileSignatureCanvasCache.set(canvas, String(value || ""));
           }
 
           function generatedSignatureStorageKey() {
@@ -9807,8 +9819,16 @@
 
           function currentFsmobileSignatureDataUrl() {
             var canvas = primaryFsmobileSignatureCanvas();
-            if (!canvas || canvasIsBlank(canvas) || !canvasHasUsableFsmobileSignature(canvas)) return "";
-            try { return canvas.toDataURL("image/png"); } catch (error) { return ""; }
+            if (!canvas) return "";
+            if (fsmobileSignatureCanvasCache && fsmobileSignatureCanvasCache.has(canvas)) {
+              return fsmobileSignatureCanvasCache.get(canvas) || "";
+            }
+            var signature = "";
+            if (!canvasIsBlank(canvas) && canvasHasUsableFsmobileSignature(canvas)) {
+              try { signature = canvas.toDataURL("image/png"); } catch (error) { signature = ""; }
+            }
+            cacheFsmobileSignatureCanvasData(canvas, signature);
+            return signature;
           }
 
           function mergeFsmobileSignatureIntoReportData(data, signature) {
@@ -9917,8 +9937,8 @@
                     } else {
                       var nextSignature = fsmobileSignatureDataUrlFromValue(nextPayload);
                       var previousSignature = fsmobileSignatureDataUrlFromValue(JSON.parse(localStorage.getItem(key) || "null"));
-                      var currentSignature = currentFsmobileSignatureDataUrl();
-                      var preservedSignature = currentSignature || previousSignature || window.__fsmobileLastUsableSignature || "";
+                      var currentSignature = window.__fsmobileLastUsableSignature || previousSignature || currentFsmobileSignatureDataUrl();
+                      var preservedSignature = currentSignature || "";
                       if (preservedSignature && !nextSignature) {
                         mergeFsmobileSignatureIntoReportData(nextPayload, preservedSignature);
                         value = JSON.stringify(nextPayload);
@@ -9940,6 +9960,7 @@
             if (!canvases.length) return false;
             canvases.forEach(function(canvas) {
               resizeSignatureCanvasForCurrentLayout(canvas);
+              cacheFsmobileSignatureCanvasData(canvas, signature);
               var context = canvas.getContext("2d", { willReadFrequently: true });
               var image = new Image();
               image.onload = function() {
@@ -9973,6 +9994,7 @@
                 context.setTransform(1, 0, 0, 1, 0, 0);
                 context.clearRect(0, 0, canvas.width, canvas.height);
                 context.restore();
+                cacheFsmobileSignatureCanvasData(canvas, "");
               } catch (error) {}
             });
           }
@@ -10018,7 +10040,12 @@
                 if (window.__fsmobileSignatureClearInProgress) {
                   return stripFsmobileSignatureFromReportData(data);
                 }
-                var signature = currentFsmobileSignatureDataUrl() || fsmobileSignatureDataUrlFromValue(data) || readStoredFsmobileSignature();
+                var dataSignature = fsmobileSignatureDataUrlFromValue(data);
+                if (dataSignature) {
+                  window.__fsmobileLastUsableSignature = dataSignature;
+                  cacheFsmobileSignatureCanvasData(primaryFsmobileSignatureCanvas(), dataSignature);
+                }
+                var signature = dataSignature || window.__fsmobileLastUsableSignature || currentFsmobileSignatureDataUrl() || readStoredFsmobileSignature();
                 return mergeFsmobileSignatureIntoReportData(data, signature);
               };
               window[name].__fsmobileSignatureWrapped = true;
@@ -10050,6 +10077,7 @@
             });
             document.addEventListener("pointerdown", function(event) {
               if (event.target && canvasLooksLikeSignature(event.target)) {
+                markFsmobileSignatureCanvasDirty(event.target);
                 window.__fsmobileSignatureClearToken = (window.__fsmobileSignatureClearToken || 0) + 1;
                 window.__fsmobileSignatureClearInProgress = false;
               }
@@ -12501,10 +12529,53 @@
 	            Array.prototype.forEach.call(document.querySelectorAll(selector), applyResultToneMarker);
 	          }
 
-	          function scheduleResultToneRefresh() {
-	            refreshResultToneMarkers();
-	            window.clearTimeout(window.__fsmobileResultToneRefreshTimer);
-	            window.__fsmobileResultToneRefreshTimer = window.setTimeout(refreshResultToneMarkers, 0);
+	          function refreshResultToneMarkersWithin(root) {
+	            if (!root || root.nodeType !== 1) return;
+	            var selector = "select,input,textarea,[data-result],.result-field,.result-ok,.result-bad";
+	            if (root.matches && root.matches(selector)) applyResultToneMarker(root);
+	            if (root.querySelectorAll) {
+	              Array.prototype.forEach.call(root.querySelectorAll(selector), applyResultToneMarker);
+	            }
+	          }
+
+	          function refreshDerivedResultToneMarkers() {
+	            var selector = [
+	              "[data-result]",
+	              ".result-field",
+	              ".result-ok",
+	              ".result-bad",
+	              "input[readonly]:not(.pos-field)",
+	              "select:disabled",
+	              "[data-field*='ergebnis']",
+	              "[data-field*='befund']",
+	              "[data-field*='status']",
+	              "[id*='ergebnis']",
+	              "[id*='befund']",
+	              "[id*='result']"
+	            ].join(",");
+	            Array.prototype.forEach.call(document.querySelectorAll(selector), applyResultToneMarker);
+	          }
+
+	          function normalizedResultToneClass(value) {
+	            return String(value || "")
+	              .split(/\s+/)
+	              .filter(function(name) { return name && name !== "fsmobile-result-ok" && name !== "fsmobile-result-bad"; })
+	              .sort()
+	              .join(" ");
+	          }
+
+	          function isRelevantResultToneClassMutation(mutation) {
+	            return mutation && mutation.type === "attributes" && mutation.attributeName === "class" &&
+	              normalizedResultToneClass(mutation.oldValue) !== normalizedResultToneClass(mutation.target && mutation.target.className);
+	          }
+
+	          function scheduleResultToneRefresh(event) {
+	            if (event && event.target && event.target.nodeType === 1) applyResultToneMarker(event.target);
+	            if (window.__fsmobileResultToneRefreshFrame) return;
+	            window.__fsmobileResultToneRefreshFrame = window.requestAnimationFrame(function() {
+	              window.__fsmobileResultToneRefreshFrame = 0;
+	              refreshDerivedResultToneMarkers();
+	            });
 	          }
 
 	          function installResultToneMarkers() {
@@ -12514,10 +12585,21 @@
 	            document.addEventListener("change", scheduleResultToneRefresh, true);
 	            if (window.MutationObserver) {
 	              var observer = new MutationObserver(function(mutations) {
+	                mutations.forEach(function(mutation) {
+	                  if (mutation.type === "childList") {
+	                    Array.prototype.forEach.call(mutation.addedNodes || [], refreshResultToneMarkersWithin);
+	                  } else if (mutation.type === "attributes") {
+	                    if (mutation.attributeName === "value" || isRelevantResultToneClassMutation(mutation)) {
+	                      applyResultToneMarker(mutation.target);
+	                    }
+	                  } else if (mutation.type === "characterData") {
+	                    applyResultToneMarker(mutation.target && mutation.target.parentElement);
+	                  }
+	                });
 	                var shouldRefresh = mutations.some(function(mutation) {
 	                  if (mutation.type === "characterData") return true;
 	                  if (mutation.type === "childList") return mutation.addedNodes.length || mutation.removedNodes.length;
-	                  if (mutation.type === "attributes") return /^(class|value)$/i.test(mutation.attributeName || "");
+	                  if (mutation.type === "attributes") return mutation.attributeName === "value" || isRelevantResultToneClassMutation(mutation);
 	                  return false;
 	                });
 	                if (shouldRefresh) scheduleResultToneRefresh();
@@ -12525,6 +12607,7 @@
 	              observer.observe(document.documentElement, {
 	                attributes: true,
 	                attributeFilter: ["class", "value"],
+	                attributeOldValue: true,
 	                childList: true,
 	                characterData: true,
 	                subtree: true
