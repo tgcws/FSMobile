@@ -8938,6 +8938,12 @@
             return Number.isFinite(value) ? value : 0;
           }
 
+          function fsmobileTextareaHasOwnAutosize(field) {
+            if (!field || field.tagName !== "TEXTAREA" || !field.getAttribute) return false;
+            var inlineHandler = field.getAttribute("oninput") || "";
+            return /\\b(?:handleInput|autoGrow)\\s*\\(/.test(inlineHandler);
+          }
+
           function fsmobileMeasureTextareaHeight(field) {
             var rect = field.getBoundingClientRect();
             var style = window.getComputedStyle(field);
@@ -8946,6 +8952,7 @@
             mirror.value = field.value || "";
             mirror.rows = field.rows || 1;
             mirror.setAttribute("aria-hidden", "true");
+            mirror.setAttribute("data-fsmobile-textarea-mirror", "true");
             mirror.tabIndex = -1;
             mirror.style.position = "absolute";
             mirror.style.left = "-9999px";
@@ -9011,7 +9018,9 @@
           }
 
           function fsmobileResizeAllTextareas() {
-            Array.from(document.querySelectorAll("textarea")).forEach(fsmobileSafeResizeTextarea);
+            Array.from(document.querySelectorAll("textarea:not([data-fsmobile-textarea-mirror])")).forEach(function(field) {
+              if (!fsmobileTextareaHasOwnAutosize(field)) fsmobileSafeResizeTextarea(field);
+            });
           }
 
           function fsmobileScheduleTextareaResize(delay) {
@@ -9025,12 +9034,12 @@
             if (window.__fsmobileTextareaAutosizeGuardInstalled) return;
             window.__fsmobileTextareaAutosizeGuardInstalled = true;
             document.addEventListener("input", function(event) {
-              if (event.target && event.target.tagName === "TEXTAREA") {
+              if (event.target && event.target.tagName === "TEXTAREA" && !fsmobileTextareaHasOwnAutosize(event.target)) {
                 window.setTimeout(function() { fsmobileSafeResizeTextarea(event.target); }, 0);
               }
             }, true);
             document.addEventListener("change", function(event) {
-              if (event.target && event.target.tagName === "TEXTAREA") {
+              if (event.target && event.target.tagName === "TEXTAREA" && !fsmobileTextareaHasOwnAutosize(event.target)) {
                 window.setTimeout(function() { fsmobileSafeResizeTextarea(event.target); }, 0);
               }
             }, true);
@@ -9038,9 +9047,11 @@
               var observer = new MutationObserver(function(mutations) {
                 if (mutations.some(function(mutation) {
                   return Array.from(mutation.addedNodes || []).some(function(node) {
-                    return node && node.nodeType === 1 && (
-                      node.matches && node.matches("textarea, tr, .card, .dynamic-row") ||
-                      node.querySelector && node.querySelector("textarea")
+                    return node && node.nodeType === 1 && !(
+                      node.matches && node.matches("[data-fsmobile-textarea-mirror]")
+                    ) && (
+                      node.matches && node.matches("textarea:not([data-fsmobile-textarea-mirror]), tr, .card, .dynamic-row") ||
+                      node.querySelector && node.querySelector("textarea:not([data-fsmobile-textarea-mirror])")
                     );
                   });
                 })) {
