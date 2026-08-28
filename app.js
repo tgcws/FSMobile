@@ -12729,6 +12729,19 @@
               if (!fieldData) return false;
               var classKey = normalizeKey(fieldData.className);
               if (classKey.indexOf("fsmobilepositioncheckbox") >= 0) return true;
+              var typeKey = normalizeKey(fieldData.type);
+              var columnKey = normalizeKey(fieldData.columnLabel);
+              var hasSemanticIdentity = Boolean(
+                normalizeKey(fieldData.id) ||
+                normalizeKey(fieldData.name) ||
+                normalizeKey(fieldData.dataField)
+              );
+              if (
+                usesPositionCheckboxUi() &&
+                typeKey === "checkbox" &&
+                !hasSemanticIdentity &&
+                (!columnKey || columnKey === "uimarkierung" || columnKey === "markierung")
+              ) return true;
               return Boolean(
                 excludedStructuredKeys[normalizeKey(fieldData.id)] ||
                 excludedStructuredKeys[normalizeKey(fieldData.name)] ||
@@ -12792,6 +12805,15 @@
               });
             }
 
+            function fieldColumnLabel(field) {
+              var cell = field && field.closest ? field.closest("td") : null;
+              var table = cell && cell.closest ? cell.closest("table") : null;
+              if (!cell || !table || !table.tHead || !table.tHead.rows.length) return "";
+              var headerRow = table.tHead.rows[table.tHead.rows.length - 1];
+              var header = headerRow && headerRow.cells ? headerRow.cells[cell.cellIndex] : null;
+              return header ? String(header.textContent || "").replace(/\\s+/g, " ").trim() : "";
+            }
+
             function fieldIdentity(field, index) {
               return {
                 index: index,
@@ -12800,7 +12822,8 @@
                 id: field.id || "",
                 name: field.name || "",
                 dataField: field.dataset ? field.dataset.field || "" : "",
-                className: field.className || ""
+                className: field.className || "",
+                columnLabel: fieldColumnLabel(field)
               };
             }
 
@@ -12851,7 +12874,18 @@
 
             function applyStructuredData(structured) {
               if (!structured || !structured.data) return false;
-              var appliers = ["applyStoragePayload", "applyReportData", "applyData"];
+              var preferredAppliers = {
+                buildStoragePayload: "applyStoragePayload",
+                collectReportData: "applyReportData",
+                collectData: "applyData",
+                getCurrentReport: "applyReport"
+              };
+              var appliers = [];
+              var preferred = preferredAppliers[structured.collector];
+              if (preferred) appliers.push(preferred);
+              ["applyStoragePayload", "applyReportData", "applyData", "applyReport"].forEach(function(name) {
+                if (appliers.indexOf(name) < 0) appliers.push(name);
+              });
               for (var index = 0; index < appliers.length; index += 1) {
                 var fn = window[appliers[index]];
                 if (typeof fn !== "function") continue;
@@ -12943,6 +12977,85 @@
                 }
               }
               dispatchFieldEvents(field);
+            }
+
+            function fieldIdentityKeys(fieldData) {
+              if (!fieldData) return [];
+              var keys = [];
+              var idKey = normalizeKey(fieldData.id);
+              var dataKey = normalizeKey(fieldData.dataField);
+              var nameKey = normalizeKey(fieldData.name);
+              var columnKey = normalizeKey(fieldData.columnLabel);
+              if (idKey) keys.push("id:" + idKey);
+              if (dataKey) keys.push("data:" + dataKey);
+              if (nameKey) keys.push("name:" + nameKey);
+              if (columnKey) keys.push("column:" + columnKey);
+              if (!keys.length) {
+                var classKey = normalizeKey(fieldData.className);
+                if (classKey) keys.push("class:" + classKey);
+              }
+              return keys;
+            }
+
+            function fieldKind(fieldData) {
+              if (!fieldData) return "";
+              var tagKey = normalizeKey(fieldData.tag);
+              var typeKey = normalizeKey(fieldData.type);
+              if (tagKey === "select" || typeKey === "selectone" || typeKey === "selectmultiple") return "select";
+              if (typeKey === "checkbox" || typeKey === "radio") return typeKey;
+              if (tagKey === "textarea") return "textarea";
+              if (tagKey === "input") return "input:" + typeKey;
+              return tagKey || typeKey;
+            }
+
+            function applyImportedFields(controls, importFields) {
+              var targets = controls.map(fieldIdentity);
+              var targetKeys = targets.map(fieldIdentityKeys);
+              var usedTargets = {};
+              var unresolved = [];
+              var appliedCount = 0;
+
+              importFields.forEach(function(fieldData, sourceIndex) {
+                var sourceKeys = fieldIdentityKeys(fieldData);
+                var sourceKind = fieldKind(fieldData);
+                var targetIndex = -1;
+
+                sourceKeys.some(function(key) {
+                  var compatibleIndex = targetKeys.findIndex(function(keys, index) {
+                    return !usedTargets[index] && keys.indexOf(key) >= 0 && (!sourceKind || fieldKind(targets[index]) === sourceKind);
+                  });
+                  if (compatibleIndex < 0) {
+                    compatibleIndex = targetKeys.findIndex(function(keys, index) {
+                      return !usedTargets[index] && keys.indexOf(key) >= 0;
+                    });
+                  }
+                  if (compatibleIndex < 0) return false;
+                  targetIndex = compatibleIndex;
+                  return true;
+                });
+
+                if (targetIndex >= 0) {
+                  applyField(controls[targetIndex], fieldData);
+                  usedTargets[targetIndex] = true;
+                  appliedCount += 1;
+                  return;
+                }
+                unresolved.push({ data: fieldData, sourceIndex: sourceIndex, hasIdentity: sourceKeys.length > 0 });
+              });
+
+              unresolved.forEach(function(item) {
+                if (item.hasIdentity) return;
+                var sourceKind = fieldKind(item.data);
+                var targetIndex = targets.findIndex(function(target, index) {
+                  return !usedTargets[index] && (!sourceKind || fieldKind(target) === sourceKind);
+                });
+                if (targetIndex < 0) return;
+                applyField(controls[targetIndex], item.data);
+                usedTargets[targetIndex] = true;
+                appliedCount += 1;
+              });
+
+              return appliedCount;
             }
 
             function findAddButtons() {
@@ -13188,9 +13301,7 @@
                 await ensureEnoughControls(importFields.length);
                 var controls = reportControls();
                 if (!usedStructuredImport) {
-                  importFields.forEach(function(fieldData, index) {
-                    applyField(controls[index], fieldData);
-                  });
+                  applyImportedFields(controls, importFields);
                 }
                 applyCanvases(payload.canvases);
               } finally {
