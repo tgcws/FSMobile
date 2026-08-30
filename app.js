@@ -8641,10 +8641,14 @@
             style.id = "fsmobilePositionCheckboxStyle";
             style.textContent = [
               "col.fsmobile-position-checkbox-col { width: 44px !important; min-width: 44px !important; max-width: 44px !important; }",
-              "th.fsmobile-position-checkbox-head, td.fsmobile-position-checkbox-cell { width: 44px !important; min-width: 44px !important; max-width: 44px !important; padding: 6px !important; text-align: center !important; vertical-align: middle !important; }",
+              "th.fsmobile-position-checkbox-head, td.fsmobile-position-checkbox-cell { width: 44px !important; min-width: 44px !important; max-width: 44px !important; text-align: center !important; vertical-align: middle !important; }",
+              "th.fsmobile-position-checkbox-head { padding: 6px !important; }",
+              "td.fsmobile-position-checkbox-cell { padding: 0 !important; }",
               "th.fsmobile-position-checkbox-head { position: sticky; top: 0; z-index: 2; }",
+              "label.fsmobile-position-checkbox-hit-target { display: inline-flex !important; box-sizing: border-box !important; width: 44px !important; min-width: 44px !important; max-width: 44px !important; height: 44px !important; min-height: 44px !important; align-items: center !important; justify-content: center !important; margin: 0 !important; padding: 0 !important; cursor: pointer; touch-action: pan-x pan-y; -webkit-tap-highlight-color: transparent; }",
               "input.fsmobile-position-checkbox { display: inline-block !important; width: 22px !important; min-width: 22px !important; max-width: 22px !important; height: 22px !important; min-height: 22px !important; margin: 0 !important; padding: 0 !important; border: 1px solid rgba(60, 60, 67, .32) !important; border-radius: 5px !important; box-shadow: none !important; accent-color: #eb0045; cursor: pointer; vertical-align: middle; }",
-              "input.fsmobile-position-checkbox:focus-visible { outline: 3px solid rgba(0, 122, 255, .32) !important; outline-offset: 2px !important; }",
+              "label.fsmobile-position-checkbox-hit-target:focus-within { outline: 3px solid rgba(0, 122, 255, .32) !important; outline-offset: -3px !important; border-radius: 7px; }",
+              "input.fsmobile-position-checkbox:focus-visible { outline: 2px solid rgba(0, 122, 255, .55) !important; outline-offset: 2px !important; }",
               "body.generating-pdf col.fsmobile-position-checkbox-col, body.generating-pdf .fsmobile-position-checkbox-head, body.generating-pdf .fsmobile-position-checkbox-cell, .pdf-render-wrapper col.fsmobile-position-checkbox-col, .pdf-render-wrapper .fsmobile-position-checkbox-head, .pdf-render-wrapper .fsmobile-position-checkbox-cell { display: none !important; width: 0 !important; min-width: 0 !important; max-width: 0 !important; padding: 0 !important; border: 0 !important; }",
               "@media print { col.fsmobile-position-checkbox-col, .fsmobile-position-checkbox-head, .fsmobile-position-checkbox-cell { display: none !important; width: 0 !important; min-width: 0 !important; max-width: 0 !important; padding: 0 !important; border: 0 !important; } }"
             ].join("\\n");
@@ -8724,7 +8728,40 @@
                   checkbox.className = "fsmobile-position-checkbox";
                   checkbox.setAttribute("data-fsmobile-position-checkbox", "true");
                   checkbox.setAttribute("data-html2canvas-ignore", "true");
-                  markerCell.appendChild(checkbox);
+                  var hitTarget = document.createElement("label");
+                  hitTarget.className = "fsmobile-position-checkbox-hit-target";
+                  hitTarget.setAttribute("data-html2canvas-ignore", "true");
+                  var pointerStartX = 0;
+                  var pointerStartY = 0;
+                  var pointerIsDown = false;
+                  var pointerMoved = false;
+                  hitTarget.addEventListener("pointerdown", function(event) {
+                    pointerStartX = event.clientX;
+                    pointerStartY = event.clientY;
+                    pointerIsDown = true;
+                    pointerMoved = false;
+                  });
+                  hitTarget.addEventListener("pointermove", function(event) {
+                    if (!pointerIsDown) return;
+                    if (Math.abs(event.clientX - pointerStartX) > 8 || Math.abs(event.clientY - pointerStartY) > 8) {
+                      pointerMoved = true;
+                    }
+                  });
+                  hitTarget.addEventListener("pointerup", function() {
+                    pointerIsDown = false;
+                  });
+                  hitTarget.addEventListener("pointercancel", function() {
+                    pointerIsDown = false;
+                    pointerMoved = false;
+                  });
+                  hitTarget.addEventListener("click", function(event) {
+                    if (!pointerMoved) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    pointerMoved = false;
+                  });
+                  hitTarget.appendChild(checkbox);
+                  markerCell.appendChild(hitTarget);
                   row.insertBefore(markerCell, positionCell);
                 });
               });
