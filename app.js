@@ -71,6 +71,7 @@
   let titleStartAnimationTimer = 0;
   let optionsCloseTimer = 0;
   let viewTransitionTimers = [];
+  let menuCarouselCleanup = null;
   let favoritesSortMode = false;
   let menuSearchQuery = "";
   let pendingBackupImportPayload = null;
@@ -6571,7 +6572,7 @@
       const gridInner = document.createElement("div");
       gridInner.className = "menu-grid-inner";
 
-      const favoriteIds = loadFavoriteIds();
+      const favoriteIds = Array.isArray(options.favoriteIds) ? options.favoriteIds : loadFavoriteIds();
       sectionConfig.modules.forEach(id => {
         const module = registry[id];
         if (!module) return;
@@ -6593,6 +6594,17 @@
 
       if (isFavoriteSection && gridInner.querySelector(".module-card")) {
         let currentCarouselIndex = 0;
+        let carouselFrame = 0;
+        let carouselResizeObserver = null;
+        const carouselTimers = new Set();
+        const setCarouselTimer = (callback, delay) => {
+          const timer = window.setTimeout(() => {
+            carouselTimers.delete(timer);
+            callback();
+          }, delay);
+          carouselTimers.add(timer);
+          return timer;
+        };
         const getCarouselMetrics = () => {
           const cards = Array.from(gridInner.querySelectorAll(".module-card"));
           if (!cards.length) return { cards, cardWidth: 0, gap: 0, step: 0, visibleCount: 0, maxIndex: 0, hasOverflow: false };
@@ -6615,6 +6627,7 @@
           grid.style.setProperty("--favorites-carousel-width", `${width}px`);
         };
         const updateCarouselButtons = () => {
+          if (!section.isConnected) return;
           if (!carouselControls || !carouselPrevButton || !carouselNextButton) return;
           const metrics = getCarouselMetrics();
           fitCarouselToWholeCards(metrics);
@@ -6632,7 +6645,14 @@
             left: metrics.step * nextIndex,
             behavior: prefersReducedMotion() ? "auto" : "smooth"
           });
-          window.setTimeout(updateCarouselButtons, prefersReducedMotion() ? 0 : 320);
+          setCarouselTimer(scheduleCarouselUpdate, prefersReducedMotion() ? 0 : 320);
+        };
+        const scheduleCarouselUpdate = () => {
+          if (carouselFrame) return;
+          carouselFrame = window.requestAnimationFrame(() => {
+            carouselFrame = 0;
+            updateCarouselButtons();
+          });
         };
         const createCarouselButton = direction => {
           const button = document.createElement("button");
@@ -6653,16 +6673,29 @@
         carouselPrevButton = createCarouselButton(-1);
         carouselNextButton = createCarouselButton(1);
         carouselControls.append(carouselPrevButton, carouselNextButton);
-        gridInner.addEventListener("scroll", () => window.requestAnimationFrame(updateCarouselButtons), { passive: true });
-        window.addEventListener("resize", () => window.requestAnimationFrame(updateCarouselButtons), { passive: true });
+        gridInner.addEventListener("scroll", scheduleCarouselUpdate, { passive: true });
+        if (typeof ResizeObserver === "function") {
+          carouselResizeObserver = new ResizeObserver(scheduleCarouselUpdate);
+          carouselResizeObserver.observe(section);
+        } else {
+          window.addEventListener("resize", scheduleCarouselUpdate, { passive: true });
+        }
         window.requestAnimationFrame(() => {
           updateCarouselButtons();
-          window.requestAnimationFrame(updateCarouselButtons);
+          scheduleCarouselUpdate();
         });
-        [120, 360, 720].forEach(delay => window.setTimeout(updateCarouselButtons, delay));
+        [120, 360].forEach(delay => setCarouselTimer(scheduleCarouselUpdate, delay));
         if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(updateCarouselButtons).catch(() => {});
+          document.fonts.ready.then(scheduleCarouselUpdate).catch(() => {});
         }
+        menuCarouselCleanup = () => {
+          gridInner.removeEventListener("scroll", scheduleCarouselUpdate);
+          if (carouselResizeObserver) carouselResizeObserver.disconnect();
+          else window.removeEventListener("resize", scheduleCarouselUpdate);
+          if (carouselFrame) window.cancelAnimationFrame(carouselFrame);
+          carouselTimers.forEach(timer => window.clearTimeout(timer));
+          carouselTimers.clear();
+        };
       }
 
       const setExpanded = expanded => {
@@ -6694,6 +6727,8 @@
   }
 
   function renderMenu() {
+    if (typeof menuCarouselCleanup === "function") menuCarouselCleanup();
+    menuCarouselCleanup = null;
     const fragment = document.createDocumentFragment();
     const query = String(menuSearchQuery || "").trim();
     const isSearching = Boolean(query);
@@ -6705,7 +6740,7 @@
         title: "Favoriten",
         accent: "accent-favorites",
         modules: favoriteModules
-      }, { isFavoriteSection: true }));
+      }, { isFavoriteSection: true, favoriteIds: favoriteModules }));
     }
     MENU_SECTIONS.forEach(sectionConfig => {
       const modules = isSearching
@@ -6715,7 +6750,7 @@
       modules.forEach(id => matchedModuleIds.add(id));
       fragment.append(renderMenuSection(
         Object.assign({}, sectionConfig, { modules }),
-        { forceExpanded: isSearching }
+        { forceExpanded: isSearching, favoriteIds: favoriteModules }
       ));
     });
     if (isSearching && !matchedModuleIds.size) {
@@ -7767,10 +7802,10 @@
           moduleView.classList.add("quick-switch-enter-active");
           setViewTransitionTimer(() => {
             moduleView.classList.remove("quick-switch-enter", "quick-switch-enter-active");
-          }, 400);
+          }, 180);
         });
       });
-    }, 170);
+    }, 90);
   }
 
   function enterView(view) {
@@ -7781,7 +7816,7 @@
         view.classList.add("view-enter-active");
         setViewTransitionTimer(() => {
           view.classList.remove("view-enter", "view-enter-active");
-        }, 420);
+        }, 180);
       });
     });
   }
@@ -7799,7 +7834,7 @@
       menuView.hidden = true;
       menuView.classList.remove("view-exit");
       enterView(moduleView);
-    }, 260);
+    }, 110);
   }
 
   function switchToMenuView(onModuleHidden) {
@@ -7817,7 +7852,7 @@
       moduleView.classList.remove("view-exit");
       if (typeof onModuleHidden === "function") onModuleHidden();
       enterView(menuView);
-    }, 260);
+    }, 110);
   }
 
   function menuFavoritesDockScrollTop() {
@@ -8474,6 +8509,28 @@
 	        window.FSMOBILE_EMBEDDED_MODULE = true;
 	        window.FSMOBILE_MODULE_ID = ${JSON.stringify(id)};
 	        window.FSMOBILE_MODULE_TITLE = ${JSON.stringify(title || id)};
+	        (function installSignatureCanvasReadOptimization() {
+	          if (!window.HTMLCanvasElement || HTMLCanvasElement.prototype.__fsmobileReadOptimizedContext) return;
+	          var nativeGetContext = HTMLCanvasElement.prototype.getContext;
+	          Object.defineProperty(HTMLCanvasElement.prototype, "__fsmobileReadOptimizedContext", { value: true });
+	          HTMLCanvasElement.prototype.getContext = function(type, options) {
+	            if (String(type || "").toLowerCase() !== "2d") {
+	              return nativeGetContext.apply(this, arguments);
+	            }
+	            var identity = [
+	              this.id || "",
+	              typeof this.className === "string" ? this.className : "",
+	              this.getAttribute && this.getAttribute("aria-label") || "",
+	              this.getAttribute && this.getAttribute("data-signature") || ""
+	            ].join(" ").toLowerCase();
+	            var signatureHost = this.closest && this.closest(".signature-block, .signature, .signatur");
+	            if (!signatureHost && !/signature|signatur|unterschrift/.test(identity)) {
+	              return nativeGetContext.apply(this, arguments);
+	            }
+	            var optimizedOptions = Object.assign({}, options || {}, { willReadFrequently: true });
+	            return nativeGetContext.call(this, type, optimizedOptions);
+	          };
+	        }());
 	        try {
 	          if (window.parent && window.parent.FSMOBILE_STANDARD) {
 	            window.FSMOBILE_STANDARD = window.parent.FSMOBILE_STANDARD;
@@ -8960,15 +9017,45 @@
           }
 
           var fsmobileTextareaResizeTimer = 0;
+          var fsmobileTextareaResizeFrame = 0;
+          var fsmobileTextareaResizeAllPending = false;
+          var fsmobilePendingTextareaFields = new Set();
+          var fsmobileTextareaMeasureCache = typeof WeakMap === "function" ? new WeakMap() : null;
+          var fsmobileTextareaMirror = null;
+          var fsmobileTextareaStyleProps = [
+            "fontFamily",
+            "fontSize",
+            "fontStyle",
+            "fontWeight",
+            "fontVariant",
+            "lineHeight",
+            "letterSpacing",
+            "textTransform",
+            "textIndent",
+            "textRendering",
+            "wordSpacing",
+            "wordBreak",
+            "overflowWrap",
+            "whiteSpace",
+            "paddingTop",
+            "paddingRight",
+            "paddingBottom",
+            "paddingLeft",
+            "borderTopWidth",
+            "borderRightWidth",
+            "borderBottomWidth",
+            "borderLeftWidth"
+          ];
 
-          function fsmobileIsVisibleTextarea(field) {
-            if (!field || field.tagName !== "TEXTAREA" || !document.contains(field)) return false;
-            if (field.closest(".archive-overlay, .archive-dialog, .pdf-render-wrapper, .pdf-render-area")) return false;
-            if (document.body && document.body.classList.contains("generating-pdf")) return false;
+          function fsmobileTextareaLayout(field) {
+            if (!field || field.tagName !== "TEXTAREA" || !document.contains(field)) return null;
+            if (field.closest(".archive-overlay, .archive-dialog, .pdf-render-wrapper, .pdf-render-area")) return null;
+            if (document.body && document.body.classList.contains("generating-pdf")) return null;
             var style = window.getComputedStyle(field);
-            if (style.display === "none" || style.visibility === "hidden") return false;
+            if (style.display === "none" || style.visibility === "hidden") return null;
             var rect = field.getBoundingClientRect();
-            return rect.width > 0 && rect.height >= 0;
+            if (rect.width <= 0 || rect.height < 0) return null;
+            return { rect: rect, style: style };
           }
 
           function fsmobileNumericStyle(style, prop) {
@@ -8982,75 +9069,69 @@
             return /\\b(?:handleInput|autoGrow)\\s*\\(/.test(inlineHandler);
           }
 
-          function fsmobileMeasureTextareaHeight(field) {
-            var rect = field.getBoundingClientRect();
-            var style = window.getComputedStyle(field);
+          function fsmobileTextareaMirrorElement() {
+            if (fsmobileTextareaMirror && document.contains(fsmobileTextareaMirror)) return fsmobileTextareaMirror;
+            fsmobileTextareaMirror = document.createElement("textarea");
+            fsmobileTextareaMirror.setAttribute("aria-hidden", "true");
+            fsmobileTextareaMirror.setAttribute("data-fsmobile-textarea-mirror", "true");
+            fsmobileTextareaMirror.tabIndex = -1;
+            fsmobileTextareaMirror.style.position = "absolute";
+            fsmobileTextareaMirror.style.left = "-9999px";
+            fsmobileTextareaMirror.style.top = "0";
+            fsmobileTextareaMirror.style.zIndex = "-1";
+            fsmobileTextareaMirror.style.visibility = "hidden";
+            fsmobileTextareaMirror.style.pointerEvents = "none";
+            fsmobileTextareaMirror.style.overflow = "hidden";
+            fsmobileTextareaMirror.style.resize = "none";
+            (document.body || document.documentElement).appendChild(fsmobileTextareaMirror);
+            return fsmobileTextareaMirror;
+          }
+
+          function fsmobileTextareaMeasureKey(field, width, style) {
+            return [width, field.rows || 1, field.value || ""].concat(fsmobileTextareaStyleProps.map(function(prop) {
+              return style[prop] || "";
+            })).join("\\n");
+          }
+
+          function fsmobileMeasureTextareaHeight(field, layout) {
+            var rect = layout.rect;
+            var style = layout.style;
             var width = Math.max(1, Math.round(rect.width || field.clientWidth || 1));
-            var mirror = document.createElement("textarea");
+            var measureKey = fsmobileTextareaMeasureKey(field, width, style);
+            var cached = fsmobileTextareaMeasureCache ? fsmobileTextareaMeasureCache.get(field) : null;
+            if (cached && cached.key === measureKey) return cached.height;
+            var mirror = fsmobileTextareaMirrorElement();
             mirror.value = field.value || "";
             mirror.rows = field.rows || 1;
-            mirror.setAttribute("aria-hidden", "true");
-            mirror.setAttribute("data-fsmobile-textarea-mirror", "true");
-            mirror.tabIndex = -1;
-            mirror.style.position = "absolute";
-            mirror.style.left = "-9999px";
-            mirror.style.top = "0";
-            mirror.style.zIndex = "-1";
-            mirror.style.visibility = "hidden";
-            mirror.style.pointerEvents = "none";
-            mirror.style.overflow = "hidden";
-            mirror.style.resize = "none";
             mirror.style.boxSizing = style.boxSizing;
             mirror.style.width = width + "px";
             mirror.style.minHeight = "0";
             mirror.style.maxHeight = "none";
             mirror.style.height = "auto";
-            [
-              "fontFamily",
-              "fontSize",
-              "fontStyle",
-              "fontWeight",
-              "fontVariant",
-              "lineHeight",
-              "letterSpacing",
-              "textTransform",
-              "textIndent",
-              "textRendering",
-              "wordSpacing",
-              "wordBreak",
-              "overflowWrap",
-              "whiteSpace",
-              "paddingTop",
-              "paddingRight",
-              "paddingBottom",
-              "paddingLeft",
-              "borderTopWidth",
-              "borderRightWidth",
-              "borderBottomWidth",
-              "borderLeftWidth"
-            ].forEach(function(prop) {
+            fsmobileTextareaStyleProps.forEach(function(prop) {
               mirror.style[prop] = style[prop];
             });
-            document.body.appendChild(mirror);
             var measured = Math.ceil(mirror.scrollHeight);
             if (style.boxSizing === "border-box") {
               measured += fsmobileNumericStyle(style, "border-top-width") + fsmobileNumericStyle(style, "border-bottom-width");
             }
-            mirror.remove();
             var minHeight = parseFloat(style.minHeight);
             if (!Number.isFinite(minHeight) || minHeight <= 0) {
               var lineHeight = parseFloat(style.lineHeight);
               if (!Number.isFinite(lineHeight)) lineHeight = parseFloat(style.fontSize) * 1.35;
               minHeight = Math.max(30, lineHeight + fsmobileNumericStyle(style, "padding-top") + fsmobileNumericStyle(style, "padding-bottom"));
             }
-            return Math.max(Math.ceil(minHeight), measured);
+            var height = Math.max(Math.ceil(minHeight), measured);
+            if (fsmobileTextareaMeasureCache) fsmobileTextareaMeasureCache.set(field, { key: measureKey, height: height });
+            return height;
           }
 
           function fsmobileSafeResizeTextarea(field) {
-            if (!fsmobileIsVisibleTextarea(field)) return;
+            var layout = fsmobileTextareaLayout(field);
+            if (!layout) return;
             try {
-              var measured = fsmobileMeasureTextareaHeight(field);
-              field.style.height = measured + "px";
+              var measured = fsmobileMeasureTextareaHeight(field, layout);
+              if (field.style.height !== measured + "px") field.style.height = measured + "px";
               field.style.overflowY = "hidden";
             } catch (error) {}
           }
@@ -9061,10 +9142,35 @@
             });
           }
 
+          function fsmobileFlushTextareaResize() {
+            fsmobileTextareaResizeFrame = 0;
+            if (fsmobileTextareaResizeAllPending) {
+              fsmobileTextareaResizeAllPending = false;
+              fsmobilePendingTextareaFields.clear();
+              fsmobileResizeAllTextareas();
+              return;
+            }
+            var fields = Array.from(fsmobilePendingTextareaFields);
+            fsmobilePendingTextareaFields.clear();
+            fields.forEach(fsmobileSafeResizeTextarea);
+          }
+
+          function fsmobileRequestTextareaResizeFrame() {
+            if (fsmobileTextareaResizeFrame) return;
+            fsmobileTextareaResizeFrame = window.requestAnimationFrame(fsmobileFlushTextareaResize);
+          }
+
+          function fsmobileScheduleTextareaFieldResize(field) {
+            if (!field) return;
+            fsmobilePendingTextareaFields.add(field);
+            fsmobileRequestTextareaResizeFrame();
+          }
+
           function fsmobileScheduleTextareaResize(delay) {
             window.clearTimeout(fsmobileTextareaResizeTimer);
             fsmobileTextareaResizeTimer = window.setTimeout(function() {
-              window.requestAnimationFrame(fsmobileResizeAllTextareas);
+              fsmobileTextareaResizeAllPending = true;
+              fsmobileRequestTextareaResizeFrame();
             }, delay == null ? 0 : delay);
           }
 
@@ -9073,12 +9179,12 @@
             window.__fsmobileTextareaAutosizeGuardInstalled = true;
             document.addEventListener("input", function(event) {
               if (event.target && event.target.tagName === "TEXTAREA" && !fsmobileTextareaHasOwnAutosize(event.target)) {
-                window.setTimeout(function() { fsmobileSafeResizeTextarea(event.target); }, 0);
+                fsmobileScheduleTextareaFieldResize(event.target);
               }
             }, true);
             document.addEventListener("change", function(event) {
               if (event.target && event.target.tagName === "TEXTAREA" && !fsmobileTextareaHasOwnAutosize(event.target)) {
-                window.setTimeout(function() { fsmobileSafeResizeTextarea(event.target); }, 0);
+                fsmobileScheduleTextareaFieldResize(event.target);
               }
             }, true);
             if (window.MutationObserver) {
@@ -9099,7 +9205,7 @@
               observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
             }
             window.addEventListener("resize", function() { fsmobileScheduleTextareaResize(120); });
-            [0, 60, 180, 420, 900, 1600].forEach(fsmobileScheduleTextareaResize);
+            fsmobileScheduleTextareaResize(0);
           }
 
           var FSMOBILE_PORTRAIT_REPORT_IDS = {
@@ -13418,6 +13524,7 @@
             ensureRwaClearButton();
             arrangeHeaderActions();
             var arrangeTimer = 0;
+            var reportEnhancementFrame = 0;
 	            function refreshReportEnhancements() {
 	                fsmobileResizeAllTextareas();
 	                normalizePortraitAssignmentSections();
@@ -13431,24 +13538,29 @@
 	                ensureGeneratedTechnikerSignatureField();
 	                installFsmobileSignatureDataBridge();
 	                normalizeSignatureLabels();
-	                refreshSignatureCanvasesForReadyLayout();
 		                refreshResultToneMarkers();
 		                installJsPdfLoaderPatch();
-		                installArchiveMetadataCards();
-		                fsmobileScheduleTextareaResize(0);
 	            }
             function runReportEnhancementRefresh() {
+              reportEnhancementFrame = 0;
               refreshReportEnhancements();
               arrangeHeaderActions();
             }
-            function scheduleReportEnhancementRefresh(delay) {
-              window.setTimeout(runReportEnhancementRefresh, delay);
+            function requestReportEnhancementRefresh() {
+              if (reportEnhancementFrame) return;
+              reportEnhancementFrame = window.requestAnimationFrame(runReportEnhancementRefresh);
             }
-	            [0, 80, 220, 500, 900, 1400, 2200].forEach(scheduleReportEnhancementRefresh);
-	            [0, 120, 320, 700, 1200, 2000].forEach(scheduleSignatureCanvasReadyRefresh);
+            function scheduleReportEnhancementRefresh(delay) {
+              window.setTimeout(requestReportEnhancementRefresh, delay);
+            }
+	            [160, 700].forEach(scheduleReportEnhancementRefresh);
+	            [180, 720].forEach(scheduleSignatureCanvasReadyRefresh);
             window.addEventListener("resize", function() {
               window.clearTimeout(arrangeTimer);
-              arrangeTimer = window.setTimeout(runReportEnhancementRefresh, 80);
+              arrangeTimer = window.setTimeout(function() {
+                requestReportEnhancementRefresh();
+                scheduleSignatureCanvasReadyRefresh(0);
+              }, 80);
             });
           });
         }());

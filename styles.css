@@ -650,19 +650,15 @@ body.app-starting .brand h1 {
   line-height: 1.3;
 }
 
-.menu-view,
-.module-view {
-  will-change: opacity, transform;
-}
-
 .menu-view.view-exit,
 .module-view.view-exit {
   pointer-events: none;
   opacity: 0;
   transform: translateY(-6px) scale(0.996);
+  will-change: opacity, transform;
   transition:
-    opacity 0.26s var(--menu-ease),
-    transform 0.26s var(--menu-ease);
+    opacity 0.11s var(--menu-ease),
+    transform 0.11s var(--menu-ease);
 }
 
 .menu-view.view-enter,
@@ -670,6 +666,7 @@ body.app-starting .brand h1 {
   pointer-events: none;
   opacity: 0;
   transform: translateY(8px) scale(0.996);
+  will-change: opacity, transform;
 }
 
 .menu-view.view-enter-active,
@@ -677,36 +674,33 @@ body.app-starting .brand h1 {
   opacity: 1;
   transform: translateY(0) scale(1);
   transition:
-    opacity 0.38s var(--menu-ease),
-    transform 0.38s var(--menu-ease);
+    opacity 0.16s var(--menu-ease),
+    transform 0.16s var(--menu-ease);
 }
 
 .module-view.quick-switch-exit {
   pointer-events: none;
   opacity: 0;
-  filter: blur(1.5px) saturate(0.98);
   transform: translateX(-8px) scale(0.994);
+  will-change: opacity, transform;
   transition:
-    opacity 0.18s var(--menu-ease),
-    transform 0.18s var(--menu-ease),
-    filter 0.18s var(--menu-ease);
+    opacity 0.09s var(--menu-ease),
+    transform 0.09s var(--menu-ease);
 }
 
 .module-view.quick-switch-enter {
   pointer-events: none;
   opacity: 0;
-  filter: blur(1.5px) saturate(0.98);
   transform: translateX(10px) scale(0.994);
+  will-change: opacity, transform;
 }
 
 .module-view.quick-switch-enter-active {
   opacity: 1;
-  filter: blur(0) saturate(1);
   transform: translateX(0) scale(1);
   transition:
-    opacity 0.36s var(--menu-ease),
-    transform 0.36s var(--menu-ease),
-    filter 0.36s var(--menu-ease);
+    opacity 0.15s var(--menu-ease),
+    transform 0.15s var(--menu-ease);
 }
 
 #moduleGrid {
@@ -946,7 +940,6 @@ body.app-starting .brand h1 {
   transition:
     transform 0.76s var(--menu-collapse-ease),
     box-shadow 0.5s var(--menu-ease);
-  will-change: transform;
 }
 
 .menu-section-icon::before {
@@ -1745,7 +1738,6 @@ body.app-starting .brand h1 {
     transform 390ms var(--menu-ease);
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  will-change: opacity, transform;
 }
 
 .options-dialog::-webkit-scrollbar {
