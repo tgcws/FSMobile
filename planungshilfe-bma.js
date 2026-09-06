@@ -678,7 +678,7 @@
           </div>
           <div class="signature-toolbar">
             <p class="helper-text" id="customerSignatureHint">Mit Finger, Stift oder Maus unterschreiben.</p>
-            <button type="button" class="signature-reset-button" id="customerSignatureClear">Unterschrift löschen</button>
+            <button type="button" data-fsmobile-action="delete" class="signature-reset-button" id="customerSignatureClear">Unterschrift löschen</button>
           </div>
         </div>
       </section>
@@ -1482,6 +1482,27 @@
     }
     window.exportPdf = exportPdf;
 
+    function registerModuleApi() {
+      if (!window.FSMOBILE_STANDARD || typeof window.FSMOBILE_STANDARD.createModuleApi !== "function") return;
+      window.FSMOBILE_MODULE_API = window.FSMOBILE_STANDARD.createModuleApi({
+        moduleId: MODULE_ID,
+        storage: {
+          current: STORAGE_KEY,
+          archive: ARCHIVE_STORAGE_KEY,
+          pointer: CURRENT_ARCHIVE_ID_KEY
+        },
+        capabilities: { draft: true, archive: true, pdf: true, signatures: true },
+        state: { collect: collectData, apply: applyData },
+        lifecycle: { flush: saveFormNow },
+        actions: {
+          save: { invoke: saveCurrentFormToArchive, isDisabled: function() { return Boolean(document.getElementById("archiveSaveBtn")?.disabled); } },
+          archive: { invoke: openArchive, isDisabled: function() { return Boolean(document.getElementById("archiveBtn")?.disabled); } },
+          clear: { invoke: clearForm, isDisabled: function() { return Boolean(document.getElementById("clearBtn")?.disabled); } },
+          pdf: { invoke: exportPdf, isDisabled: function() { return Boolean(document.getElementById("pdfBtn")?.disabled); } }
+        }
+      });
+    }
+
     FORM.addEventListener("input", function(event) {
       autoGrow(event.target);
       scheduleSave();
@@ -1528,6 +1549,7 @@
 
     initializeSignaturePad();
     restoreDraft();
+    registerModuleApi();
   </script>
 </body>
 </html>`

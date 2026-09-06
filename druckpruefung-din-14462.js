@@ -190,10 +190,10 @@
       border: 0;
     }
     legend { width: 100%; padding: 0; }
-    .choice-stack { display: grid; gap: 10px; }
+    .choice-stack { display: flex; flex-direction: column; gap: 10px; }
     .choice-card {
-      display: grid;
-      grid-template-columns: 24px minmax(0, 1fr);
+      display: flex;
+      flex: 0 0 auto;
       gap: 10px;
       align-items: start;
       padding: 13px;
@@ -207,6 +207,9 @@
       background: rgba(214,0,28,.08);
       box-shadow: 0 0 0 2px rgba(214,0,28,.08);
     }
+    /* Avoid WebKit's oversized intrinsic grid rows for these multiline labels. */
+    .choice-card > input { flex: 0 0 22px; }
+    .choice-card > span { flex: 1; min-width: 0; min-height: 0; }
     .choice-card input, .binary-option input {
       width: 22px;
       height: 22px;
@@ -643,15 +646,26 @@
 
     function approvalData(key) {
       const state = pads[key];
-      if (!state || canvasIsBlank(state.canvas)) return "";
-      try { return state.canvas.toDataURL("image/png"); } catch (error) { return ""; }
+      if (!state) return "";
+      if (state.storedDataUrl) return state.storedDataUrl;
+      if (canvasIsBlank(state.canvas)) return "";
+      try {
+        state.storedDataUrl = state.canvas.toDataURL("image/png");
+        return state.storedDataUrl;
+      } catch (error) {
+        return "";
+      }
     }
 
     function drawApprovalData(key, dataUrl) {
       const state = pads[key];
       if (!state || !dataUrl) return;
+      state.renderVersion += 1;
+      const renderVersion = state.renderVersion;
+      state.storedDataUrl = String(dataUrl);
       const image = new Image();
       image.onload = function() {
+        if (state.renderVersion !== renderVersion || state.storedDataUrl !== String(dataUrl)) return;
         const canvas = state.canvas;
         const context = state.context;
         context.save();
@@ -674,6 +688,8 @@
       const state = pads[key];
       if (!state) return;
       const oldData = keep ? approvalData(key) : "";
+      state.renderVersion += 1;
+      state.storedDataUrl = "";
       const rect = state.canvas.getBoundingClientRect();
       const ratio = window.devicePixelRatio || 1;
       state.ratio = ratio;
@@ -690,7 +706,7 @@
     function setupApprovalPad(key, canvasId) {
       const canvas = document.getElementById(canvasId);
       const context = canvas.getContext("2d", { willReadFrequently: true });
-      pads[key] = { canvas: canvas, context: context, ratio: 1, drawing: false, lastPoint: null };
+      pads[key] = { canvas: canvas, context: context, ratio: 1, drawing: false, lastPoint: null, storedDataUrl: "", renderVersion: 0 };
 
       function point(event) {
         const rect = canvas.getBoundingClientRect();
@@ -698,8 +714,11 @@
       }
       function start(event) {
         event.preventDefault();
-        pads[key].drawing = true;
-        pads[key].lastPoint = point(event);
+        const state = pads[key];
+        state.renderVersion += 1;
+        state.storedDataUrl = "";
+        state.drawing = true;
+        state.lastPoint = point(event);
       }
       function move(event) {
         const state = pads[key];
@@ -730,6 +749,8 @@
     function clearApproval(key, persist) {
       const state = pads[key];
       if (!state) return;
+      state.renderVersion += 1;
+      state.storedDataUrl = "";
       state.context.save();
       state.context.setTransform(1, 0, 0, 1, 0, 0);
       state.context.clearRect(0, 0, state.canvas.width, state.canvas.height);
@@ -1309,9 +1330,32 @@
       }
     }
 
+    function registerModuleApi() {
+      if (!window.FSMOBILE_STANDARD || typeof window.FSMOBILE_STANDARD.createModuleApi !== "function") return;
+      window.FSMOBILE_MODULE_API = window.FSMOBILE_STANDARD.createModuleApi({
+        moduleId: MODULE_ID,
+        storage: {
+          current: STORAGE_KEY,
+          archive: ARCHIVE_STORAGE_KEY,
+          pointer: CURRENT_ARCHIVE_ID_KEY
+        },
+        capabilities: { draft: true, archive: true, pdf: true, signatures: true, import: true },
+        state: { collect: collectData, apply: applyData },
+        lifecycle: { flush: saveFormNow },
+        actions: {
+          save: { invoke: saveCurrentFormToArchive, isDisabled: function() { return document.getElementById("archiveSaveBtn").disabled; } },
+          archive: { invoke: openArchive, isDisabled: function() { return document.getElementById("archiveBtn").disabled; } },
+          import: { invoke: function() { document.querySelector(".fsmobile-data-import")?.click(); }, isDisabled: function() { return Boolean(document.querySelector(".fsmobile-data-import")?.disabled); } },
+          clear: { invoke: clearForm, isDisabled: function() { return document.getElementById("clearBtn").disabled; } },
+          pdf: { invoke: exportPdf, isDisabled: function() { return document.getElementById("pdfBtn").disabled; } }
+        }
+      });
+    }
+
     setupApprovalPad("auftraggeber", "auftraggeberPad");
     setupApprovalPad("auftragnehmer", "auftragnehmerPad");
     restoreDraft();
+    registerModuleApi();
 
     form.addEventListener("input", function(event) {
       if (event.target && event.target.classList) event.target.classList.remove("is-invalid");

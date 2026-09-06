@@ -873,6 +873,27 @@
       setStatus("PDF-Export wurde erstellt.");
     }
 
+    function registerModuleApi() {
+      if (!window.FSMOBILE_STANDARD || typeof window.FSMOBILE_STANDARD.createModuleApi !== "function") return;
+      window.FSMOBILE_MODULE_API = window.FSMOBILE_STANDARD.createModuleApi({
+        moduleId: MODULE_ID,
+        storage: {
+          current: STORAGE_KEY,
+          archive: ARCHIVE_STORAGE_KEY,
+          pointer: CURRENT_ARCHIVE_ID_KEY
+        },
+        capabilities: { draft: true, archive: true, pdf: true, signatures: false },
+        state: { collect: collectData, apply: applyData },
+        lifecycle: { flush: saveFormNow },
+        actions: {
+          save: { invoke: saveCurrentFormToArchive, isDisabled: function() { return document.getElementById("archiveSaveBtn").disabled; } },
+          archive: { invoke: openArchive, isDisabled: function() { return document.getElementById("archiveBtn").disabled; } },
+          clear: { invoke: clearForm, isDisabled: function() { return document.getElementById("clearBtn").disabled; } },
+          pdf: { invoke: exportPdf, isDisabled: function() { return document.getElementById("pdfBtn").disabled; } }
+        }
+      });
+    }
+
     document.getElementById("auftragForm").addEventListener("input", function(event) {
       autoGrow(event.target);
       scheduleSave();
@@ -899,6 +920,7 @@
     window.addEventListener("beforeunload", saveFormNow);
 
     restoreDraft();
+    registerModuleApi();
   </script>
 </body>
 </html>`

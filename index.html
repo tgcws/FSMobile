@@ -8,12 +8,12 @@
   <meta name="application-name" content="FSMobile" />
   <meta name="apple-mobile-web-app-title" content="FSMobile" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
-  <link rel="manifest" href="manifest.webmanifest?v=322" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-src 'self' about: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+  <link rel="manifest" href="manifest.webmanifest?v=345" />
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=322" />
+  <link rel="stylesheet" href="styles.css?v=345" />
   <title>FSMobile</title>
   <script>
     (function () {
@@ -55,6 +55,7 @@
       }, true);
     }());
   </script>
+  <link rel="stylesheet" href="ui-consistency.css?v=345">
 </head>
 <body class="app-start-pending">
   <div class="app-shell">
@@ -133,13 +134,30 @@
               <dd id="optionsCacheVersion">Wird geprüft...</dd>
             </div>
             <div class="options-security-row">
+              <dt>App-Cache</dt>
+              <dd id="optionsCacheUsage">Wird geprüft...</dd>
+            </div>
+            <div class="options-security-row">
+              <dt>Lokale Formulardaten</dt>
+              <dd id="optionsLocalDataUsage">Wird geprüft...</dd>
+            </div>
+            <div class="options-security-row">
+              <dt>Ausgelagerte Bilder</dt>
+              <dd id="optionsImageStorageUsage">Wird geprüft...</dd>
+            </div>
+            <div class="options-security-row">
+              <dt>Speicherreserve</dt>
+              <dd id="optionsStorageReserve">Wird geprüft...</dd>
+            </div>
+            <div class="options-security-row">
               <dt>Letztes Backup</dt>
               <dd id="optionsLastBackup">Noch kein Backup erstellt</dd>
             </div>
           </dl>
+          <p class="options-security-note">„Browser verwaltet“ ist der normale iPad-Modus. Unter 20&nbsp;% freier Reserve wird gewarnt.</p>
         </section>
         <div class="options-actions">
-          <p class="options-helper">Backups enthalten lokale Berichte, Archivdaten und Favoriten dieser App.</p>
+          <p class="options-helper">Backups enthalten lokale Berichte, Archivdaten, ausgelagerte Bilder und Favoriten dieser App.</p>
           <button class="options-action-button primary" id="archiveBackupExportButton" type="button">Backup erstellen</button>
           <button class="options-action-button secondary" id="archiveBackupImportButton" type="button">Backup importieren</button>
           <button class="options-action-button danger" id="archiveDeleteButton" type="button">Archivdaten löschen</button>
@@ -184,10 +202,10 @@
     </section>
   </div>
 
-  <script src="modules.js?v=322"></script>
-  <script src="auftrag-bescheinigungen.js?v=322"></script>
-  <script src="planungshilfe-bma.js?v=322"></script>
-  <script src="druckpruefung-din-14462.js?v=322"></script>
-  <script src="app.js?v=322"></script>
+  <script src="image-storage.js?v=345"></script>
+  <script src="modules.js?v=345"></script>
+  <script src="module-manifest.js?v=345"></script>
+  <script src="ui-consistency.js?v=345"></script>
+  <script src="app.js?v=345"></script>
 </body>
 </html>

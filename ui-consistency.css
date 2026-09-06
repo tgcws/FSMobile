@@ -1,0 +1,139 @@
+/* Shared screen UI. The favorite sort control (B14) is intentionally excluded. */
+:root {
+  --fsmobile-dialog-surface: #f8fafc;
+  --fsmobile-ui-surface: rgba(248,250,252,.80);
+  --fsmobile-button-open: linear-gradient(180deg,#2f93ff,#0a84ff);
+  --fsmobile-button-save: linear-gradient(180deg,#ffb02e,#ff9500);
+  --fsmobile-button-add: linear-gradient(180deg,#40d96a,#34c759);
+  --fsmobile-button-copy: linear-gradient(180deg,#6b69ee,#5856d6);
+  --fsmobile-button-delete: linear-gradient(180deg,#ff4f45,#ff3b30);
+  --fsmobile-button-neutral: linear-gradient(180deg,#a6a6ad,#8e8e93);
+}
+html#fsmobileUiRoot body:not(.generating-pdf) {
+  color: #1c1c1e;
+  font-family: -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Arial,sans-serif !important;
+}
+/* The shell supplies the glass background. Nested module filters repeatedly
+   repaint large tables; translucent content surfaces do not need another blur. */
+html#fsmobileUiRoot body:not(.generating-pdf) *:not(.archive-overlay):not(.fsmobile-dialog-overlay) { -webkit-backdrop-filter:none!important; backdrop-filter:none!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) h1 { font-size:34px!important; font-weight:850!important; line-height:1.12!important; letter-spacing:0!important; overflow-wrap:anywhere; }
+html#fsmobileUiRoot body:not(.generating-pdf) h2 { font-size:22px!important; line-height:1.2!important; font-weight:800!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) h3 { font-size:18px!important; line-height:1.25!important; font-weight:750!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) :is(.form-section,.section,.card,.info-grid,.remarks-section,.remarks-card,.photo-section,.test-card,.check-item,.result-item,.content-card,.step-card,.list-card,.note-card,.whd-card,.hydrant-card,.fsmobile-report-remark-block,.signature-section,.signature-block,.signature-wrap,.fsmobile-generated-signature-block) {
+  background:var(--fsmobile-ui-surface)!important; border:1px solid #d8dee7!important; border-radius:22px!important; padding:16px!important;
+  box-shadow:0 4px 16px rgba(2,8,23,.06)!important;
+  -webkit-backdrop-filter:none!important; backdrop-filter:none!important;
+}
+html#fsmobileUiRoot body:not(.generating-pdf) :is(label:not(.fsmobile-ui-touch-target),legend,.field-label,.group-label) {
+  color:#454b55!important; font-size:13px!important; font-weight:700!important; line-height:1.25!important;
+}
+html#fsmobileUiRoot body:not(.generating-pdf) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]):not([type=button]):not([type=submit]),select) {
+  box-sizing:border-box!important; height:46px!important; min-height:46px!important; max-height:46px!important;
+  border-radius:10px!important; font-size:16px!important; font-weight:400!important;
+}
+/* One 44px content line inside the 46px field: older date rules combined
+   44/48px lines with 10px padding, pushing Safari's value below the center. */
+html#fsmobileUiRoot body:not(.generating-pdf) input[type=date] {
+  padding:0 12px!important; line-height:44px!important;
+  /* Report metadata used display:block while other modules used flex.
+     Center Safari's native value with the same layout in every module. */
+  display:flex!important; align-items:center!important;
+  -webkit-appearance:none!important; appearance:none!important;
+}
+html#fsmobileUiRoot body:not(.generating-pdf) input[type=date]::-webkit-date-and-time-value {
+  min-height:0!important; padding:0!important; margin:0!important;
+  line-height:44px!important; text-align:inherit!important;
+}
+html#fsmobileUiRoot body:not(.generating-pdf) input[type=date]::-webkit-datetime-edit,
+html#fsmobileUiRoot body:not(.generating-pdf) input[type=date]::-webkit-datetime-edit-fields-wrapper {
+  padding:0!important;
+}
+html#fsmobileUiRoot body:not(.generating-pdf) :is(input,textarea,select) { color:#1c1c1e; -webkit-backdrop-filter:none!important; backdrop-filter:none!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) :is(input,select,textarea):not(.fsmobile-result-ok):not(.fsmobile-result-bad) { background-color:#fff!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]),select,textarea):not(.fsmobile-result-ok):not(.fsmobile-result-bad) { border-color:#c4cbd4!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) textarea { font-size:16px!important; font-weight:400!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) :is(.table-wrapper,.table-shell,.table-wrap,.table-scroll) { background:var(--fsmobile-ui-surface)!important; border-color:#d8dee7!important; overflow-x:auto!important; }
+/* The surrounding card/scroller owns the surface; avoid painting it twice. */
+html#fsmobileUiRoot body:not(.generating-pdf) table { background:transparent!important; }
+/* Only the explicit wrapper scrolls. WebKit otherwise scrolls an overflow-hidden
+   table internally when revealing a field, which can clip the focused row. */
+html#fsmobileUiRoot body:not(.generating-pdf) :is(.table-wrapper,.table-shell,.table-wrap,.table-scroll) table { overflow:visible!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) :is(td,th) { vertical-align:top!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) table :is(input:not([type=checkbox]):not([type=radio]),select,textarea,button) { min-width:44px!important; }
+html#fsmobileUiRoot.fsmobile-kalkulation-module body:not(.generating-pdf) table :is(input:not([type=checkbox]):not([type=radio]),textarea) { min-width:76px!important; }
+html#fsmobileUiRoot.fsmobile-kalkulation-module body:not(.generating-pdf) table { min-width:1100px!important; table-layout:auto!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-meta-grid { display:grid!important; grid-template-columns:repeat(4,minmax(0,1fr))!important; gap:12px!important; align-items:start!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-meta-grid > * { min-width:0!important; order:var(--fsmobile-meta-order,45); }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-aligned-label { min-height:var(--fsmobile-label-height,0px); }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-meta-grid .fsmobile-meta-object { grid-column:span 2; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-meta-grid { background:var(--fsmobile-ui-surface)!important; padding:16px!important; border:1px solid #d8dee7!important; border-radius:22px!important; margin-bottom:16px!important; -webkit-backdrop-filter:none!important; backdrop-filter:none!important; }
+/* Paint a shared card surface only once, including nested metadata and table
+   scrollers, so every module retains the same translucency. */
+html#fsmobileUiRoot body:not(.generating-pdf) :is(.form-section,.section,.card,.info-grid,.remarks-section,.remarks-card,.photo-section,.test-card,.check-item,.result-item,.content-card,.step-card,.list-card,.note-card,.whd-card,.hydrant-card,.fsmobile-report-remark-block,.signature-section,.signature-block,.signature-wrap,.fsmobile-generated-signature-block,.fsmobile-meta-grid,.table-wrapper,.table-shell,.table-wrap,.table-scroll)
+  :is(.form-section,.section,.card,.info-grid,.remarks-section,.remarks-card,.photo-section,.test-card,.check-item,.result-item,.content-card,.step-card,.list-card,.note-card,.whd-card,.hydrant-card,.fsmobile-report-remark-block,.signature-section,.signature-block,.signature-wrap,.fsmobile-generated-signature-block,.fsmobile-meta-grid,.table-wrapper,.table-shell,.table-wrap,.table-scroll) {
+  background:transparent!important;
+}
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-row-actions { display:flex!important; flex-direction:row!important; flex-wrap:wrap!important; gap:10px!important; justify-content:flex-start!important; margin-top:16px!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-row-actions > button { width:auto!important; flex:0 1 auto!important; min-height:46px!important; margin:0!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-row-actions > [data-fsmobile-action=add] { order:1; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-row-actions > [data-fsmobile-action=copy] { order:2; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-row-actions > [data-fsmobile-action=delete] { order:3; }
+html#fsmobileUiRoot body:not(.generating-pdf) button[data-fsmobile-action=delete] { background:var(--fsmobile-button-delete)!important; color:#fff!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) button[data-fsmobile-action=add] { background:var(--fsmobile-button-add)!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) button[data-fsmobile-action=copy] { background:var(--fsmobile-button-copy)!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) button:focus-visible,
+.fsmobile-dialog :is(button,input,select,textarea,a):focus-visible { outline:3px solid #175cd3!important; outline-offset:3px!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) button:disabled,.fsmobile-dialog button:disabled { opacity:.55!important; cursor:default!important; transform:none!important; }
+@media(max-width:900px) {
+  html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-meta-grid { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+}
+@media(max-width:500px) {
+  html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-meta-grid { grid-template-columns:1fr!important; }
+  html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-meta-grid .fsmobile-meta-object { grid-column:auto; }
+}
+/* A single family for shell dialogs and module archive adapters. */
+.fsmobile-dialog-overlay {
+  position:fixed!important; inset:0!important; z-index:12000!important; align-items:center!important; justify-content:center!important;
+  padding:16px!important; box-sizing:border-box!important; background:rgba(15,23,42,.52)!important; backdrop-filter:blur(12px)!important;
+}
+.fsmobile-dialog-overlay[hidden] { display:none!important; }
+.fsmobile-dialog-overlay > .fsmobile-dialog,
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-dialog {
+  display:flex!important; flex-direction:column!important; width:min(100%,820px)!important; max-height:calc(var(--fsmobile-visual-height,100dvh) - 32px)!important;
+  box-sizing:border-box!important; min-height:0!important; overflow:hidden!important; padding:0!important; margin:0!important;
+  background:#f8fafc!important; color:#1c1c1e!important; border:1px solid #d8dee7!important; border-radius:22px!important;
+  box-shadow:0 26px 80px rgba(2,8,23,.32)!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important;
+}
+.fsmobile-dialog-overlay > .fsmobile-dialog.fsmobile-dialog-compact { width:min(100%,460px)!important; }
+.fsmobile-dialog-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; flex:none; border-bottom:1px solid #d8dee7; }
+.fsmobile-dialog-header h2 { margin:0; font:800 22px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+.fsmobile-dialog-body { min-height:0; overflow:auto; padding:16px 18px; overscroll-behavior:contain; }
+.fsmobile-dialog-footer { display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; flex:none; padding:16px 18px; border-top:1px solid #d8dee7; }
+.fsmobile-dialog button { min-height:46px; min-width:44px; border:0; border-radius:999px; padding:10px 16px; color:white; font:800 15px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--fsmobile-button-open); cursor:pointer; }
+.fsmobile-dialog button[data-tone=neutral] { background:var(--fsmobile-button-neutral); }
+.fsmobile-dialog button[data-tone=delete] { background:var(--fsmobile-button-delete); }
+.fsmobile-dialog button[data-tone=save] { background:var(--fsmobile-button-save); }
+.fsmobile-dialog-close { flex:none; width:44px; height:44px; min-height:44px!important; padding:0!important; background:var(--fsmobile-button-neutral)!important; }
+.fsmobile-dialog label { display:block; margin:12px 0 6px; color:#454b55; font-size:13px; font-weight:700; }
+.fsmobile-dialog input { box-sizing:border-box; width:100%; min-height:46px; border:1px solid #bbc5d3; border-radius:10px; padding:10px 12px; font:400 16px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#fff; color:#1c1c1e; }
+.fsmobile-dialog p { margin:0 0 12px; line-height:1.45; }
+.fsmobile-dialog-status { padding:12px; border-radius:10px; background:#eaf1fb; color:#173b65; }
+.fsmobile-dialog-status[data-tone=error] { background:#fff0ee; color:#8f2018; }
+.fsmobile-dialog-status[data-tone=success] { background:#e9f7ed; color:#126b36; }
+.fsmobile-dialog [hidden] { display:none!important; }
+.fsmobile-frame-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.52); backdrop-filter:blur(8px); z-index:11990; }
+.fsmobile-frame-modal-host { position:relative!important; z-index:11991!important; transform:none!important; pointer-events:auto!important; }
+.app-toast.fsmobile-toast-suppressed { display:none!important; visibility:hidden!important; transition:none!important; }
+/* Options retains its original controls and handlers; it shares the same family. */
+#optionsOverlay.fsmobile-dialog-overlay .options-dialog { overflow-y:auto!important; padding:16px 18px!important; }
+#optionsOverlay .options-header { flex:none; }
+#optionsOverlay :is(.options-security-summary,.options-backup-summary,.options-confirm) { background:#fff!important; border-color:#d8dee7!important; box-shadow:none!important; }
+#optionsOverlay .options-status { display:block!important; color:#173b65!important; margin:12px 0 0!important; padding:12px!important; background:#eaf1fb!important; border-radius:10px!important; }
+#optionsOverlay .options-status:empty { display:none!important; }
+#optionsOverlay :is(h2,h3,.options-confirm-title) { color:#1c1c1e!important; }
+#optionsOverlay :is(p,dt,dd) { color:#454b55; }
+#optionsOverlay .options-close-button { min-width:44px!important; min-height:44px!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) .archive-title { overflow-wrap:anywhere!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-archive-title-collapsed { display:-webkit-box!important; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden!important; }
+html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-archive-expand { margin-top:6px; background:var(--fsmobile-button-neutral)!important; }
+@media(prefers-reduced-motion:reduce) { .fsmobile-dialog * { transition:none!important; animation:none!important; } }
