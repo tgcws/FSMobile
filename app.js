@@ -9481,6 +9481,7 @@ window.__fsmobileLargeReportStatePilotInstalled = true;
 var RWA_OBJECT_GROUPS = [
 "co2Patronen",
 "co2Thermofaesschen",
+"co2Schmelzlot",
 "druckgaserzeuger",
 "bodenstueck",
 "mraVentilatoren",
@@ -9493,6 +9494,7 @@ var RWA_ALL_GROUPS = RWA_OBJECT_GROUPS.concat(["ausloeseStandorte"]);
 var RWA_ADD_FUNCTIONS = {
 addCo2Patrone: "co2Patronen",
 addCo2Thermofaesschen: "co2Thermofaesschen",
+addCo2Schmelzlot: "co2Schmelzlot",
 addDruckgaserzeuger: "druckgaserzeuger",
 addBodenstueck: "bodenstueck",
 addMraVentilator: "mraVentilatoren",
@@ -9504,6 +9506,7 @@ addOeffnungselement: "oeffnungselemente"
 var RWA_RESET_FUNCTIONS = {
 co2Patronen: "resetCo2Patronen",
 co2Thermofaesschen: "resetCo2Thermofaesschen",
+co2Schmelzlot: "resetCo2Schmelzlot",
 druckgaserzeuger: "resetDruckgaserzeuger",
 bodenstueck: "resetBodenstueck",
 mraVentilatoren: "resetMraVentilatoren",

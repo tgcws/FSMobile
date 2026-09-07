@@ -1,5 +1,5 @@
-const CACHE_NAME = "fsmobile-v345";
-const APP_VERSION = "2026-09-06-v345";
+const CACHE_NAME = "fsmobile-v346";
+const APP_VERSION = "2026-09-07-v346";
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
