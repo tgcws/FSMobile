@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v353";
-const APP_VERSION = "2026-09-09-v353";
-// V353 packages the report import glyph beside the menu options.
+const CACHE_NAME = "fsmobile-v354";
+const APP_VERSION = "2026-09-09-v354";
+// V354 release candidate with a separate cache and matching versioned assets.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
