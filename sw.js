@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v354";
-const APP_VERSION = "2026-09-09-v354";
-// V354 release candidate with a separate cache and matching versioned assets.
+const CACHE_NAME = "fsmobile-v356";
+const APP_VERSION = "2026-09-09-v356";
+// V356 packages the current fixes with a fresh, consistent asset cache.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
