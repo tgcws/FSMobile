@@ -137,3 +137,14 @@ html#fsmobileUiRoot body:not(.generating-pdf) .archive-title { overflow-wrap:any
 html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-archive-title-collapsed { display:-webkit-box!important; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden!important; }
 html#fsmobileUiRoot body:not(.generating-pdf) .fsmobile-archive-expand { margin-top:6px; background:var(--fsmobile-button-neutral)!important; }
 @media(prefers-reduced-motion:reduce) { .fsmobile-dialog * { transition:none!important; animation:none!important; } }
+/* Shared report import selection dialog. */
+#fsmobileReportImportCandidate {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; min-height: 46px; box-sizing: border-box;
+  padding: 8px 38px 8px 12px; border: 1px solid #c7ced8; border-radius: 10px;
+  background: #fff; color: #1c1c1e; font: inherit; font-size: 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23454b55' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 12px center; background-repeat: no-repeat;
+}
+#fsmobileReportImportConflict .fsmobile-dialog-footer { flex-wrap: wrap; }
+#fsmobileReportImportConflict .fsmobile-dialog-footer button { flex: 1 1 auto; }

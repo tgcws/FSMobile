@@ -175,6 +175,7 @@ input:focus-visible {
 
 .topbar:not(.is-module-active) .brand {
   padding-left: 22px;
+  padding-right: calc(104px + env(safe-area-inset-right, 0px));
 }
 
 .brand {
@@ -486,6 +487,19 @@ body.app-starting .brand h1 {
 
 .menu-options-button:active {
   transform: translateY(-50%) scale(0.975);
+}
+
+.menu-import-button {
+  right: calc(52px + env(safe-area-inset-right, 0px));
+  cursor: pointer;
+}
+
+.menu-import-glyph {
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: auto;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.52));
 }
 
 .menu-options-glyph {

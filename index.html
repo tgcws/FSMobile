@@ -9,11 +9,11 @@
   <meta name="apple-mobile-web-app-title" content="FSMobile" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-src 'self' about: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
-  <link rel="manifest" href="manifest.webmanifest?v=350" />
+  <link rel="manifest" href="manifest.webmanifest?v=353" />
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=350" />
+  <link rel="stylesheet" href="styles.css?v=353" />
   <title>FSMobile</title>
   <script>
     (function () {
@@ -55,7 +55,7 @@
       }, true);
     }());
   </script>
-  <link rel="stylesheet" href="ui-consistency.css?v=350">
+  <link rel="stylesheet" href="ui-consistency.css?v=353">
 </head>
 <body class="app-start-pending">
   <div class="app-shell">
@@ -70,6 +70,12 @@
           <p id="viewSubtitle">Menüauswahl</p>
         </div>
       </div>
+      <button class="menu-options-button menu-import-button" id="reportImportButton" type="button" aria-label="Bericht importieren" title="Bericht importieren (JSON oder ZIP)" hidden>
+        <svg class="menu-import-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M12 3v12m-4-4 4 4 4-4M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
+        </svg>
+      </button>
+      <input id="reportImportFile" type="file" accept=".json,application/json,.zip,application/zip,application/x-zip-compressed" hidden />
       <button class="menu-options-button" id="menuOptionsButton" type="button" aria-label="Optionen" title="Optionen">
         <span class="menu-options-glyph" aria-hidden="true">•••</span>
       </button>
@@ -202,10 +208,13 @@
     </section>
   </div>
 
-  <script src="image-storage.js?v=350"></script>
-  <script src="modules.js?v=350"></script>
-  <script src="module-manifest.js?v=350"></script>
-  <script src="ui-consistency.js?v=350"></script>
-  <script src="app.js?v=350"></script>
+  <script src="image-storage.js?v=353"></script>
+  <script src="modules.js?v=353"></script>
+  <script src="module-manifest.js?v=353"></script>
+  <script src="vendor/fflate-0.8.3.min.js?v=353"></script>
+  <script src="report-file-reader.js?v=353"></script>
+  <script src="ui-consistency.js?v=353"></script>
+  <script src="report-import.js?v=353"></script>
+  <script src="app.js?v=353"></script>
 </body>
 </html>

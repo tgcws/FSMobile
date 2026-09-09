@@ -31,6 +31,7 @@
   const updateTitle = updateToast ? updateToast.querySelector(".update-title") : null;
   const updateText = updateToast ? updateToast.querySelector(".update-text") : null;
   const menuOptionsButton = document.getElementById("menuOptionsButton");
+  const reportImportButton = document.getElementById("reportImportButton");
   const optionsOverlay = document.getElementById("optionsOverlay");
   const optionsCloseButton = document.getElementById("optionsCloseButton");
   const optionsOfflineReady = document.getElementById("optionsOfflineReady");
@@ -862,8 +863,9 @@
   }
 
   function updateMenuOptionsVisibility() {
-    if (!menuOptionsButton) return;
-    menuOptionsButton.hidden = Boolean(activeModuleId) || !isUnlocked;
+    const hidden = Boolean(activeModuleId) || !isUnlocked;
+    if (menuOptionsButton) menuOptionsButton.hidden = hidden;
+    if (reportImportButton) reportImportButton.hidden = hidden;
   }
 
   function normalizeArchiveKeyPart(value, options = {}) {
@@ -2654,7 +2656,14 @@
     scheduleModuleSignatureRehydration(id);
   }
 
-  async function openModule(id, replaceHistory) {
+  function holdNavigationDuringReportImport() {
+    if (!window.FSMOBILE_REPORT_IMPORT?.busy) return false;
+    history.replaceState({ module: activeModuleId }, "", activeModuleId ? `#${encodeURIComponent(activeModuleId)}` : location.pathname);
+    return true;
+  }
+
+  async function openModule(id, replaceHistory, fromReportImport = false) {
+    if (!fromReportImport && holdNavigationDuringReportImport()) return;
     if (!isUnlocked) {
       showAuth();
       return;
@@ -2702,6 +2711,7 @@
   }
 
   function showMenu(replaceHistory) {
+    if (holdNavigationDuringReportImport()) return;
     if (!isUnlocked) {
       showAuth();
       return;
@@ -3032,6 +3042,38 @@
 	  }
 
   window.FSMOBILE_UI?.setActionHandler(activateFrameAction);
+
+  async function openReportForImport(id) {
+    if (activeModuleId === id && frame.contentWindow?.FSMOBILE_REPORT_TRANSFER) return frame.contentWindow;
+    let cancelWait;
+    const ready = new Promise((resolve, reject) => {
+      const finish = (error, win) => {
+        window.clearTimeout(timer);
+        window.removeEventListener("fsmobile:module-ready", listener);
+        if (error) reject(error); else resolve(win);
+      };
+      const listener = event => {
+        if (event.detail?.moduleId === id && activeModuleId === id) finish(null, frame.contentWindow);
+      };
+      const timer = window.setTimeout(() => finish(new Error("Der Prüfbericht konnte nicht geladen werden.")), 20000);
+      cancelWait = () => finish(new Error("Der Berichtwechsel wurde abgebrochen. Die vorhandenen Eingaben bleiben erhalten."));
+      window.addEventListener("fsmobile:module-ready", listener);
+    });
+    // Attach a rejection handler while a slow lazy-module load is pending.
+    ready.catch(() => {});
+    await openModule(id, false, true);
+    if (activeModuleId !== id) cancelWait();
+    return ready;
+  }
+
+  window.FSMOBILE_REPORT_IMPORT = window.FSMOBILE_CREATE_REPORT_IMPORT({
+    modules: MENU_SECTIONS.find(section => section.id === "pruefberichte").modules.map(id => ({ id, title: moduleDisplayName(id) })),
+    unlocked: () => isUnlocked,
+    open: openReportForImport,
+    flush: flushActiveModuleState,
+    reload: id => loadModuleContent(id, registry[id], true),
+    notify: showAppToast
+  });
 
   function moduleUsesParentActions(id) {
     return /^pb-/.test(id || "") || MENU_SECTIONS.some(section => (
@@ -8771,18 +8813,12 @@ window.FSMOBILE_COMBINED_PDF_EXPORT = null;
 
 async function importExportFile(file) {
 if (!file) return;
-var payload;
-try {
-payload = JSON.parse(await file.text());
-} catch (error) {
-setUnifiedActionStatus("Exportdatei konnte nicht importiert werden.");
-alert("Exportdatei konnte nicht gelesen werden.");
-return;
+return window.parent.FSMOBILE_REPORT_IMPORT.importFile(file, window.FSMOBILE_MODULE_ID);
 }
+
+async function applyReportImportPayload(payload) {
 if (!payload || payload.kind !== DATA_KIND || payload.moduleId !== window.FSMOBILE_MODULE_ID || !Array.isArray(payload.fields)) {
-setUnifiedActionStatus("Exportdatei konnte nicht importiert werden.");
-alert("Diese Exportdatei passt nicht zu diesem Prüfbericht.");
-return;
+throw new Error("Diese Exportdatei passt nicht zu diesem Prüfbericht.");
 }
 var importFields = payload.fields.filter(function(fieldData, index, fields) {
 return !isExcludedFieldData(fieldData) && !isLegacyTextareaMirrorFieldData(fieldData, index, fields);
@@ -8806,12 +8842,97 @@ if (usesPositionCheckboxUi()) {
 resetPositionCheckboxUi();
 window.__fsmobilePositionCheckboxArchiveRestored = true;
 }
-window.setTimeout(function() {
 document.dispatchEvent(new Event("input", { bubbles: true }));
 document.dispatchEvent(new Event("change", { bubbles: true }));
-}, 80);
-setUnifiedActionStatus("Exportdatei wurde importiert.");
+await new Promise(function(resolve) { window.setTimeout(resolve, 120); });
 }
+
+async function reportImportTransaction(action) {
+var proto = window.Storage.prototype;
+var originalSet = proto.setItem, originalRemove = proto.removeItem;
+var journal = new Map(), failed = false, aborted = false;
+var safeBefore = window.FSMOBILE_SAFE_STORAGE.snapshot();
+function remember(area, key, value) {
+if (area !== localStorage) return;
+key = String(key);
+if (!journal.has(key)) journal.set(key, { before: localStorage.getItem(key), after: value });
+else journal.get(key).after = value;
+}
+proto.setItem = function(key, value) {
+if (aborted && this === localStorage) return;
+remember(this, key, String(value));
+try { return originalSet.call(this, key, value); }
+catch (error) { failed = true; throw error; }
+};
+proto.removeItem = function(key) {
+if (aborted && this === localStorage) return;
+remember(this, key, null);
+try { return originalRemove.call(this, key); }
+catch (error) { failed = true; throw error; }
+};
+try {
+await action();
+var api = window.FSMOBILE_MODULE_API;
+if (!api || !api.lifecycle || typeof api.lifecycle.flush !== "function" || !api.storage.current) throw new Error("Missing report persistence");
+var result = await api.lifecycle.flush();
+if (result === false || result && result.ok === false || failed || window.FSMOBILE_SAFE_STORAGE.snapshot().failureCount !== safeBefore.failureCount) throw new Error("Report persistence failed");
+if (localStorage.getItem(api.storage.current) == null) throw new Error("Report persistence missing");
+journal.forEach(function(values, key) { if (localStorage.getItem(key) !== values.after) throw new Error("Import write verification failed"); });
+proto.setItem = originalSet; proto.removeItem = originalRemove;
+return { ok: true };
+} catch (error) {
+// Block late saves from this failed frame until the shell reloads it. Restore
+// only keys written by this transaction, using the unchanged parent realm.
+aborted = true;
+var restored = true;
+journal.forEach(function(values, key) {
+try {
+if (window.parent.localStorage.getItem(key) !== values.before) {
+if (values.before == null) window.parent.localStorage.removeItem(key);
+else window.parent.localStorage.setItem(key, values.before);
+}
+if (window.parent.localStorage.getItem(key) !== values.before) restored = false;
+} catch (rollbackError) { restored = false; }
+});
+return { ok: false, restored: restored };
+}
+}
+
+window.FSMOBILE_REPORT_TRANSFER = Object.freeze({
+hasData: function() {
+return reportControls().some(function(field) {
+if (field.closest(".archive-dialog, .archive-overlay") || /^(button|submit|reset)$/.test(field.type)) return false;
+if (field.type === "date" || field.type === "time") return false;
+if (field.type === "checkbox" || field.type === "radio") return field.checked !== field.defaultChecked;
+if (field.tagName === "SELECT") {
+var defaultOption = Array.from(field.options).find(function(option) { return option.defaultSelected; }) || field.options[0];
+return Boolean(defaultOption && field.value !== defaultOption.value);
+}
+// Restored table rows may encode user values as HTML defaults. Those still
+// constitute a draft; only automatically numbered position cells are ignored.
+if (/^(pos|position)$/.test(normalizeKey(fieldColumnLabel(field)))) return false;
+return Boolean(String(field.value || "").trim());
+});
+},
+archive: function() { return reportImportTransaction(function() {
+if (!saveReportArchiveByIdentity()) throw new Error("Report archive save failed");
+}); },
+apply: function(payload) {
+return reportImportTransaction(async function() {
+window.parent.FSMOBILE_REPORT_FILES.validate(payload);
+function detachArchiveSelection() {
+clearCurrentArchiveIdsForCurrentModule();
+var api = window.FSMOBILE_MODULE_API;
+var keys = candidateCurrentArchiveIdKeys(api.storage.archive || resolveArchiveStorageKey());
+if (api.storage.pointer) keys.push(api.storage.pointer);
+keys.forEach(function(key) { if (key && key !== api.storage.current) localStorage.removeItem(key); });
+}
+detachArchiveSelection();
+await applyReportImportPayload(payload);
+detachArchiveSelection();
+});
+}
+});
 
 function installControls() {
 var host = ensureHeaderActions();
@@ -8831,7 +8952,7 @@ importButton.textContent = "Import";
 var fileInput = document.createElement("input");
 fileInput.id = "fsmobileReportImportFile";
 fileInput.type = "file";
-fileInput.accept = "application/json,.json";
+fileInput.accept = "application/json,.json,application/zip,application/x-zip-compressed,.zip";
 fileInput.hidden = true;
 fileInput.addEventListener("change", function() {
 importExportFile(fileInput.files && fileInput.files[0]).finally(function() {

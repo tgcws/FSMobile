@@ -354,6 +354,6 @@
     function viewport() { document.documentElement.style.setProperty('--fsmobile-visual-height',(window.visualViewport?.height||innerHeight)+'px'); }
     window.visualViewport?.addEventListener('resize',viewport);viewport();
   }
-  window.FSMOBILE_UI=Object.freeze({version:1,installModule:decorateModule,confirm:confirmAction,withConfirmation,exportDialog,receiveExport,routeStatus,hideToast,setActionHandler(fn){shellInvoke=fn;}});
+  window.FSMOBILE_UI=Object.freeze({version:1,createDialog,installModule:decorateModule,confirm:confirmAction,withConfirmation,exportDialog,receiveExport,routeStatus,hideToast,setActionHandler(fn){shellInvoke=fn;}});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
 }());

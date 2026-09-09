@@ -1,5 +1,6 @@
-const CACHE_NAME = "fsmobile-v350";
-const APP_VERSION = "2026-09-09-v350";
+const CACHE_NAME = "fsmobile-v353";
+const APP_VERSION = "2026-09-09-v353";
+// V353 packages the report import glyph beside the menu options.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
@@ -13,6 +14,9 @@ const CORE_ASSETS = [
   "./styles.css",
   "./image-storage.js",
   "./app.js",
+  "./report-file-reader.js",
+  "./report-import.js",
+  "./vendor/fflate-0.8.3.min.js",
   "./ui-consistency.js",
   "./ui-consistency.css",
   "./modules.js",
