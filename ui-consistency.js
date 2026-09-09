@@ -283,14 +283,44 @@
         win.setTimeout(()=>{if(session.state==='running'&&session.transaction===transaction) {transaction.cancelled=true;failExport(session,'Die Erstellung wurde nicht abgeschlossen. Bitte erneut versuchen.');}},180000);
       }catch(error){transaction.cancelled=true;if(session.transaction===transaction)failExport(session,'Die Datei konnte nicht erstellt werden. '+(error?.message||''));}
     });
-    session.output=ui.button('Datei ausgeben','open',()=>{
+    session.output=ui.button('Datei ausgeben','open',async()=>{
       if(!session.blob || session.output.disabled)return;
       const extension=/^pb-/.test(session.id)?'.zip':'.pdf';
       session.fileName=(session.name.value.trim()||session.fileName).replace(/[\\/:*?"<>|]/g,'_').replace(/\.(pdf|zip)$/i,'')+extension;
       session.name.value=session.fileName;
       session.output.disabled=true;
+      const appleTouchDevice=/iPad|iPhone|iPod/.test(navigator.userAgent||'') || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+      // Keep the live form in its WebView. Standalone iPad downloads can open
+      // a blob preview whose return resets form controls despite an intact draft.
+      // Desktop Web Share does not guarantee a local save target. Keep the
+      // direct download there, including Windows PCs with touchscreens.
+      let shareData=null;
+      try {
+        if(appleTouchDevice && typeof navigator.share==='function' && typeof navigator.canShare==='function') {
+          const candidate={files:[new File([session.blob],session.fileName,{type:session.blob.type})]};
+          if(navigator.canShare(candidate))shareData=candidate;
+        }
+      }catch{}
+      if(shareData) {
+        try {
+          // Invoke while this click still carries transient user activation.
+          await navigator.share(shareData);
+          if(session.state==='ready') {
+            status.textContent='Datei an den Teilen-/Speichern-Dialog übergeben.';status.dataset.tone='info';
+          }
+        }catch(error) {
+          if(session.state==='ready') {
+            const cancelled=error?.name==='AbortError';
+            status.textContent=cancelled?'Ausgabe abgebrochen. Die Datei bleibt zur Ausgabe bereit.':'Datei konnte nicht übergeben werden. Bitte erneut versuchen.';
+            status.dataset.tone=cancelled?'info':'error';
+          }
+        }finally {
+          if(session.state==='ready'){session.output.disabled=false;session.output.textContent='Erneut ausgeben';}
+        }
+        return;
+      }
       setTimeout(()=>{if(session.state==='ready'){session.output.disabled=false;session.output.textContent='Erneut ausgeben';}},1500);
-      const url=URL.createObjectURL(session.blob), a=document.createElement('a');a.href=url;a.download=session.fileName;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      const url=URL.createObjectURL(session.blob), a=document.createElement('a');a.href=url;a.download=session.fileName;if(appleTouchDevice){a.target='_blank';a.rel='noopener';}document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
       status.textContent='Datei an den Browser übergeben. Dort kannst du sie öffnen, speichern oder teilen.';status.dataset.tone='info';
     });session.output.hidden=true;ui.show();
   }
