@@ -12,6 +12,7 @@
   const IMAGE_DATA_PATTERN = /^data:image\/[a-z0-9.+-]+;base64,/i;
   const activePayloads = new Map();
   let databasePromise = null;
+  let activeDatabase = null;
   let latestResult = null;
 
   function publishResult(result) {
@@ -190,7 +191,19 @@
         settled = true;
         global.clearTimeout(timeout);
         const database = request.result;
-        database.onversionchange = () => database.close();
+        activeDatabase = database;
+        // WebKit can close a connection when its storage process is lost.
+        // Reopen on the next operation instead of reusing a closed handle.
+        const forgetConnection = () => {
+          if (activeDatabase !== database) return;
+          activeDatabase = null;
+          databasePromise = null;
+        };
+        database.onclose = forgetConnection;
+        database.onversionchange = () => {
+          database.close();
+          forgetConnection();
+        };
         resolve(database);
       };
       request.onerror = () => {
