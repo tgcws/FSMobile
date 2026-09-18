@@ -136,6 +136,7 @@
         "pb-druckpruefung-din-14462",
         "pb-loeschwasser-trocken",
         "pb-loeschwasser-nass",
+        "pb-loeschwasser-nass-whd",
         "pb-zentralbatterie-anlage",
         "pb-wandhydranten",
         "pb-hydranten"
@@ -202,6 +203,7 @@
     "pb-druckpruefung-din-14462": "Druckprüfung DIN 14462",
     "pb-loeschwasser-trocken": "Löschwassereinrichtung Trocken",
     "pb-loeschwasser-nass": "Löschwassereinrichtung Nass",
+    "pb-loeschwasser-nass-whd": "Löschwassereinrichtung Nass mit WHD Einzelprüfung",
     "pb-zentralbatterie-anlage": "Zentralbatterie-Anlage",
     "pb-hydranten": "Hydranten",
     "anleitung-rwa-pyro": "RWA Pyro",
@@ -2930,6 +2932,7 @@
 	      "pb-feuerloescher",
 	      "pb-brandschutztueren",
 	      "pb-druckpruefung-din-14462",
+	      "pb-loeschwasser-nass-whd",
 	      "pb-hydranten"
 	    ].includes(id || "");
 	  }

@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v358";
-const APP_VERSION = "2026-09-16-v358";
-// V358 reopens closed image-storage database connections without a page reload.
+const CACHE_NAME = "fsmobile-v360";
+const APP_VERSION = "2026-09-18-v360";
+// V360 fixes immediate mortise-lock draft persistence and wrapped hose-reel PDF headers.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
@@ -71,6 +71,7 @@ const CORE_ASSETS = [
   "./aufmass-brandabschottungen.js",
   "./pb-zentralbatterie-anlage.js",
   "./pb-loeschwasser-nass.js",
+  "./pb-loeschwasser-nass-whd.js",
   "./pb-nass-trocken-station.js",
   "./pb-hydranten.js",
   "./manifest.webmanifest",
