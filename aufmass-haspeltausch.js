@@ -9,7 +9,7 @@
     const KEYS = { current: MODULE_ID + '-current-v1', archive: MODULE_ID + '-archive-v1', pointer: MODULE_ID + '-current-archive-id-v1' };
     const ASSET = 'assets/aufmass-haspeltausch/';
     const artwork = 'haspel-zeichnung.png';
-    const metaFields = [['ansprechpartner', 'Ansprechpartner'], ['telefon', 'Telefon für Rückfragen'], ['objekt', 'Objekt/Kommission']];
+    const metaFields = [['objekt', 'Objekt'], ['kundenNr', 'Kunden Nr.'], ['ansprechpartner', 'Name'], ['datum', 'Datum']];
     const productFields = [['schlauchlaenge', 'Schlauchlänge', 'm'], ['schlauchdurchmesser', 'Innendurchmesser des Schlauches', 'mm'], ['scheibendurchmesser', 'Außendurchmesser der Haspelscheiben', 'mm'], ['scheibenabstand', 'Scheibenabstand der Haspelscheiben', 'mm'], ['anzahlRechts', 'Stückzahl Wasseranschluss rechts', 'Stück'], ['anzahlLinks', 'Stückzahl Wasseranschluss links', 'Stück']];
     // Crops reference the original 767 x 699 image. No technical image is redrawn.
     // The same reference geometry drives the HTML overlay and vector PDF dimensions.
@@ -39,7 +39,7 @@
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
     const isObject = value => value && typeof value === 'object' && !Array.isArray(value);
-    const blank = () => ({ version: 1, fields: Object.fromEntries(textKeys.map(k => [k, ''])) });
+    const blank = () => ({ version: 1, fields: { ...Object.fromEntries(textKeys.map(k => [k, ''])), datum: today() } });
     function normalize(data) {
       const source = isObject(data) ? clone(data) : {};
       const fields = isObject(source.fields) ? source.fields : {};
@@ -117,7 +117,7 @@
       try {
         const entries = archiveEntries(), pointer = localStorage.getItem(KEYS.pointer);
         const index = entries.findIndex(e => e.id === pointer), previous = entries[index];
-        const standard = window.FSMOBILE_STANDARD.createArchiveEntry({ moduleId: MODULE_ID, title: archiveTitle(state), meta: { object: state.fields.objekt, date: today(), type: 'Aufmaß Haspeltausch', anlage: state.fields.ansprechpartner }, data: collectData(), previous });
+        const standard = window.FSMOBILE_STANDARD.createArchiveEntry({ moduleId: MODULE_ID, title: archiveTitle(state), meta: { object: state.fields.objekt, date: state.fields.datum, type: 'Aufmaß Haspeltausch', anlage: state.fields.ansprechpartner }, data: collectData(), previous });
         const entry = { ...previous, ...standard, meta: { ...previous?.meta, ...standard.meta } };
         if (index >= 0) entries[index] = entry; else entries.unshift(entry);
         if (!commit({ [KEYS.archive]: JSON.stringify(entries), [KEYS.pointer]: entry.id })) throw new Error('save-archive');
@@ -137,9 +137,9 @@
       list.innerHTML = entries.length ? entries.map(e => {
         const current = e.id === pointer;
         return '<article class="archive-item archive-item-detailed' + (current ? ' archive-item-current' : '') + '" data-archive-id="' + esc(e.id) + '"' + (current ? ' aria-current="true"' : '') + '>' +
-          '<div class="archive-detail-host"><div class="archive-detail"><div class="archive-detail-head"><span class="archive-type-badge">Aufmaß Haspeltausch</span><span class="archive-entry-date">' + esc(archiveDate(e.meta?.date)) + '</span></div>' +
+          '<div class="archive-detail-host"><div class="archive-detail"><div class="archive-detail-head"><span class="archive-type-badge">Aufmaß Haspeltausch</span><span class="archive-entry-date">' + esc(archiveDate(e.data?.fields?.datum)) + '</span></div>' +
           '<div class="archive-detail-object">Objekt: ' + esc(e.meta?.object || e.data?.fields?.objekt || 'nicht vorhanden') + '</div>' +
-          '<div class="archive-detail-grid"><span class="archive-detail-pair"><b>Ansprechpartner: </b><span>' + esc(e.meta?.anlage || 'nicht vorhanden') + '</span></span></div>' +
+          '<div class="archive-detail-grid"><span class="archive-detail-pair"><b>Kunden Nr.: </b><span>' + esc(e.data?.fields?.kundenNr || 'nicht vorhanden') + '</span></span><span class="archive-detail-pair"><b>Name: </b><span>' + esc(e.data?.fields?.ansprechpartner || e.meta?.anlage || 'nicht vorhanden') + '</span></span></div>' +
           '<div class="archive-detail-updated">Zuletzt geändert: ' + esc(archiveDate(e.updatedAt || e.createdAt, true)) + (current ? ' · Aktuell geöffnet' : '') + '</div></div></div>' +
           '<button type="button" class="archive-open-list-btn" data-archive-open="' + esc(e.id) + '">Öffnen</button>' +
           '<button type="button" class="archive-delete-list-btn danger" data-archive-delete="' + esc(e.id) + '" data-fsmobile-action="delete">Löschen</button></article>';
@@ -201,7 +201,7 @@
       storageBlocked = false; state = blank(); render(); notify('Formular geleert.'); return true;
     }
     function pdfFileName(data) {
-      return window.FSMOBILE_STANDARD.pdfFileName([data.fields.objekt || 'Aufmass_Haspeltausch', today()]);
+      return window.FSMOBILE_STANDARD.pdfFileName([data.fields.objekt || 'Aufmass_Haspeltausch', data.fields.datum || today()]);
     }
     window.FSMOBILE_PDF_EXPORT_FORMAT = 'zip';
     window.FSMOBILE_REPORT_EXPORT_FILE_NAME = () => pdfFileName(state).replace(/\.pdf$/, '.zip');
@@ -246,14 +246,28 @@
         }
         function nextPage(){doc.addPage();header();}
         function ensure(h){if(y+h>280)nextPage();}
-        function textRow(label,value){
-          doc.setFont('helvetica','normal');doc.setFontSize(8);
-          const lines=doc.splitTextToSize(val(value),132);let offset=0;
-          while(offset<lines.length){
-            ensure(14);const count=Math.max(1,Math.min(lines.length-offset,Math.floor((280-y-4)/4)));
-            const labelLines=doc.splitTextToSize(label+(offset?' (Forts.)':''),41);const h=Math.max(count,labelLines.length)*4+4;
-            ensure(h);doc.setFillColor(247,248,251);doc.rect(14,y,182,h,'F');doc.setTextColor(0);doc.setFont('helvetica','bold');doc.text(labelLines,16,y+4,{lineHeightFactor:1.4});
-            doc.setFont('helvetica','normal');doc.text(lines.slice(offset,offset+count),59,y+4,{lineHeightFactor:1.4});y+=h+1;offset+=count;if(offset<lines.length)nextPage();
+        function metadataRow(items) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+          const columns = items.map(([label, value]) => ({ label, lines: doc.splitTextToSize(val(value), 63), offset: 0 }));
+          while (columns.some(c => c.offset < c.lines.length)) {
+            ensure(12);
+            doc.setFontSize(8);
+            const capacity = Math.max(1, Math.floor((280 - y - 4) / 3.8));
+            const chunks = columns.map(c => c.lines.slice(c.offset, c.offset + capacity));
+            const labels = columns.map(c => doc.splitTextToSize(c.label + (c.offset && c.offset < c.lines.length ? ' (Forts.)' : ''), 21));
+            const height = Math.max(...chunks.map(c => c.length), ...labels.map(l => l.length)) * 3.8 + 4;
+            ensure(height);
+            columns.forEach((c, index) => {
+              const x = 14 + index * 93;
+              doc.setFillColor(247, 248, 251); doc.rect(x, y, 89, height, 'F');
+              doc.setTextColor(0); doc.setFont('helvetica', 'bold');
+              doc.text(labels[index], x + 2, y + 4, { lineHeightFactor: 1.35 });
+              doc.setFont('helvetica', 'normal');
+              if (chunks[index].length) doc.text(chunks[index], x + 24, y + 4, { lineHeightFactor: 1.35 });
+              c.offset += chunks[index].length;
+            });
+            y += height;
+            if (columns.some(c => c.offset < c.lines.length)) nextPage();
           }
         }
         function line(x1,y1,x2,y2,a){
@@ -279,7 +293,8 @@
         }
         function title(label){ensure(14);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(0);doc.text(label,14,y+4);y+=8;}
         header();
-        for(const [key,label] of metaFields)textRow(label,f[key]);
+        metadataRow([['Objekt', f.objekt], ['Kunden Nr.', f.kundenNr]]);
+        metadataRow([['Name', f.ansprechpartner], ['Datum', f.datum]]);
         title('Haspel und Stückzahlen');
         for(let i=0;i<productFields.length;i+=2){
           ensure(16);for(let j=0;j<2;j++){
@@ -335,7 +350,7 @@
     :root{--primary:#007aff;--accent:#ff9500;--text:#1c1c1e;--muted:#454b55}*{box-sizing:border-box}html{background:transparent;-webkit-text-size-adjust:100%}body{margin:0;background:transparent;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Arial,sans-serif}input,textarea,select,button{font:inherit}.container{width:min(100%,1180px);margin:auto;padding:18px}h1{font-size:34px;font-weight:850;margin:4px 0 18px}h2{font-size:22px}h3{font-size:18px;margin:20px 0 12px}.form-section{padding:16px;margin:0 0 16px;border:1px solid #d8dee7;border-radius:22px;background:rgba(248,250,252,.8)}.section-heading{display:flex;align-items:center;gap:10px}.section-heading:before{content:'';width:4px;height:20px;border-radius:3px;background:var(--accent)}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field-group{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:13px;font-weight:700}.field-group>span{color:var(--muted)}input:not([type=checkbox]),textarea,select{width:100%;min-height:46px;border:1px solid #c4cbd4;border-radius:10px;padding:10px 12px;background:#fff;color:var(--text);font-size:16px;font-weight:400}textarea{resize:none;overflow:hidden;line-height:1.4}input:focus,textarea:focus{outline:3px solid #007aff33;border-color:#007aff}input[aria-invalid=true]{outline:2px solid #ff3b30}button{min-width:44px;min-height:46px;border:0;border-radius:999px;padding:10px 18px;background:linear-gradient(#2f93ff,#0a84ff);color:#fff;font-size:15px;font-weight:800;cursor:pointer}button:disabled{opacity:.45;cursor:default}button:focus-visible,summary:focus-visible{outline:3px solid #007aff66;outline-offset:3px}.row-actions,.position-footer{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.row-actions{justify-content:flex-end;margin:0 0 16px}.position-footer{justify-content:space-between}.position-count{font-size:14px;color:var(--muted)}button[data-fsmobile-action=copy]{background:#5856d6}button[data-fsmobile-action=delete]{background:#ff3b30}button[data-fsmobile-action=add]{background:#34c759}.global-actions{display:flex;flex-wrap:wrap;gap:8px}.fsmobile-parent-actions-active .global-actions{display:none}.position>summary{cursor:pointer;min-height:52px;list-style-position:inside;padding:4px 0 12px;font-size:18px;overflow-wrap:anywhere}.position>summary strong{margin-right:14px}.position>summary span{display:block;padding:6px 0 0 21px;font-size:14px;color:var(--muted);font-weight:400}.position-content{padding-top:8px}.position-meta{margin-bottom:18px}fieldset{border:0;padding:0;margin:18px 0;min-width:0}legend{font-size:13px;font-weight:700;padding:0 0 8px}.choice-grid{display:flex;flex-wrap:wrap;gap:8px}.choice{display:flex;align-items:center;gap:9px;min-height:46px;padding:10px 12px;border:1px solid #c4cbd4;border-radius:10px;background:rgba(255,255,255,.8);cursor:pointer;font-size:14px;font-weight:600}.choice:has(input:checked){border-color:#e49525;background:#fff5df}.choice input{width:20px;height:20px;flex:none;accent-color:#e28a00}.choice span{flex:1}.choice img{width:30px;height:40px;object-fit:contain}.measures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.measures .choice{align-items:flex-start;flex-wrap:wrap}.measures .choice img{width:46px;height:60px;margin-left:auto}.diagrams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.measure-board{margin:0;padding:12px;background:#fff;border:1px solid #d8dee7;border-radius:16px;min-width:0}.measure-board figcaption{font-size:14px;font-weight:750;margin-bottom:10px;color:#454b55}.kranz-board{grid-column:1/-1}.diagram{position:relative;width:100%}.diagram>svg{display:block;width:100%;height:100%}.dimension{position:absolute;min-width:0}.dimension-label{display:block;font-size:12px;font-weight:650;line-height:1.25;margin-bottom:5px;background:#fff;width:fit-content}.dimension-values{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:4px;align-items:center;font-size:13px;background:#fff}.dimension-values.single{grid-template-columns:minmax(0,1fr) auto}.dimension-values input{padding:8px 5px;text-align:center}.unit{font-size:11px}.water-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.6fr);align-items:center;gap:18px}.archive-overlay[hidden]{display:none}.archive-overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:18px;background:#1c1c1e55}.archive-dialog{width:min(100%,820px);max-height:90vh;display:flex;flex-direction:column;background:#f8fafc;border-radius:22px;overflow:hidden}.archive-header{display:flex;justify-content:space-between;align-items:center;padding:16px;gap:12px}.archive-header h2{margin:0}.archive-close-btn{background:#8e8e93}.archive-filter-tools{display:flex;align-items:center;gap:12px;padding:0 16px 14px}.archive-filter-count,#archiveFilterCount{white-space:nowrap}.archive-filter-input{min-width:0;flex:1}.archive-list{overflow:auto;padding:12px;display:grid;gap:10px}.archive-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:14px;border:1px solid #d8dee7;border-radius:14px;background:#fff}.archive-item-current{border-color:#007aff;box-shadow:0 0 0 1px #007aff}.archive-title{font-weight:800;overflow-wrap:anywhere}.archive-meta{font-size:12px;line-height:1.4;margin-top:5px;color:#454b55;overflow-wrap:anywhere}.archive-empty{padding:24px;text-align:center}#importFile{display:none}@media(max-width:700px){.diagrams{grid-template-columns:1fr}.kranz-board{grid-column:auto}.kranz-board .diagram{min-width:600px}.kranz-board{overflow-x:auto}.measures{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.water-row{grid-template-columns:1fr}.archive-item{grid-template-columns:1fr}.container{padding:12px}}
   `;
   const localCss = `.input-unit{display:flex;align-items:center;gap:6px;min-width:0}.input-unit input{min-width:0;flex:1}.unit{font-size:12px;font-weight:500;flex:none}.dimension-label{line-height:1.2;font-size:12px}.dimension .input-unit{background:#fff}.dimension input{padding:8px 5px;text-align:center}.diagrams{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.diagrams .measure-board:nth-child(-n+2){grid-column:1/-1}.diagram .original-view{overflow:hidden}.form-grid .wide{grid-column:1/-1}#importFile{display:none}@media(max-width:700px){.diagrams{grid-template-columns:1fr}.measure-board{overflow-x:auto}.diagrams>.measure-board:nth-child(-n+2) .diagram{min-width:640px}}`;
-  const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Aufmaß Haspeltausch</title><script defer src="vendor/jspdf.umd.min.js"></script><style>${css}${localCss}</style></head><body><main class="container"><h1>Aufmaß Haspeltausch</h1><div class="global-actions"><button type="button" class="archive-save" data-global-action="save">Im Archiv speichern</button><button type="button" class="archive-btn" data-global-action="archive">Archiv</button><button type="button" class="fsmobile-data-import" data-global-action="import">Import</button><button type="button" class="clear-btn" data-global-action="clear">Leeren</button><button type="button" class="pdf-btn" data-global-action="pdf">PDF</button></div><form id="haspelForm"><section class="form-section"><h2 class="section-heading">Stammdaten</h2><div class="form-grid"><label class="field-group"><span>Ansprechpartner</span><textarea id="ansprechpartner" rows="1" data-field="ansprechpartner"></textarea></label><label class="field-group"><span>Telefon für Rückfragen</span><input type="tel" id="telefon" data-field="telefon"></label><label class="field-group wide"><span>Objekt/Kommission</span><textarea id="objekt" rows="1" data-field="objekt"></textarea></label></div></section><section class="form-section"><h2 class="section-heading">Haspel und Stückzahlen</h2><div class="form-grid" id="productFields"></div></section><section class="form-section"><h2 class="section-heading">Abmessungen Wandhydrant / Haspelfach</h2><div class="diagrams" id="diagrams"></div></section></form><input type="file" id="importFile" accept=".json,.zip,application/json,application/zip"></main><div id="archiveOverlay" class="archive-overlay" hidden><div class="archive-dialog" role="dialog" aria-modal="true" aria-labelledby="archiveTitle"><div class="archive-header"><h2 id="archiveTitle">Archiv – Aufmaß Haspeltausch</h2><button type="button" id="archiveCloseButton" class="archive-close-btn">Schließen</button></div><div class="archive-filter-tools"><input id="archiveFilter" class="archive-filter-input" type="search" placeholder="Objekt, Ansprechpartner, Datum …" aria-label="Archiv filtern"><span id="archiveFilterCount"></span></div><div id="archiveList" class="archive-list"></div></div></div><script>(${runtime.toString()})();</script></body></html>`;
+  const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Aufmaß Haspeltausch</title><script defer src="vendor/jspdf.umd.min.js"></script><style>${css}${localCss}html#fsmobileUiRoot body:not(.generating-pdf) .aufmass-stammdaten.fsmobile-meta-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}html#fsmobileUiRoot body:not(.generating-pdf) .aufmass-stammdaten.fsmobile-meta-grid>*{order:initial!important;grid-column:auto!important}@media(max-width:600px){html#fsmobileUiRoot body:not(.generating-pdf) .aufmass-stammdaten.fsmobile-meta-grid{grid-template-columns:1fr!important}}</style></head><body><main class="container"><h1>Aufmaß Haspeltausch</h1><div class="global-actions"><button type="button" class="archive-save" data-global-action="save">Im Archiv speichern</button><button type="button" class="archive-btn" data-global-action="archive">Archiv</button><button type="button" class="fsmobile-data-import" data-global-action="import">Import</button><button type="button" class="clear-btn" data-global-action="clear">Leeren</button><button type="button" class="pdf-btn" data-global-action="pdf">PDF</button></div><form id="haspelForm"><section class="form-section"><h2 class="section-heading">Stammdaten</h2><div class="form-grid aufmass-stammdaten"><label class="field-group"><span>Objekt</span><textarea id="objekt" rows="1" data-field="objekt"></textarea></label><label class="field-group"><span>Kunden Nr.</span><input id="kundenNr" type="text" data-field="kundenNr"></label><label class="field-group"><span>Name</span><textarea id="ansprechpartner" rows="1" data-field="ansprechpartner"></textarea></label><label class="field-group"><span>Datum</span><input id="datum" type="date" data-field="datum"></label></div></section><section class="form-section"><h2 class="section-heading">Haspel und Stückzahlen</h2><div class="form-grid" id="productFields"></div></section><section class="form-section"><h2 class="section-heading">Abmessungen Wandhydrant / Haspelfach</h2><div class="diagrams" id="diagrams"></div></section></form><input type="file" id="importFile" accept=".json,.zip,application/json,application/zip"></main><div id="archiveOverlay" class="archive-overlay" hidden><div class="archive-dialog" role="dialog" aria-modal="true" aria-labelledby="archiveTitle"><div class="archive-header"><h2 id="archiveTitle">Archiv – Aufmaß Haspeltausch</h2><button type="button" id="archiveCloseButton" class="archive-close-btn">Schließen</button></div><div class="archive-filter-tools"><input id="archiveFilter" class="archive-filter-input" type="search" placeholder="Objekt, Kunden Nr., Name, Datum …" aria-label="Archiv filtern"><span id="archiveFilterCount"></span></div><div id="archiveList" class="archive-list"></div></div></div><script>(${runtime.toString()})();</script></body></html>`;
   window.FSMOBILE_MODULES = window.FSMOBILE_MODULES || {};
   window.FSMOBILE_MODULES[moduleId] = {title:'Aufmaß Haspeltausch',group:'Kalkulation',description:'Schlauchhaspeln, Anschlussseiten und Einbaumaße mit Originalzeichnungen aufnehmen.',html,apiContract:{version:1,storage,capabilities}};
 }());

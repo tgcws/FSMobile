@@ -4645,6 +4645,8 @@ return text;
 
 function normalizeTechnicianPdfText(value) {
 if (typeof value !== "string") return value;
+// These measurement sheets use the explicitly labelled Name field.
+if (["aufmass-lichtkuppel", "aufmass-haspeltausch"].includes(window.FSMOBILE_MODULE_ID)) return value;
 if (window.FSMOBILE_MODULE_ID === "pb-fluchttuer-steuerungen") {
 return value
 .replace(/^Prüfer(?=\\s+und\\s+)/i, FSMOBILE_TECHNICIAN_LABEL)

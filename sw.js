@@ -1,5 +1,5 @@
-const CACHE_NAME = "fsmobile-v361";
-const APP_VERSION = "2026-09-21-v361";
+const CACHE_NAME = "fsmobile-v362";
+const APP_VERSION = "2026-09-22-v362";
 // V360 fixes immediate mortise-lock draft persistence and wrapped hose-reel PDF headers.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
