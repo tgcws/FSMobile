@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v362";
-const APP_VERSION = "2026-09-22-v362";
-// V360 fixes immediate mortise-lock draft persistence and wrapped hose-reel PDF headers.
+const CACHE_NAME = "fsmobile-v363";
+const APP_VERSION = "2026-09-22-v363";
+// V363 adds the LWÜ/LWA planning form and its original isometric drawing grid to offline assets.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
@@ -9,6 +9,8 @@ const MAX_RUNTIME_ENTRY_BYTES = RUNTIME_ENTRY_BUDGET_MIB * 1024 * 1024;
 const MAX_RUNTIME_ENTRIES = 24;
 const NETWORK_TIMEOUT_MS = 3000;
 const CORE_ASSETS = [
+  "./planungshilfe-lwue-lwa.js",
+  "./assets/planungshilfe-lwue-lwa/isometrie-raster.png",
   "./aufmass-lichtkuppel.js",
   "./aufmass-haspeltausch.js",
   "./assets/aufmass-haspeltausch/haspel-zeichnung.png",

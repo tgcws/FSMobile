@@ -111,7 +111,8 @@
         "aufmass-tueren",
         "aufmass-brandabschottungen",
         "aufmass-lichtkuppel",
-        "aufmass-haspeltausch"
+        "aufmass-haspeltausch",
+        "planungshilfe-lwue-lwa"
       ]
     },
     {
@@ -188,6 +189,7 @@
     "aufmass-brandabschottungen": "Brandabschottungen",
     "aufmass-lichtkuppel": "Aufmaß Lichtkuppel",
     "aufmass-haspeltausch": "Aufmaß Haspeltausch",
+    "planungshilfe-lwue-lwa": "Planungshilfe einer LWÜ oder LWA",
     "pb-feuerloescher": "Feuerlöscher",
     "pb-brandschutztueren": "Brandschutztüren",
     "pb-rwa": "RWA-Anlagen",
@@ -970,6 +972,7 @@
     "planungshilfe-bma-archive-v1",
     "aufmass-lichtkuppel-archive-v1",
     "aufmass-haspeltausch-archive-v1",
+    "planungshilfe-lwue-lwa-archive-v1",
     "maengelliste-pwa-v1-archive",
     "maengelliste-bilddoku-pwa-v1-archive",
     "maengelliste-maengelbeschreibungen-pwa-v1-archive",
@@ -981,6 +984,7 @@
     "planungshilfe-bma-current-archive-id-v1",
     "aufmass-lichtkuppel-current-archive-id-v1",
     "aufmass-haspeltausch-current-archive-id-v1",
+    "planungshilfe-lwue-lwa-current-archive-id-v1",
     "maengelliste-pwa-current-archive-id",
     "maengelliste-bilddoku-pwa-current-archive-id",
     "maengelliste-maengelbeschreibungen-pwa-current-archive-id",
@@ -2939,6 +2943,7 @@
 	      "aufmass-brandabschottungen",
 	      "aufmass-lichtkuppel",
 	      "aufmass-haspeltausch",
+	      "planungshilfe-lwue-lwa",
 	      "pb-feuerloescher",
 	      "pb-brandschutztueren",
 	      "pb-druckpruefung-din-14462",
@@ -3384,7 +3389,8 @@ if ({
 "aufmass-tueren": true,
 "aufmass-brandabschottungen": true,
 "aufmass-lichtkuppel": true,
-"aufmass-haspeltausch": true
+"aufmass-haspeltausch": true,
+"planungshilfe-lwue-lwa": true
 }[window.FSMOBILE_MODULE_ID || ""]) {
 document.documentElement.classList.add("fsmobile-kalkulation-module");
 }
@@ -4646,7 +4652,7 @@ return text;
 function normalizeTechnicianPdfText(value) {
 if (typeof value !== "string") return value;
 // These measurement sheets use the explicitly labelled Name field.
-if (["aufmass-lichtkuppel", "aufmass-haspeltausch"].includes(window.FSMOBILE_MODULE_ID)) return value;
+if (["aufmass-lichtkuppel", "aufmass-haspeltausch", "planungshilfe-lwue-lwa"].includes(window.FSMOBILE_MODULE_ID)) return value;
 if (window.FSMOBILE_MODULE_ID === "pb-fluchttuer-steuerungen") {
 return value
 .replace(/^Prüfer(?=\\s+und\\s+)/i, FSMOBILE_TECHNICIAN_LABEL)
@@ -5695,7 +5701,7 @@ var FSMOBILE_PDF_LOGO_TOP_MM = 10;
 var FSMOBILE_PDF_LOGO_RIGHT_MM = 15;
 
 function shouldStampFsmobilePdfLogo() {
-return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "auftrag-bescheinigungen" || window.FSMOBILE_MODULE_ID === "planungshilfe-bma" || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen" || window.FSMOBILE_MODULE_ID === "aufmass-lichtkuppel" || window.FSMOBILE_MODULE_ID === "aufmass-haspeltausch" || window.FSMOBILE_MODULE_ID === "maengelliste" || window.FSMOBILE_MODULE_ID === "maengelliste-bilddoku" || window.FSMOBILE_MODULE_ID === "maengelliste-maengelbeschreibungen";
+return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "auftrag-bescheinigungen" || window.FSMOBILE_MODULE_ID === "planungshilfe-bma" || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen" || window.FSMOBILE_MODULE_ID === "aufmass-lichtkuppel" || window.FSMOBILE_MODULE_ID === "aufmass-haspeltausch" || window.FSMOBILE_MODULE_ID === "planungshilfe-lwue-lwa" || window.FSMOBILE_MODULE_ID === "maengelliste" || window.FSMOBILE_MODULE_ID === "maengelliste-bilddoku" || window.FSMOBILE_MODULE_ID === "maengelliste-maengelbeschreibungen";
 }
 
 function getFsmobilePdfPageWidth(doc) {
