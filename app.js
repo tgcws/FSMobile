@@ -109,7 +109,9 @@
         "aufmass-akku",
         "aufmass-einsteckschloss",
         "aufmass-tueren",
-        "aufmass-brandabschottungen"
+        "aufmass-brandabschottungen",
+        "aufmass-lichtkuppel",
+        "aufmass-haspeltausch"
       ]
     },
     {
@@ -184,6 +186,8 @@
     "planungshilfe-bma": "Planungshilfe BMA",
     "maengelliste-maengelbeschreibungen": "Mängelliste-MB",
     "aufmass-brandabschottungen": "Brandabschottungen",
+    "aufmass-lichtkuppel": "Aufmaß Lichtkuppel",
+    "aufmass-haspeltausch": "Aufmaß Haspeltausch",
     "pb-feuerloescher": "Feuerlöscher",
     "pb-brandschutztueren": "Brandschutztüren",
     "pb-rwa": "RWA-Anlagen",
@@ -964,6 +968,8 @@
   const KNOWN_ARCHIVE_STORAGE_KEYS = new Set([
     "auftrag-bescheinigungen-archive-v1",
     "planungshilfe-bma-archive-v1",
+    "aufmass-lichtkuppel-archive-v1",
+    "aufmass-haspeltausch-archive-v1",
     "maengelliste-pwa-v1-archive",
     "maengelliste-bilddoku-pwa-v1-archive",
     "maengelliste-maengelbeschreibungen-pwa-v1-archive",
@@ -973,6 +979,8 @@
   const KNOWN_ARCHIVE_POINTER_STORAGE_KEYS = new Set([
     "auftrag-bescheinigungen-current-archive-id-v1",
     "planungshilfe-bma-current-archive-id-v1",
+    "aufmass-lichtkuppel-current-archive-id-v1",
+    "aufmass-haspeltausch-current-archive-id-v1",
     "maengelliste-pwa-current-archive-id",
     "maengelliste-bilddoku-pwa-current-archive-id",
     "maengelliste-maengelbeschreibungen-pwa-current-archive-id",
@@ -2929,6 +2937,8 @@
 	      "aufmass-einsteckschloss",
 	      "aufmass-tueren",
 	      "aufmass-brandabschottungen",
+	      "aufmass-lichtkuppel",
+	      "aufmass-haspeltausch",
 	      "pb-feuerloescher",
 	      "pb-brandschutztueren",
 	      "pb-druckpruefung-din-14462",
@@ -3372,7 +3382,9 @@ if ({
 "aufmass-akku": true,
 "aufmass-einsteckschloss": true,
 "aufmass-tueren": true,
-"aufmass-brandabschottungen": true
+"aufmass-brandabschottungen": true,
+"aufmass-lichtkuppel": true,
+"aufmass-haspeltausch": true
 }[window.FSMOBILE_MODULE_ID || ""]) {
 document.documentElement.classList.add("fsmobile-kalkulation-module");
 }
@@ -5681,7 +5693,7 @@ var FSMOBILE_PDF_LOGO_TOP_MM = 10;
 var FSMOBILE_PDF_LOGO_RIGHT_MM = 15;
 
 function shouldStampFsmobilePdfLogo() {
-return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "auftrag-bescheinigungen" || window.FSMOBILE_MODULE_ID === "planungshilfe-bma" || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen" || window.FSMOBILE_MODULE_ID === "maengelliste" || window.FSMOBILE_MODULE_ID === "maengelliste-bilddoku" || window.FSMOBILE_MODULE_ID === "maengelliste-maengelbeschreibungen";
+return /^pb-/.test(window.FSMOBILE_MODULE_ID || "") || window.FSMOBILE_MODULE_ID === "auftrag-bescheinigungen" || window.FSMOBILE_MODULE_ID === "planungshilfe-bma" || window.FSMOBILE_MODULE_ID === "aufmass-brandabschottungen" || window.FSMOBILE_MODULE_ID === "aufmass-lichtkuppel" || window.FSMOBILE_MODULE_ID === "aufmass-haspeltausch" || window.FSMOBILE_MODULE_ID === "maengelliste" || window.FSMOBILE_MODULE_ID === "maengelliste-bilddoku" || window.FSMOBILE_MODULE_ID === "maengelliste-maengelbeschreibungen";
 }
 
 function getFsmobilePdfPageWidth(doc) {

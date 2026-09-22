@@ -225,12 +225,15 @@
     refresh();
     win.addEventListener('pagehide',()=>{observer.disconnect();sessions.get(win)?.cancelAction?.();},{once:true});
   }
+  function exportExtension(win,id) {
+    return /^pb-/.test(id)||win.FSMOBILE_PDF_EXPORT_FORMAT==='zip'?'.zip':'.pdf';
+  }
   function suggestedName(win,id) {
     try { if(typeof win.FSMOBILE_REPORT_EXPORT_FILE_NAME==='function')return win.FSMOBILE_REPORT_EXPORT_FILE_NAME(); if(typeof win.getPdfFileName==='function')return win.getPdfFileName(); }catch{}
     const field=win.document.querySelector('#objekt,#objectInput,[name=objekt]');
     const part=window.FSMOBILE_STANDARD?.fileSegment(field?.value || win.FSMOBILE_MODULE_TITLE || id,'FSMobile') || 'FSMobile';
     const suffix={'aufmass-akku':'_Aufmass_Akku','aufmass-einsteckschloss':'_Aufmass_Einsteckschloss','aufmass-tueren':'_Aufmass_Tueren','aufmass-brandabschottungen':'_Aufmass_Brandabschottungen'}[id]||'';
-    return part+suffix+(/^pb-/.test(id)?'.zip':'.pdf');
+    return part+suffix+exportExtension(win,id);
   }
   function failExport(session,message) {
     if(session.state==='cancelled'||session.state==='ready')return;
@@ -246,7 +249,7 @@
     const session=sessions.get(win);
     if(!session || session.transaction!==transaction || session.state==='cancelled')return true;
     session.state='ready';session.blob=blob;session.fileName=session.name.value!==session.suggestion?session.name.value:name;
-    const extension=/^pb-/.test(session.id)?'.zip':'.pdf';
+    const extension=exportExtension(win,session.id);
     session.fileName=(session.fileName||name).replace(/[\\/:*?"<>|]/g,'_').replace(/\.(pdf|zip)$/i,'')+extension;
     session.name.value=session.fileName;session.status.textContent='Datei erstellt – zur Ausgabe bereit.';session.status.dataset.tone='success';
     session.create.hidden=true;session.output.hidden=false;session.cancel.textContent='Schließen';return true;
@@ -256,7 +259,7 @@
     if(previous && visible(previous.ui.overlay)) { previous.ui.dialog.focus(); return; }
     const ui=createDialog('PDF exportieren');ui.overlay.id='fsmobileExportDialog';
     const description=document.createElement('p');description.textContent=win.FSMOBILE_MODULE_TITLE||id;
-    const format=document.createElement('p');format.id='fsmobileExportFormat';format.textContent=/^pb-/.test(id)?'Format: PDF mit Formulardaten (ZIP)':'Format: PDF';
+    const format=document.createElement('p');format.id='fsmobileExportFormat';format.textContent=exportExtension(win,id)==='.zip'?'Format: PDF mit Formulardaten (ZIP)':'Format: PDF';
     const label=document.createElement('label');label.htmlFor='fsmobileExportName';label.textContent='Dateiname';
     const name=document.createElement('input');name.id='fsmobileExportName';name.type='text';name.value=suggestedName(win,id);
     const hint=document.createElement('p');hint.textContent='Der automatische Name folgt den Berichtsdaten. Du kannst einen eigenen Namen eingeben.';
@@ -285,7 +288,7 @@
     });
     session.output=ui.button('Datei ausgeben','open',async()=>{
       if(!session.blob || session.output.disabled)return;
-      const extension=/^pb-/.test(session.id)?'.zip':'.pdf';
+      const extension=exportExtension(win,session.id);
       session.fileName=(session.name.value.trim()||session.fileName).replace(/[\\/:*?"<>|]/g,'_').replace(/\.(pdf|zip)$/i,'')+extension;
       session.name.value=session.fileName;
       session.output.disabled=true;

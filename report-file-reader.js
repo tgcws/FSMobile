@@ -27,7 +27,7 @@
     if (payload.canvases != null && (!Array.isArray(payload.canvases) || payload.canvases.some(item => !item || typeof item.selector !== 'string' || typeof item.dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=\s]+$/.test(item.dataUrl)))) fail('Die Bilddaten des Berichts sind ungültig.');
     return payload;
   }
-  function parse(bytes) {
+  function parse(bytes, validatePayload) {
     if (bytes.length > limits.json) fail('Die Berichtsdaten sind zu groß. Maximal 16 MB pro JSON-Datei.');
     let payload;
     try {
@@ -36,7 +36,7 @@
         return value;
       });
     } catch { fail('Die JSON-Datei konnte nicht gelesen werden.'); }
-    return validate(payload);
+    return validatePayload(payload);
   }
   function zipEntries(bytes) {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -92,14 +92,14 @@
     if (!finished || size !== entry.original) invalidZip();
     return output;
   }
-  async function read(file) {
+  async function read(file, validatePayload = validate) {
     if (!file || !file.size) fail('Bitte eine JSON- oder ZIP-Datei auswählen.');
     if (file.size > limits.file) fail('Die Datei ist zu groß. Maximal 50 MB sind möglich.');
     let bytes;
     try { bytes = new Uint8Array(await file.arrayBuffer()); }
     catch { fail('Die Datei konnte nicht gelesen werden. Bitte lokal speichern und erneut auswählen.'); }
     const zip = bytes[0] === 0x50 && bytes[1] === 0x4b;
-    if (!zip) return [{ name: file.name, payload: parse(bytes) }];
+    if (!zip) return [{ name: file.name, payload: parse(bytes, validatePayload) }];
     let entries;
     try { entries = zipEntries(bytes); } catch (error) { if (error instanceof RangeError) invalidZip(); throw error; }
     const candidates = [], rejected = [];
@@ -111,7 +111,7 @@
         data = entry.method === 0 ? entry.data : await inflateEntry(entry);
         if (data.length !== entry.original || crc32(data) !== entry.crc) invalidZip();
       } catch { fail('Die ZIP-Datei konnte nicht vollständig gelesen werden. Bitte erneut exportieren.'); }
-      try { candidates.push({ name: entry.name, payload: parse(data) }); }
+      try { candidates.push({ name: entry.name, payload: parse(data, validatePayload) }); }
       catch (error) { rejected.push(error.message); }
       await new Promise(resolve => setTimeout(resolve, 0));
     }

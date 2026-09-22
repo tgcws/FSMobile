@@ -1,5 +1,5 @@
-const CACHE_NAME = "fsmobile-v360";
-const APP_VERSION = "2026-09-18-v360";
+const CACHE_NAME = "fsmobile-v361";
+const APP_VERSION = "2026-09-21-v361";
 // V360 fixes immediate mortise-lock draft persistence and wrapped hose-reel PDF headers.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
@@ -9,6 +9,18 @@ const MAX_RUNTIME_ENTRY_BYTES = RUNTIME_ENTRY_BUDGET_MIB * 1024 * 1024;
 const MAX_RUNTIME_ENTRIES = 24;
 const NETWORK_TIMEOUT_MS = 3000;
 const CORE_ASSETS = [
+  "./aufmass-lichtkuppel.js",
+  "./aufmass-haspeltausch.js",
+  "./assets/aufmass-haspeltausch/haspel-zeichnung.png",
+  "./assets/aufmass-lichtkuppel/aufstockelement.png",
+  "./assets/aufmass-lichtkuppel/knick.png",
+  "./assets/aufmass-lichtkuppel/kranz-links.png",
+  "./assets/aufmass-lichtkuppel/kranz-rechts.jpg",
+  "./assets/aufmass-lichtkuppel/luefterrahmen.png",
+  "./assets/aufmass-lichtkuppel/sanierungsrahmen.png",
+  "./assets/aufmass-lichtkuppel/schale.png",
+  "./assets/aufmass-lichtkuppel/schraeg.png",
+  "./assets/aufmass-lichtkuppel/steil.png",
   "./",
   "./index.html",
   "./styles.css",
