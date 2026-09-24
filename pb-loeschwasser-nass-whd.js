@@ -465,16 +465,6 @@
       </div>
     </section>
 
-    <section class="card" id="whdSection">
-      <h2 class="section-title">Einzelprüfung Wandhydranten</h2>
-      <div id="whdList"></div>
-      <div class="actions">
-        <button type="button" class="success" onclick="addWhd()">Wandhydrant hinzufügen</button>
-        <button type="button" class="duplicate-btn" onclick="duplicateLastWhd()">Duplizieren</button>
-        <button type="button" class="danger" onclick="removeLastWhd()">Letzten löschen</button>
-      </div>
-    </section>
-
     <section class="card">
       <h2 class="section-title">Schlauchprüfung</h2>
       <div class="check-grid" id="hoseChecks"></div>
@@ -496,6 +486,16 @@
           </select>
           <p class="hint">Bei unmittelbarem Anschluss an das Trinkwassernetz sind nach Trinkwasserverordnung Maßnahmen zu treffen, um eine Verkeimung des Wassers durch die Löschanlage zu verhindern.</p>
         </div>
+      </div>
+    </section>
+
+    <section class="card" id="whdSection">
+      <h2 class="section-title">Einzelprüfung Wandhydranten</h2>
+      <div id="whdList"></div>
+      <div class="actions">
+        <button type="button" class="success" onclick="addWhd()">Wandhydrant hinzufügen</button>
+        <button type="button" class="duplicate-btn" onclick="duplicateLastWhd()">Duplizieren</button>
+        <button type="button" class="danger" onclick="removeLastWhd()">Letzten löschen</button>
       </div>
     </section>
 
@@ -1325,6 +1325,11 @@
           ...CHECK_FIELDS.filter(item=>item[2]==="anlageChecks").map(([key,label])=>[label,boolLabel(fields[key])])
         ]);
         measurementTable();
+        group("Schlauchprüfung",[
+          ...CHECK_FIELDS.filter(item=>item[2]==="hoseChecks").map(([key,label])=>[label,boolLabel(fields[key])]),
+          ["Letzte Schlauchdruckprüfung",fields.lastHoseDate ? formatDateForFile(fields.lastHoseDate) : ""],["Nächste Schlauchdruckprüfung",fields.nextHoseDate ? formatDateForFile(fields.nextHoseDate) : ""]
+        ]);
+        group("Wasseranschluss",[...CHECK_FIELDS.filter(item=>item[2]==="waterChecks").map(([key,label])=>[label,boolLabel(fields[key])]),["Anschluss",fields.anschluss]]);
         data.whd.forEach((whd,index)=>{
           group("Einzelprüfung Wandhydranten - Wandhydrant Nr. "+(index+1),[
             ["Standort",whd.standort],["Bauart",whd.bauart],["Strahlrohr",whd.strahlrohr],["Ausführung",whd.ausfuehrung],["Schlauchart",whd.schlauchart],["Schlauchlänge",whd.schlauchlaenge],
@@ -1332,11 +1337,6 @@
             ...WHD_CHECK_FIELDS.map(([key,label])=>[label,whd[key] ? "Ja" : "Nein"])
           ]);
         });
-        group("Schlauchprüfung",[
-          ...CHECK_FIELDS.filter(item=>item[2]==="hoseChecks").map(([key,label])=>[label,boolLabel(fields[key])]),
-          ["Letzte Schlauchdruckprüfung",fields.lastHoseDate ? formatDateForFile(fields.lastHoseDate) : ""],["Nächste Schlauchdruckprüfung",fields.nextHoseDate ? formatDateForFile(fields.nextHoseDate) : ""]
-        ]);
-        group("Wasseranschluss",[...CHECK_FIELDS.filter(item=>item[2]==="waterChecks").map(([key,label])=>[label,boolLabel(fields[key])]),["Anschluss",fields.anschluss]]);
         group("Prüfergebnis",[["Prüfergebnis",fields.pruefergebnis,fields.pruefergebnis==="Anlage einsatzbereit" ? [0,120,50] : [195,30,40]],["Bemerkung",fields.bemerkung]]);
         section("Unterschrift Techniker",44);
         pdf.setFillColor(245,245,245);pdf.rect(margin,y,width,27,"F");

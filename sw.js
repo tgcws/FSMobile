@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v363";
-const APP_VERSION = "2026-09-22-v363";
-// V363 adds the LWÜ/LWA planning form and its original isometric drawing grid to offline assets.
+const CACHE_NAME = "fsmobile-v364";
+const APP_VERSION = "2026-09-24-v364";
+// V364 places combined-report WHD inspections after the water connection and before the result in the form and PDF.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
