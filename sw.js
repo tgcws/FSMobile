@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v366";
-const APP_VERSION = "2026-09-30-v366";
-// V366 adds opt-in, memory-only keyboard diagnostics; the V365 navigation is unchanged.
+const CACHE_NAME = "fsmobile-v367";
+const APP_VERSION = "2026-09-30-v367";
+// V367 establishes native field order before editing, alongside the JavaScript Tab handler.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;

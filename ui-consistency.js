@@ -7,6 +7,7 @@
   const nativeApproval = new WeakSet();
   const sessions = new WeakMap();
   const pendingConfirmation = new WeakSet();
+  const nativeTabIndexes = new WeakMap();
   let serial = 0;
   let shellInvoke = null;
   const visible = el => !!el && !el.hidden && el.getAttribute('aria-hidden') !== 'true' && el.style.display !== 'none' && el.getClientRects().length > 0 && el.ownerDocument.defaultView.getComputedStyle(el).visibility !== 'hidden';
@@ -16,12 +17,12 @@
     const toast = document.getElementById('appToast');
     if (toast) { toast.hidden = true; toast.classList.add('fsmobile-toast-suppressed'); }
   }
-  function focusables(root) {
+  function focusables(root, useOriginalTabIndex = false) {
     return [...root.querySelectorAll('button,a[href],input:not([type=hidden]),select,textarea,[tabindex]')]
-      .filter(el => !el.disabled && el.tabIndex >= 0 && !el.closest('[inert]') && visible(el));
+      .filter(el => !el.disabled && (useOriginalTabIndex && nativeTabIndexes.has(el) ? nativeTabIndexes.get(el).original : el.tabIndex) >= 0 && !el.closest('[inert]') && visible(el));
   }
   function moduleTabOrder(doc, backwards) {
-    let ordered = focusables(doc.body).filter(el => !el.matches(':disabled') && !el.readOnly &&
+    let ordered = focusables(doc.body, true).filter(el => !el.matches(':disabled') && !el.readOnly &&
       !el.closest('[hidden],[aria-hidden="true"],.pdf-render-wrapper'));
     // CSS reorders the metadata without moving index-bound storage/PDF fields.
     // Keep that visual order when entering a group from either direction, too.
@@ -56,17 +57,69 @@
     }));
     return ordered.filter(el => !skipped.has(el));
   }
+  function installNativeTabOrder(win) {
+    const doc = win.document;
+    const selector = 'button,a[href],input,select,textarea,[tabindex]';
+    const excluded = '.archive-overlay,.fsmobile-dialog-overlay,[role=dialog],.pdf-render-wrapper,.pdf-render-area,[data-fsmobile-textarea-mirror]';
+    let scheduled = false;
+    function sync() {
+      scheduled = false;
+      if (!doc.body || doc.body.classList.contains('generating-pdf')) return;
+      const controls = [...doc.body.querySelectorAll(selector)].filter(el => !el.closest(excluded));
+      for (const el of controls) {
+        const previous = nativeTabIndexes.get(el);
+        // Preserve intentionally negative tabindex and later module-owned changes.
+        if (!previous || el.getAttribute('tabindex') !== previous.assigned)
+          nativeTabIndexes.set(el, { original: el.tabIndex, assigned: el.getAttribute('tabindex') });
+      }
+      const order = moduleTabOrder(doc, false).filter(el => !el.closest(excluded));
+      const positions = new Map(order.map((el, index) => [el, String(index + 1)]));
+      for (const el of controls) {
+        const value = positions.get(el) || '-1';
+        const record = nativeTabIndexes.get(el);
+        record.assigned = value;
+        if (el.getAttribute('tabindex') !== value) el.setAttribute('tabindex', value);
+      }
+    }
+    function schedule() {
+      if (scheduled) return;
+      scheduled = true;
+      win.queueMicrotask(sync);
+    }
+    const observer = new win.MutationObserver(records => {
+      if (records.some(record => {
+        if (record.target.closest?.(excluded)) return false;
+        if (record.type === 'childList') return [...record.addedNodes, ...record.removedNodes].some(node =>
+          node.nodeType === 1 && !node.matches(excluded) && (node.matches(selector) || node.querySelector(selector)));
+        if (record.oldValue === record.target.getAttribute(record.attributeName)) return false;
+        if (record.attributeName === 'tabindex') return record.target.getAttribute('tabindex') !== nativeTabIndexes.get(record.target)?.assigned;
+        // Textarea height/label sizing does not change the native navigation order.
+        if (record.attributeName === 'style') return /display|visibility/.test((record.oldValue || '') + record.target.getAttribute('style'));
+        return true;
+      })) schedule();
+    });
+    observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeOldValue: true,
+      attributeFilter: ['hidden','disabled','readonly','type','name','checked','tabindex','class','style','inert'] });
+    const onChange = event => { if (event.target.matches('input[type=radio]')) schedule(); };
+    doc.addEventListener('change', onChange);
+    win.addEventListener('resize', schedule);
+    doc.querySelectorAll('link[rel=stylesheet]').forEach(link => link.addEventListener('load', schedule, { once: true }));
+    win.addEventListener('pagehide', () => { observer.disconnect(); doc.removeEventListener('change', onChange); win.removeEventListener('resize', schedule); }, { once: true });
+    // Establish the browser's own sequence before any field is edited. This also
+    // covers native focus traversal that supplies no JavaScript Tab keydown.
+    sync();
+  }
   function nextPagedRowField(win, backwards) {
     const current = win.document.activeElement, row = current?.closest('tbody > tr');
     const state = win.FSMOBILE_LARGE_REPORT_STATE;
     if (!row || typeof state?.showRow !== 'function') return null;
-    const fields = focusables(row).filter(el => el.matches('input,select,textarea') && !el.readOnly && !el.matches(':disabled'));
+    const fields = focusables(row, true).filter(el => el.matches('input,select,textarea') && !el.readOnly && !el.matches(':disabled'));
     if (current !== (backwards ? fields[0] : fields.at(-1))) return null;
     const adjacent = backwards ? row.previousElementSibling : row.nextElementSibling;
     if (!adjacent?.classList.contains('fsmobile-large-report-row-hidden')) return null;
     // Use the report's existing page switch; never add rows or alter report data.
     state.showRow([...row.parentElement.children].indexOf(adjacent) + 1, false);
-    const nextFields = focusables(adjacent).filter(el => el.matches('input,select,textarea') && !el.readOnly && !el.matches(':disabled'));
+    const nextFields = focusables(adjacent, true).filter(el => el.matches('input,select,textarea') && !el.readOnly && !el.matches(':disabled'));
     return backwards ? nextFields.at(-1) : nextFields[0];
   }
   function lockOutside(target) {
@@ -280,6 +333,7 @@
       finally { pendingConfirmation.delete(button); }
     },true);
     refresh();
+    installNativeTabOrder(win);
     win.addEventListener('pagehide',()=>{observer.disconnect();sessions.get(win)?.cancelAction?.();},{once:true});
   }
   function exportExtension(win,id) {
