@@ -286,7 +286,7 @@
     @media (max-width: 720px) {
       .title-bar > .title-actions, header > .title-actions, header > .toolbar { margin-right: 0 !important; }
     }
-  
+
 
     /* Hochformat-Transparenz: Unterschrift und lokale Formularflächen */
     .input-unit,
@@ -407,15 +407,15 @@
       <div class="grid">
         <div class="field">
           <label for="anlageInput">Anlagen Nr.</label>
-          <input id="anlageInput" name="anlage" type="text" autocomplete="off" />
+          <textarea id="anlageInput" name="anlage" autocomplete="off" data-fsmobile-single-line rows="1" wrap="off" aria-multiline="false"></textarea>
         </div>
         <div class="field">
           <label for="objectInput">Objekt</label>
-          <input id="objectInput" name="object" type="text" autocomplete="off" />
+          <textarea id="objectInput" name="object" autocomplete="off" data-fsmobile-single-line rows="1" wrap="off" aria-multiline="false"></textarea>
         </div>
         <div class="field">
           <label for="anlagenstandortInput">Anlagenstandort</label>
-          <input id="anlagenstandortInput" name="anlagenstandort" type="text" autocomplete="off" />
+          <textarea id="anlagenstandortInput" name="anlagenstandort" autocomplete="off" data-fsmobile-single-line rows="1" wrap="off" aria-multiline="false"></textarea>
         </div>
         <div class="field">
           <label for="dateInput">Datum</label>
@@ -522,7 +522,7 @@
       <div class="grid one">
         <div class="field">
           <label for="prueferInput">Prüfer</label>
-          <input id="prueferInput" name="pruefer" type="text" autocomplete="off" />
+          <textarea id="prueferInput" name="pruefer" autocomplete="off" data-fsmobile-single-line rows="1" wrap="off" aria-multiline="false"></textarea>
         </div>
       </div>
       <div class="signature-block">
@@ -553,6 +553,22 @@
   </div>
 
   <script>
+    // Text inputs remain single-line when restored from existing report data.
+    function singleLineText(value) {
+      return String(value == null ? "" : value).replace(/[\\r\\n]/g, "");
+    }
+    function singleLineFieldValue(field, value) {
+      return field.hasAttribute("data-fsmobile-single-line") ? singleLineText(value) : value;
+    }
+    function createSingleLineTextField() {
+      const field = document.createElement("textarea");
+      field.setAttribute("data-fsmobile-single-line", "");
+      field.setAttribute("aria-multiline", "false");
+      field.rows = 1;
+      field.wrap = "off";
+      return field;
+    }
+
     const MODULE_ID = "pb-loeschwasser-nass-whd";
     const REPORT_TITLE = "Löschwassereinrichtung Nass mit WHD Einzelprüfung";
     const STORAGE_KEY = "pb-loeschwasser-nass-whd-current-v1";
@@ -728,12 +744,12 @@
       fliessmenge.dataset.field = "fliessmenge";
       fliessmenge.value = values.fliessmenge || "";
 
-      const naechstePruefung = document.createElement("input");
-      naechstePruefung.type = "text";
+      const naechstePruefung = createSingleLineTextField();
+
       naechstePruefung.inputMode = "numeric";
       naechstePruefung.placeholder = "mm.jjjj";
       naechstePruefung.dataset.field = "naechstePruefung";
-      naechstePruefung.value = values.naechstePruefung || "";
+      naechstePruefung.value = singleLineFieldValue(naechstePruefung, values.naechstePruefung || "");
 
       const bemerkung = document.createElement("textarea");
       bemerkung.dataset.field = "bemerkung";
@@ -778,7 +794,7 @@
         numberWhdCard(card, number);
       } else {
         renumberWhd();
-        card.querySelectorAll("textarea").forEach(autoResizeTextarea);
+        card.querySelectorAll("textarea:not([data-fsmobile-single-line])").forEach(autoResizeTextarea);
         scheduleStorageSave();
       }
       return card;
@@ -800,7 +816,7 @@
       card.querySelectorAll("select").forEach(select => {
         select.selectedIndex = 0;
       });
-      card.querySelectorAll("textarea").forEach(autoResizeTextarea);
+      card.querySelectorAll("textarea:not([data-fsmobile-single-line])").forEach(autoResizeTextarea);
     }
 
     function duplicateLastWhd() {
@@ -875,7 +891,7 @@
       row.querySelector("[data-field='letzteVolumenstrom']").value = data.letzteVolumenstrom || "";
       row.querySelector("button").addEventListener("click", () => {
         const rows = Array.from(document.querySelectorAll(".strand-row"));
-        if (rows.length <= 1) row.querySelectorAll("input").forEach(input => { input.value = ""; });
+        if (rows.length <= 1) row.querySelectorAll("input, textarea[data-fsmobile-single-line]").forEach(input => { input.value = ""; });
         else row.remove();
         renumberStrands();
         scheduleStorageSave();
@@ -893,7 +909,7 @@
     function removeStrand() {
       const rows = Array.from(document.querySelectorAll(".strand-row"));
       if (rows.length <= 1) {
-        if (rows[0]) rows[0].querySelectorAll("input").forEach(input => { input.value = ""; });
+        if (rows[0]) rows[0].querySelectorAll("input, textarea[data-fsmobile-single-line]").forEach(input => { input.value = ""; });
       } else rows[rows.length - 1].remove();
       renumberStrands();
       scheduleStorageSave();
@@ -966,7 +982,7 @@
 
     function setValue(id, value) {
       const el = document.getElementById(id);
-      if (el && "value" in el) el.value = value || "";
+      if (el && "value" in el) el.value = singleLineFieldValue(el, value || "");
     }
 
     function applyData(data) {
@@ -994,14 +1010,14 @@
       setValue("prueferInput", fields.pruefer);
       document.querySelectorAll("[data-field]").forEach(field => {
         if (field.closest(".strand-row, .whd-card")) return;
-        field.value = fields[field.dataset.field] || "false";
+        field.value = singleLineFieldValue(field, fields[field.dataset.field] || "false");
       });
       const list = document.getElementById("strandList");
       list.innerHTML = "";
       const rows = Array.isArray(data && data.strands) && data.strands.length ? data.strands : [{}];
       rows.forEach(row => strandRow(row));
       renderWhdRows(Array.isArray(data.whd) && data.whd.length ? data.whd : [{}]);
-      document.querySelectorAll("textarea").forEach(autoResizeTextarea);
+      document.querySelectorAll("textarea:not([data-fsmobile-single-line])").forEach(autoResizeTextarea);
       setTodayIfEmpty();
       clearSignature(true);
       restoreSignatureFromStorage(data && data.signature);

@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v368";
-const APP_VERSION = "2026-09-30-v368";
-// V368 uses single-line textareas for editable text in the door and extinguisher reports.
+const CACHE_NAME = "fsmobile-v369";
+const APP_VERSION = "2026-09-30-v369";
+// V369 extends single-line text controls to all reports and removes keyboard diagnostics.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
@@ -32,7 +32,6 @@ const CORE_ASSETS = [
   "./report-import.js",
   "./vendor/fflate-0.8.3.min.js",
   "./ui-consistency.js",
-  "./keyboard-diagnostics.js",
   "./ui-consistency.css",
   "./modules.js",
   "./module-manifest.js",

@@ -6,7 +6,7 @@
     title: "Druckprüfung DIN 14462",
     group: "Prüfberichte",
     description: "Druckprüfungen von Löschwasserleitungen nach DIN 14462 mit Prüfdrücken, Voraussetzungen und zwei Unterschriften dokumentieren.",
-    html: String.raw`<!DOCTYPE html>
+    html: `<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
@@ -378,11 +378,11 @@
         <div class="form-grid identifier-grid">
           <div class="field-group">
             <label for="anlagenNrInput">Anlagen Nr.</label>
-            <input id="anlagenNrInput" name="anlagenNr" type="text" autocomplete="off" />
+            <textarea id="anlagenNrInput" name="anlagenNr" autocomplete="off" data-fsmobile-single-line rows="1" wrap="off" aria-multiline="false"></textarea>
           </div>
           <div class="field-group">
             <label for="kundenNrInput">Kunden Nr.</label>
-            <input id="kundenNrInput" name="kundenNr" type="text" autocomplete="off" />
+            <textarea id="kundenNrInput" name="kundenNr" autocomplete="off" data-fsmobile-single-line rows="1" wrap="off" aria-multiline="false"></textarea>
           </div>
         </div>
         <div class="form-grid">
@@ -491,7 +491,7 @@
         <h2 class="section-heading" id="ergebnisTitle">Prüfergebnis</h2>
         <div class="binary-row" data-required-radio="systemDicht"><span class="binary-label">Das Rohrleitungssystem wurde fachgerecht geprüft und ist dicht.</span><div class="binary-options"><label class="binary-option"><input type="radio" name="systemDicht" value="Ja" />Ja</label><label class="binary-option"><input type="radio" name="systemDicht" value="Nein" />Nein</label></div></div>
         <div class="form-grid" style="margin-top:12px">
-          <div class="field-group"><label for="ortInput">Ort</label><input id="ortInput" name="ort" type="text" required /></div>
+          <div class="field-group"><label for="ortInput">Ort</label><textarea id="ortInput" name="ort" required data-fsmobile-single-line rows="1" wrap="off" aria-multiline="false"></textarea></div>
           <div class="field-group"><label for="datumInput">Datum</label><input id="datumInput" name="datum" type="date" required /></div>
         </div>
         <div class="field-group" style="margin-top:12px">
@@ -534,6 +534,14 @@
   </section>
 
   <script>
+    // Text inputs remain single-line when restored from existing report data.
+    function singleLineText(value) {
+      return String(value == null ? "" : value).replace(/[\\r\\n]/g, "");
+    }
+    function singleLineFieldValue(field, value) {
+      return field.hasAttribute("data-fsmobile-single-line") ? singleLineText(value) : value;
+    }
+
     "use strict";
 
     const MODULE_ID = "pb-druckpruefung-din-14462";
@@ -588,12 +596,12 @@
     }
 
     function displayDate(value) {
-      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const match = String(value || "").match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
       return match ? match[3] + "." + match[2] + "." + match[1] : String(value || "");
     }
 
     function firstLine(value) {
-      return String(value || "").split(/\r?\n/).map(function(line) { return line.trim(); }).find(Boolean) || "";
+      return String(value || "").split(/\\r?\\n/).map(function(line) { return line.trim(); }).find(Boolean) || "";
     }
 
     function syncShellMetadata() {
@@ -611,7 +619,7 @@
 
     function escapeHtml(value) {
       return String(value == null ? "" : value).replace(/[&<>"']/g, function(char) {
-        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char];
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\\"": "&quot;", "'": "&#039;" }[char];
       });
     }
 
@@ -797,7 +805,7 @@
         const element = fieldElement(name);
         if (!element || !("value" in element)) return;
         const value = name === "anlagenNr" && normalized.fields[name] == null ? normalized.fields.anlage : normalized.fields[name];
-        element.value = value == null ? "" : String(value);
+        element.value = singleLineFieldValue(element, value == null ? "" : String(value));
       });
       RADIO_NAMES.forEach(function(name) { setRadioValue(name, normalized.fields[name]); });
       updateConditionalFields();
@@ -1317,7 +1325,7 @@
         if (typeof window.FSMOBILE_STAMP_PDF_LOGO === "function") window.FSMOBILE_STAMP_PDF_LOGO(doc);
         const fileName = window.FSMOBILE_STANDARD && typeof window.FSMOBILE_STANDARD.pdfFileName === "function"
           ? window.FSMOBILE_STANDARD.pdfFileName(["Pruefbericht", "DIN-14462", firstLine(fields.bauvorhaben) || "Ohne Bauvorhaben", fields.datum || todayIso()], "Pruefbericht_Druckpruefung_DIN_14462")
-          : ("Pruefbericht_DIN-14462_" + (firstLine(fields.bauvorhaben) || "Ohne_Bauvorhaben") + "_" + (fields.datum || todayIso()) + ".pdf").replace(/[\\/:*?"<>|\s]+/g, "_");
+          : ("Pruefbericht_DIN-14462_" + (firstLine(fields.bauvorhaben) || "Ohne_Bauvorhaben") + "_" + (fields.datum || todayIso()) + ".pdf").replace(/[\\\\/:*?"<>|\\s]+/g, "_");
         doc.save(fileName);
         setStatus("PDF-Export wurde erstellt.");
       } catch (error) {

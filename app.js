@@ -4491,7 +4491,7 @@ wrapper.className = useFieldGroup ? "field-group fsmobile-kunden-nr-field" : "fi
 var label = document.createElement("label");
 label.setAttribute("for", "kundenNrInput");
 label.textContent = FSMOBILE_CUSTOMER_NUMBER_LABEL;
-var useSingleLineTextarea = /^(pb-brandschutztueren|pb-feuerloescher)$/.test(window.FSMOBILE_MODULE_ID || "");
+var useSingleLineTextarea = /^pb-/.test(window.FSMOBILE_MODULE_ID || "");
 var input = document.createElement(useSingleLineTextarea ? "textarea" : "input");
 input.id = "kundenNrInput";
 input.name = "kundenNr";
