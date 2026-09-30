@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v365";
-const APP_VERSION = "2026-09-30-v365";
-// V365 adds consistent Tab navigation across form fields, table rows and report row sections.
+const CACHE_NAME = "fsmobile-v366";
+const APP_VERSION = "2026-09-30-v366";
+// V366 adds opt-in, memory-only keyboard diagnostics; the V365 navigation is unchanged.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
@@ -32,6 +32,7 @@ const CORE_ASSETS = [
   "./report-import.js",
   "./vendor/fflate-0.8.3.min.js",
   "./ui-consistency.js",
+  "./keyboard-diagnostics.js",
   "./ui-consistency.css",
   "./modules.js",
   "./module-manifest.js",
