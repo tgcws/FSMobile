@@ -100,7 +100,7 @@
     });
     observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeOldValue: true,
       attributeFilter: ['hidden','disabled','readonly','type','name','checked','tabindex','class','style','inert'] });
-    const onChange = event => { if (event.target.matches('input[type=radio]')) schedule(); };
+    const onChange = event => { if (event.target?.matches?.('input[type=radio]')) schedule(); };
     doc.addEventListener('change', onChange);
     win.addEventListener('resize', schedule);
     doc.querySelectorAll('link[rel=stylesheet]').forEach(link => link.addEventListener('load', schedule, { once: true }));
@@ -108,6 +108,25 @@
     // Establish the browser's own sequence before any field is edited. This also
     // covers native focus traversal that supplies no JavaScript Tab keydown.
     sync();
+  }
+  function installSingleLineTextareas(doc) {
+    const singleLine = el => el?.matches?.('textarea[data-fsmobile-single-line]');
+    doc.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.isComposing && singleLine(event.target)) event.preventDefault();
+    }, true);
+    doc.addEventListener('beforeinput', event => {
+      if (!event.isComposing && singleLine(event.target) && /^(insertLineBreak|insertParagraph)$/.test(event.inputType)) event.preventDefault();
+    }, true);
+    // Run before the module's input handlers: pasted line breaks must never be
+    // saved in fields that previously used HTMLInputElement's single-line value.
+    doc.addEventListener('input', event => {
+      const field = event.target;
+      if (!singleLine(field) || !/[\r\n]/.test(field.value)) return;
+      const value = field.value, start = field.selectionStart, end = field.selectionEnd;
+      field.value = value.replace(/[\r\n]/g, '');
+      field.setSelectionRange(value.slice(0, start).replace(/[\r\n]/g, '').length,
+        value.slice(0, end).replace(/[\r\n]/g, '').length);
+    }, true);
   }
   function nextPagedRowField(win, backwards) {
     const current = win.document.activeElement, row = current?.closest('tbody > tr');
@@ -333,6 +352,7 @@
       finally { pendingConfirmation.delete(button); }
     },true);
     refresh();
+    installSingleLineTextareas(doc);
     installNativeTabOrder(win);
     win.addEventListener('pagehide',()=>{observer.disconnect();sessions.get(win)?.cancelAction?.();},{once:true});
   }

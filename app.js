@@ -3967,6 +3967,7 @@ var fsmobileTextareaStyleProps = [
 
 function fsmobileTextareaLayout(field) {
 if (!field || field.tagName !== "TEXTAREA" || !document.contains(field)) return null;
+if (field.hasAttribute("data-fsmobile-single-line")) return null;
 if (field.closest(".archive-overlay, .archive-dialog, .pdf-render-wrapper, .pdf-render-area")) return null;
 if (document.body && document.body.classList.contains("generating-pdf")) return null;
 var style = window.getComputedStyle(field);
@@ -4454,6 +4455,7 @@ function setCustomerNumberFieldValue(value, options) {
 var field = customerNumberField();
 if (!field || !("value" in field)) return false;
 field.value = value == null ? "" : String(value);
+if (field.hasAttribute("data-fsmobile-single-line")) field.value = field.value.replace(/[\\r\\n]/g, "");
 if (!options || options.dispatch !== false) {
 try { field.dispatchEvent(new Event("input", { bubbles: true })); } catch (error) {}
 try { field.dispatchEvent(new Event("change", { bubbles: true })); } catch (error) {}
@@ -4489,10 +4491,16 @@ wrapper.className = useFieldGroup ? "field-group fsmobile-kunden-nr-field" : "fi
 var label = document.createElement("label");
 label.setAttribute("for", "kundenNrInput");
 label.textContent = FSMOBILE_CUSTOMER_NUMBER_LABEL;
-var input = document.createElement("input");
+var useSingleLineTextarea = /^(pb-brandschutztueren|pb-feuerloescher)$/.test(window.FSMOBILE_MODULE_ID || "");
+var input = document.createElement(useSingleLineTextarea ? "textarea" : "input");
 input.id = "kundenNrInput";
 input.name = "kundenNr";
-input.type = "text";
+if (useSingleLineTextarea) {
+input.rows = 1;
+input.wrap = "off";
+input.setAttribute("data-fsmobile-single-line", "");
+input.setAttribute("aria-multiline", "false");
+} else input.type = "text";
 input.autocomplete = "off";
 input.setAttribute("data-field", "kundenNr");
 input.setAttribute("aria-label", FSMOBILE_CUSTOMER_NUMBER_LABEL);
