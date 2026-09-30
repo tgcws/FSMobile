@@ -20,6 +20,55 @@
     return [...root.querySelectorAll('button,a[href],input:not([type=hidden]),select,textarea,[tabindex]')]
       .filter(el => !el.disabled && el.tabIndex >= 0 && !el.closest('[inert]') && visible(el));
   }
+  function moduleTabOrder(doc, backwards) {
+    let ordered = focusables(doc.body).filter(el => !el.matches(':disabled') && !el.readOnly &&
+      !el.closest('[hidden],[aria-hidden="true"],.pdf-render-wrapper'));
+    // CSS reorders the metadata without moving index-bound storage/PDF fields.
+    // Keep that visual order when entering a group from either direction, too.
+    function reorderGroup(group, compare) {
+      const slots = [], controls = [];
+      ordered.forEach((el, index) => { if (group.contains(el)) { slots.push(index); controls.push(el); } });
+      controls.sort(compare);
+      slots.forEach((slot, index) => { ordered[slot] = controls[index]; });
+    }
+    doc.querySelectorAll('.fsmobile-meta-grid').forEach(group => reorderGroup(group, (a, b) => {
+      const x = a.getBoundingClientRect(), y = b.getBoundingClientRect();
+      return Math.abs(x.top - y.top) > 1 ? x.top - y.top : x.left - y.left;
+    }));
+    // Finish the existing data rows before visiting their insert/delete buttons.
+    // The buttons remain in the Tab sequence and retain Enter/Space activation.
+    doc.querySelectorAll('tbody,.dynamic-list').forEach(group => reorderGroup(group, (a, b) =>
+      Number(!a.matches('input,select,textarea')) - Number(!b.matches('input,select,textarea'))));
+    // A native radio group is one Tab stop; arrow keys still select its options.
+    const radioGroups = new Map();
+    ordered.forEach(el => {
+      if (!el.matches('input[type=radio]') || !el.name) return;
+      const root = el.form || doc;
+      if (!radioGroups.has(root)) radioGroups.set(root, new Map());
+      const groups = radioGroups.get(root);
+      if (!groups.has(el.name)) groups.set(el.name, []);
+      groups.get(el.name).push(el);
+    });
+    const skipped = new Set();
+    radioGroups.forEach(groups => groups.forEach(radios => {
+      const stop = radios.find(el => el.checked) || (backwards ? radios.at(-1) : radios[0]);
+      radios.forEach(el => { if (el !== stop && el !== doc.activeElement) skipped.add(el); });
+    }));
+    return ordered.filter(el => !skipped.has(el));
+  }
+  function nextPagedRowField(win, backwards) {
+    const current = win.document.activeElement, row = current?.closest('tbody > tr');
+    const state = win.FSMOBILE_LARGE_REPORT_STATE;
+    if (!row || typeof state?.showRow !== 'function') return null;
+    const fields = focusables(row).filter(el => el.matches('input,select,textarea') && !el.readOnly && !el.matches(':disabled'));
+    if (current !== (backwards ? fields[0] : fields.at(-1))) return null;
+    const adjacent = backwards ? row.previousElementSibling : row.nextElementSibling;
+    if (!adjacent?.classList.contains('fsmobile-large-report-row-hidden')) return null;
+    // Use the report's existing page switch; never add rows or alter report data.
+    state.showRow([...row.parentElement.children].indexOf(adjacent) + 1, false);
+    const nextFields = focusables(adjacent).filter(el => el.matches('input,select,textarea') && !el.readOnly && !el.matches(':disabled'));
+    return backwards ? nextFields.at(-1) : nextFields[0];
+  }
   function lockOutside(target) {
     const changed = [];
     for (let node = target; node && node.parentElement; node = node.parentElement) {
@@ -193,15 +242,23 @@
     // Label wrapping changes with layout or structural updates, not typed values.
     // Avoid invalidating the whole form layout on every table-cell change.
     win.addEventListener('resize',scheduleLabels);css.addEventListener('load',schedule);
-    // Follow the visual metadata order without changing index-based storage/PDF bindings.
+    // Handle Tab synchronously inside the module iframe. iPad hardware-keyboard
+    // navigation must not depend on the host WebView's default focus traversal.
     doc.addEventListener('keydown',e=>{
-      if(e.key!=='Tab'||modalStack.length)return;
-      const group=e.target.closest?.('.fsmobile-meta-grid');if(!group)return;
-      const ordered=focusables(group).sort((a,b)=>{const x=a.getBoundingClientRect(),y=b.getBoundingClientRect();return Math.abs(x.top-y.top)>1?x.top-y.top:x.left-y.left;});
-      const index=ordered.indexOf(e.target),next=ordered[index+(e.shiftKey?-1:1)];
-      if(index<0)return;
-      if(next){e.preventDefault();next.focus();}
-      else {const all=focusables(doc.body),indices=ordered.map(el=>all.indexOf(el));const outside=all[(e.shiftKey?Math.min(...indices):Math.max(...indices))+(e.shiftKey?-1:1)];if(outside){e.preventDefault();outside.focus();}}
+      if(e.key!=='Tab'||e.defaultPrevented||e.altKey||e.ctrlKey||e.metaKey||e.isComposing||modalStack.length||doc.body.classList.contains('generating-pdf'))return;
+      let next=nextPagedRowField(win,e.shiftKey);
+      if(!next){
+        const ordered=moduleTabOrder(doc,e.shiftKey),index=ordered.indexOf(doc.activeElement);
+        if(index<0)return;
+        next=ordered[index+(e.shiftKey?-1:1)];
+      }
+      // At document boundaries leave the native exit to the shell available.
+      if(!next)return;
+      next.focus({preventScroll:true});
+      if(doc.activeElement!==next)return;
+      e.preventDefault();
+      // focus() alone does not reliably reveal offscreen iPad table controls.
+      next.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
     });
     win.addEventListener('click',async e=>{
       const button=e.target.closest?.('button');if(!button||button.disabled||nativeApproval.has(win))return;

@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v364";
-const APP_VERSION = "2026-09-24-v364";
-// V364 places combined-report WHD inspections after the water connection and before the result in the form and PDF.
+const CACHE_NAME = "fsmobile-v365";
+const APP_VERSION = "2026-09-30-v365";
+// V365 adds consistent Tab navigation across form fields, table rows and report row sections.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
