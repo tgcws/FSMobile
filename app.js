@@ -122,6 +122,7 @@
       modules: [
         "pb-feuerloescher",
         "pb-brandschutztueren",
+        "pb-mehrzwecktueren",
         "pb-rwa",
         "pb-not-sicherheitsbeleuchtung",
         "pb-brandschutzklappen",
@@ -192,6 +193,7 @@
     "planungshilfe-lwue-lwa": "Planungshilfe einer LWÜ oder LWA",
     "pb-feuerloescher": "Feuerlöscher",
     "pb-brandschutztueren": "Brandschutztüren",
+    "pb-mehrzwecktueren": "Mehrzwecktüren",
     "pb-rwa": "RWA-Anlagen",
     "pb-not-sicherheitsbeleuchtung": "Not-/Sicherheitsbeleuchtungen",
     "pb-brandschutzklappen": "Brandschutzklappen",
@@ -2144,6 +2146,7 @@
     const keys = {
       "pb-feuerloescher": ["pb-feuerloescher-current-v2"],
       "pb-brandschutztueren": ["pb-brandschutztueren-current-v2"],
+      "pb-mehrzwecktueren": ["pb-mehrzwecktueren-current-v1"],
       "pb-rwa": ["rwa_pruefbericht_formular_v1"],
       "pb-not-sicherheitsbeleuchtung": ["pb-not-sicherheitsbeleuchtung-current-v1"],
       "pb-brandschutzklappen": ["pb-brandschutzklappen-current-v1"],
@@ -2946,6 +2949,7 @@
 	      "planungshilfe-lwue-lwa",
 	      "pb-feuerloescher",
 	      "pb-brandschutztueren",
+	      "pb-mehrzwecktueren",
 	      "pb-druckpruefung-din-14462",
 	      "pb-loeschwasser-nass-whd",
 	      "pb-hydranten"
@@ -3582,6 +3586,7 @@ if (cell) cell.classList.add("fsm-pos-cell");
 
 var FSMOBILE_POSITION_CHECKBOX_MODULES = Object.freeze({
 "pb-brandschutztueren": true,
+"pb-mehrzwecktueren": true,
 "pb-feststellanlagen": true,
 "pb-drehfluegelantrieb": true,
 "pb-feuerloescher": true,
@@ -4061,6 +4066,7 @@ field.style.overflowY = "hidden";
 
 var FSMOBILE_TABULAR_REPORT_MODULE_IDS = Object.freeze({
 "pb-brandschutztueren": true,
+"pb-mehrzwecktueren": true,
 "pb-feststellanlagen": true,
 "pb-drehfluegelantrieb": true,
 "pb-feuerloescher": true,
@@ -4232,6 +4238,7 @@ return Boolean(FSMOBILE_PORTRAIT_REPORT_IDS[window.FSMOBILE_MODULE_ID || ""]);
 var FSMOBILE_LANDSCAPE_REMARK_REPORT_IDS = {
 "pb-feuerloescher": true,
 "pb-brandschutztueren": true,
+"pb-mehrzwecktueren": true,
 "pb-not-sicherheitsbeleuchtung": true,
 "pb-brandschutzklappen": true,
 "pb-brandschutzschiebetor": true,
@@ -4887,6 +4894,7 @@ var moduleId = window.FSMOBILE_MODULE_ID || "";
 var known = {
 "pb-feuerloescher": ["pb-feuerloescher-current-v2"],
 "pb-brandschutztueren": ["pb-brandschutztueren-current-v2"],
+"pb-mehrzwecktueren": ["pb-mehrzwecktueren-current-v1"],
 "pb-rwa": ["rwa_pruefbericht_formular_v1"],
 "pb-not-sicherheitsbeleuchtung": ["pb-not-sicherheitsbeleuchtung-current-v1"],
 "pb-brandschutzklappen": ["pb-brandschutzklappen-current-v1"],
@@ -8859,7 +8867,11 @@ var usedStructuredImport = false;
 window.__fsmobileReportImportInProgress = true;
 try {
 usedStructuredImport = applyStructuredData(sanitizeStructuredData(payload.structured));
+// Mehrzwecktüren restores the complete row structure through applyReport.
+// A flat control count can include transient controls from the exporting frame.
+if (!usedStructuredImport || window.FSMOBILE_MODULE_ID !== "pb-mehrzwecktueren") {
 await ensureEnoughControls(importFields.length);
+}
 var controls = reportControls();
 if (!usedStructuredImport) {
 applyImportedFields(controls, importFields);
@@ -9006,6 +9018,7 @@ var moduleId = String(window.FSMOBILE_MODULE_ID || "");
 var tableModuleIds = {
 "pb-feuerloescher": true,
 "pb-brandschutztueren": true,
+"pb-mehrzwecktueren": true,
 "pb-not-sicherheitsbeleuchtung": true,
 "pb-brandschutzklappen": true,
 "pb-brandschutzschiebetor": true,
@@ -9112,6 +9125,7 @@ return normalized;
 }
 
 function normalizeRow(value) {
+if (moduleId === "pb-mehrzwecktueren") return window.normalizeReportRow(value);
 if (isFire) return normalizeFireRow(value);
 if (isDoors) return normalizeDoorRow(value);
 return value && typeof value === "object" && !Array.isArray(value) ? cloneSerializable(value) : {};

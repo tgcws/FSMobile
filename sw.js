@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v369";
-const APP_VERSION = "2026-09-30-v369";
-// V369 extends single-line text controls to all reports and removes keyboard diagnostics.
+const CACHE_NAME = "fsmobile-v370";
+const APP_VERSION = "2026-10-08-v370";
+// V370 adds the independent Mehrzwecktüren report with neutral n.v status options.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
@@ -76,6 +76,7 @@ const CORE_ASSETS = [
   "./planungshilfe-bma.js",
   "./pb-feuerloescher.js",
   "./pb-brandschutztueren.js",
+  "./pb-mehrzwecktueren.js",
   "./maengel-bt-fsa.js",
   "./maengel-bsk.js",
   "./maengel-automatiktueren.js",
