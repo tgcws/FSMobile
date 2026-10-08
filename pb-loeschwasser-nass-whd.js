@@ -379,6 +379,8 @@
 
     .whd-card { margin: 14px 0; padding: 16px; border: 1px solid var(--line); border-radius: 22px; }
     .whd-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .whd-card-actions { display: flex; flex-shrink: 0; gap: 8px; }
+    .whd-card-actions button { min-width: 44px; min-height: 44px; padding: 8px 12px; font-size: 22px; }
     .whd-title { margin: 0; font-size: 20px; }
     .field-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .whd-card .check-item { display: flex; justify-content: flex-start; min-height: 46px; gap: 10px; }
@@ -648,6 +650,12 @@
     function numberWhdCard(card, number) {
       card.dataset.whdNumber = String(number);
       card.querySelector(".whd-title").textContent = \`Wandhydrant Nr. \${number}\`;
+      const addButton = card.querySelector(".whd-insert");
+      const removeButton = card.querySelector(".whd-remove");
+      addButton.title = \`Wandhydrant nach Nr. \${number} hinzufügen\`;
+      removeButton.title = \`Wandhydrant Nr. \${number} entfernen\`;
+      addButton.setAttribute("aria-label", addButton.title);
+      removeButton.setAttribute("aria-label", removeButton.title);
       card.querySelectorAll("[data-field]").forEach(field => {
         const key = field.dataset.field;
         field.id = \`whd\${number}-\${key}\`;
@@ -675,10 +683,20 @@
       const title = document.createElement("h2");
       title.className = "whd-title";
       title.textContent = \`Wandhydrant Nr. \${number}\`;
+      const actions = document.createElement("div");
+      actions.className = "whd-card-actions";
+      const addButton = document.createElement("button");
+      addButton.type = "button";
+      addButton.className = "success whd-insert";
+      addButton.textContent = "+";
+      addButton.addEventListener("click", () => {
+        const added = addWhd({}, { after: card });
+        added.querySelector('[data-field="standort"]').focus();
+      });
       const removeButton = document.createElement("button");
       removeButton.type = "button";
-      removeButton.className = "danger";
-      removeButton.textContent = "Löschen";
+      removeButton.className = "danger whd-remove";
+      removeButton.textContent = "−";
       removeButton.addEventListener("click", () => {
         if (document.querySelectorAll(".whd-card").length <= 1) {
           clearWhdCard(card);
@@ -688,7 +706,8 @@
         }
         scheduleStorageSave();
       });
-      header.append(title, removeButton);
+      actions.append(addButton, removeButton);
+      header.append(title, actions);
 
       const grid = document.createElement("div");
       grid.className = "field-grid";
@@ -789,7 +808,7 @@
       });
 
       card.append(header, grid, checkGrid);
-      list.appendChild(card);
+      list.insertBefore(card, options.after ? options.after.nextSibling : null);
       if (options.batch) {
         numberWhdCard(card, number);
       } else {

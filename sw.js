@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v370";
-const APP_VERSION = "2026-10-08-v370";
-// V370 adds the independent Mehrzwecktüren report with neutral n.v status options.
+const CACHE_NAME = "fsmobile-v371";
+const APP_VERSION = "2026-10-08-v371";
+// V371 adds per-hydrant insertion and removal to the Nass/WHD report.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;
