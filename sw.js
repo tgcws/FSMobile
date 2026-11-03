@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v372";
-const APP_VERSION = "2026-11-03-v372";
-// V372 adds the neutral BMA smoke-detector option to the curtain report.
+const CACHE_NAME = "fsmobile-v373";
+const APP_VERSION = "2026-11-03-v373";
+// V373 adds row-local not-testable smoke detector checks with compatible archive provenance.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;

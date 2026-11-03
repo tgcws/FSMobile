@@ -10985,7 +10985,7 @@ if (!result) return;
 var value = window.statusFromRow(window.readRow(activeInputRow));
 result.textContent = value;
 result.classList.toggle("bad", value === "n.i.O");
-result.classList.toggle("good", value !== "n.i.O");
+result.classList.toggle("good", value === "i.O");
 };
 window.updateResults.__fsmobileIncremental = true;
 }
