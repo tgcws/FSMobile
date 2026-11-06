@@ -1,6 +1,6 @@
-const CACHE_NAME = "fsmobile-v373";
-const APP_VERSION = "2026-11-03-v373";
-// V373 adds row-local not-testable smoke detector checks with compatible archive provenance.
+const CACHE_NAME = "fsmobile-v374";
+const APP_VERSION = "2026-11-06-v374";
+// V374 extends row-local not-testable checks to twelve reports, preserving notes, archives and PDF parity.
 const CACHE_PREFIX = "fsmobile-v";
 const CACHE_BUDGET_MIB = 45;
 const MAX_CACHE_BYTES = CACHE_BUDGET_MIB * 1024 * 1024;

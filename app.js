@@ -9107,20 +9107,20 @@ var normalized = Object.assign({}, source, {
 btNr: text(source.btNr),
 standort: text(source.standort),
 art: text(source.art),
-schliesseinrichtung: text(source.schliesseinrichtung, "i.O"),
-schloss: text(source.schloss, "i.O"),
-dichtung: text(source.dichtung, "i.O"),
+schliesseinrichtung: text(source.schliesseinrichtung == null ? "i.O" : source.schliesseinrichtung),
+schloss: text(source.schloss == null ? "i.O" : source.schloss),
+dichtung: text(source.dichtung == null ? "i.O" : source.dichtung),
 tuerfluegelAnzahl: count,
-tuerfluegel: text(source.tuerfluegel, "i.O"),
-gangfluegel: text(source.gangfluegel, "i.O"),
-standfluegel: text(source.standfluegel, "i.O"),
-schliessfolge: text(source.schliessfolge, "i.O"),
+tuerfluegel: text(source.tuerfluegel == null ? "i.O" : source.tuerfluegel),
+gangfluegel: text(source.gangfluegel == null ? "i.O" : source.gangfluegel),
+standfluegel: text(source.standfluegel == null ? "i.O" : source.standfluegel),
+schliessfolge: text(source.schliessfolge == null ? "i.O" : source.schliessfolge),
 bemerkung: text(source.bemerkung)
 });
 var resultFields = count === "2"
 ? ["schliesseinrichtung", "schloss", "dichtung", "gangfluegel", "standfluegel", "schliessfolge"]
 : ["schliesseinrichtung", "schloss", "dichtung", "tuerfluegel"];
-normalized.pruefergebnis = resultFields.some(function(key) { return normalized[key] === "n.i.O"; }) ? "n.i.O" : "i.O";
+normalized.pruefergebnis = normalized.schliesseinrichtung === "/" ? "/" : resultFields.some(function(key) { return normalized[key] === "n.i.O"; }) ? "n.i.O" : resultFields.every(function(key) { return normalized[key] === "i.O"; }) ? "i.O" : "";
 return normalized;
 }
 
